@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Anime, FavoriteCharacter, Rewatch } from '../types';
 import { X, RotateCcw, Sparkles, Star } from 'lucide-react';
 
@@ -19,6 +19,14 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [finishDate, setFinishDate] = useState('');
   const [notes, setNotes] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setRating(10);
+    setStartDate(new Date().toISOString().split('T')[0]);
+    setFinishDate('');
+    setNotes('');
+  }, [isOpen, anime]);
 
   if (!isOpen || !anime) return null;
 
@@ -145,6 +153,13 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   );
   const [name, setName] = useState('');
   const [why, setWhy] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setAnimeId(preselectedAnime ? preselectedAnime.id : animeList[0]?.id || 1);
+    setName('');
+    setWhy('');
+  }, [isOpen, preselectedAnime, animeList]);
 
   if (!isOpen) return null;
 
