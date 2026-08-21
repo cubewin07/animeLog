@@ -18,5 +18,5 @@ Frontend/dist/
 # Env / OS
 .env
 .env.local
-.DS_Store
 *.swp
+.playwright-mcp/
