@@ -1,12 +1,82 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { JournalStats } from '../types';
 import { BookOpen, Film, Lightbulb, CheckCircle2, RotateCcw } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface StatsOverviewProps {
   stats: JournalStats;
 }
 
+const StatCounter: React.FC<{ value: number }> = ({ value }) => {
+  const counterRef = useRef<HTMLDivElement>(null);
+  const countObj = useRef({ val: 0 });
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion()) {
+        if (counterRef.current) {
+          counterRef.current.textContent = String(value);
+        }
+        return;
+      }
+
+      gsap.to(countObj.current, {
+        val: value,
+        duration: 0.8,
+        ease: EASING.smooth,
+        onUpdate: () => {
+          if (counterRef.current) {
+            counterRef.current.textContent = Math.round(countObj.current.val).toString();
+          }
+        },
+      });
+    },
+    { dependencies: [value] }
+  );
+
+  return (
+    <div
+      ref={counterRef}
+      className="mono"
+      style={{
+        fontSize: '28px',
+        fontWeight: 700,
+        color: '#ffffff',
+        lineHeight: 1,
+      }}
+    >
+      {value}
+    </div>
+  );
+};
+
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !containerRef.current) return;
+
+      const cards = containerRef.current.querySelectorAll('.stat-card');
+      gsap.fromTo(
+        cards,
+        { opacity: 0, y: 18, scale: 0.96 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.45,
+          stagger: 0.06,
+          ease: EASING.spring,
+          clearProps: 'transform,opacity',
+        }
+      );
+    },
+    { scope: containerRef }
+  );
+
   const cards = [
     {
       title: 'Watching Now',
@@ -48,6 +118,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
 
   return (
     <div
+      ref={containerRef}
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -58,7 +129,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
       {cards.map((card, i) => (
         <div
           key={i}
-          className="glass-card"
+          className="glass-card stat-card"
           style={{
             padding: '16px 20px',
             display: 'flex',
@@ -86,17 +157,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ stats }) => {
           </div>
 
           <div style={{ marginTop: '12px' }}>
-            <div
-              className="mono"
-              style={{
-                fontSize: '28px',
-                fontWeight: 700,
-                color: '#ffffff',
-                lineHeight: 1,
-              }}
-            >
-              {card.value}
-            </div>
+            <StatCounter value={card.value} />
             <p style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
               {card.subtext}
             </p>

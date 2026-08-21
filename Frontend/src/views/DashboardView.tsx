@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Anime, Book, JournalStats } from '../types';
 import { StatsOverview } from '../components/StatsOverview';
 import { AnimeCard } from '../components/AnimeCard';
 import { BookCard } from '../components/BookCard';
-import { BookOpen, Film, Lightbulb, ArrowRight, Quote } from 'lucide-react';
+import { Lightbulb, ArrowRight, Quote } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface DashboardViewProps {
   stats: JournalStats;
@@ -34,6 +37,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onDeleteBook,
   onProgressBook,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const activeAnime = animeList.filter((a) => a.status === 'WATCHING');
   const activeBooks = bookList.filter((b) => b.status === 'READING');
 
@@ -59,8 +63,49 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       })),
   ].slice(0, 3);
 
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !containerRef.current) return;
+
+      const activeItems = containerRef.current.querySelectorAll('.dashboard-active-item');
+      if (activeItems.length > 0) {
+        gsap.fromTo(
+          activeItems,
+          { opacity: 0, y: 20 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.45,
+            stagger: 0.08,
+            ease: EASING.smooth,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+
+      const lessonItems = containerRef.current.querySelectorAll('.spotlight-card');
+      if (lessonItems.length > 0) {
+        gsap.fromTo(
+          lessonItems,
+          { opacity: 0, y: 24, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.5,
+            delay: 0.1,
+            stagger: 0.08,
+            ease: EASING.spring,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: containerRef, dependencies: [activeAnime.length, activeBooks.length] }
+  );
+
   return (
-    <div>
+    <div ref={containerRef}>
       {/* Metrics Banner */}
       <StatsOverview stats={stats} />
 
@@ -110,24 +155,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             }}
           >
             {activeAnime.map((a) => (
-              <AnimeCard
-                key={a.id}
-                anime={a}
-                onEdit={onEditAnime}
-                onDelete={onDeleteAnime}
-                onProgressDelta={onProgressAnime}
-                onAddRewatch={onAddRewatch}
-                onAddCharacter={onAddCharacter}
-              />
+              <div key={a.id} className="dashboard-active-item">
+                <AnimeCard
+                  anime={a}
+                  onEdit={onEditAnime}
+                  onDelete={onDeleteAnime}
+                  onProgressDelta={onProgressAnime}
+                  onAddRewatch={onAddRewatch}
+                  onAddCharacter={onAddCharacter}
+                />
+              </div>
             ))}
             {activeBooks.map((b) => (
-              <BookCard
-                key={b.id}
-                book={b}
-                onEdit={onEditBook}
-                onDelete={onDeleteBook}
-                onProgressDelta={onProgressBook}
-              />
+              <div key={b.id} className="dashboard-active-item">
+                <BookCard
+                  book={b}
+                  onEdit={onEditBook}
+                  onDelete={onDeleteBook}
+                  onProgressDelta={onProgressBook}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -167,7 +214,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {mediaWithLessons.map((item, i) => (
             <div
               key={i}
-              className="glass-card"
+              className="glass-card spotlight-card"
               style={{
                 padding: '20px',
                 display: 'flex',

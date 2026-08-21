@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
-import { Book, BookStatus } from '../types';
+import React, { useState, useRef } from 'react';
+import { Book } from '../types';
 import { BookCard } from '../components/BookCard';
 import { Plus, BookOpen } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface BookViewProps {
   bookList: Book[];
@@ -21,6 +24,7 @@ export const BookView: React.FC<BookViewProps> = ({
   onOpenNewModal,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const contentAreaRef = useRef<HTMLDivElement>(null);
 
   const filterTabs: { id: string; label: string; count: number }[] = [
     { id: 'ALL', label: 'All Books', count: bookList.length },
@@ -62,6 +66,30 @@ export const BookView: React.FC<BookViewProps> = ({
 
     return matchesStatus && matchesSearch;
   });
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !contentAreaRef.current) return;
+
+      const cards = contentAreaRef.current.querySelectorAll('.book-grid-card');
+      if (cards.length > 0) {
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 16, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.4,
+            stagger: 0.05,
+            ease: EASING.smooth,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: contentAreaRef, dependencies: [selectedStatus, filtered.length, searchQuery] }
+  );
 
   return (
     <div>
@@ -140,43 +168,46 @@ export const BookView: React.FC<BookViewProps> = ({
       </div>
 
       {/* Cards Grid */}
-      {filtered.length === 0 ? (
-        <div
-          className="glass-card"
-          style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
-        >
-          <BookOpen size={36} color="var(--color-accent-cyan)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
-          <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
-            No Books Found
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
-            {searchQuery
-              ? `No books match "${searchQuery}". Try refining your search query.`
-              : 'There are no book entries under this filter yet.'}
-          </p>
-          <button className="btn btn-secondary" onClick={onOpenNewModal}>
-            <Plus size={15} /> Log Your First Book
-          </button>
-        </div>
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: '20px',
-          }}
-        >
-          {filtered.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onProgressDelta={onProgressDelta}
-            />
-          ))}
-        </div>
-      )}
+      <div ref={contentAreaRef}>
+        {filtered.length === 0 ? (
+          <div
+            className="glass-card"
+            style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
+          >
+            <BookOpen size={36} color="var(--color-accent-cyan)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
+            <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
+              No Books Found
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
+              {searchQuery
+                ? `No books match "${searchQuery}". Try refining your search query.`
+                : 'There are no book entries under this filter yet.'}
+            </p>
+            <button className="btn btn-secondary" onClick={onOpenNewModal}>
+              <Plus size={15} /> Log Your First Book
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '20px',
+            }}
+          >
+            {filtered.map((book) => (
+              <div key={book.id} className="book-grid-card">
+                <BookCard
+                  book={book}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onProgressDelta={onProgressDelta}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

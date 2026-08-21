@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Anime, FavoriteCharacter, Rewatch } from '../types';
-import { X, RotateCcw, Sparkles, Star } from 'lucide-react';
+import { X, RotateCcw, Sparkles } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface RewatchModalProps {
   isOpen: boolean;
@@ -19,6 +22,8 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [finishDate, setFinishDate] = useState('');
   const [notes, setNotes] = useState('');
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -27,6 +32,23 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
     setFinishDate('');
     setNotes('');
   }, [isOpen, anime]);
+
+  useGSAP(
+    () => {
+      if (!isOpen || prefersReducedMotion()) return;
+      if (overlayRef.current) {
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+      }
+      if (modalRef.current) {
+        gsap.fromTo(
+          modalRef.current,
+          { opacity: 0, scale: 0.94, y: 16 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASING.spring }
+        );
+      }
+    },
+    { dependencies: [isOpen] }
+  );
 
   if (!isOpen || !anime) return null;
 
@@ -43,8 +65,8 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-container" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+    <div ref={overlayRef} className="modal-overlay" onClick={onClose}>
+      <div ref={modalRef} className="modal-container" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
         <div
           style={{
             padding: '16px 20px',
@@ -153,6 +175,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   );
   const [name, setName] = useState('');
   const [why, setWhy] = useState('');
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -160,6 +184,23 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     setName('');
     setWhy('');
   }, [isOpen, preselectedAnime, animeList]);
+
+  useGSAP(
+    () => {
+      if (!isOpen || prefersReducedMotion()) return;
+      if (overlayRef.current) {
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+      }
+      if (modalRef.current) {
+        gsap.fromTo(
+          modalRef.current,
+          { opacity: 0, scale: 0.94, y: 16 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASING.spring }
+        );
+      }
+    },
+    { dependencies: [isOpen] }
+  );
 
   if (!isOpen) return null;
 
@@ -175,8 +216,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-container" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
+    <div ref={overlayRef} className="modal-overlay" onClick={onClose}>
+      <div ref={modalRef} className="modal-container" style={{ maxWidth: '500px' }} onClick={(e) => e.stopPropagation()}>
         <div
           style={{
             padding: '16px 20px',

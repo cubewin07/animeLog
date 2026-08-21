@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Anime, AnimeStatus, Book, BookStatus, Genre, Studio } from '../types';
-import { X, Film, BookOpen, Star, Lightbulb } from 'lucide-react';
+import { X, Film, BookOpen, Lightbulb } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface EntryModalProps {
   isOpen: boolean;
@@ -39,6 +42,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
   const [selectedStudioIds, setSelectedStudioIds] = useState<number[]>([]);
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (editItem) {
       setTitle(editItem.title || '');
@@ -74,6 +80,24 @@ export const EntryModal: React.FC<EntryModalProps> = ({
       setSelectedStudioIds([]);
     }
   }, [editItem, defaultType, isOpen]);
+
+  useGSAP(
+    () => {
+      if (!isOpen || prefersReducedMotion()) return;
+
+      if (overlayRef.current) {
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+      }
+      if (modalRef.current) {
+        gsap.fromTo(
+          modalRef.current,
+          { opacity: 0, scale: 0.94, y: 16 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASING.spring }
+        );
+      }
+    },
+    { dependencies: [isOpen] }
+  );
 
   if (!isOpen) return null;
 
@@ -133,8 +157,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+    <div ref={overlayRef} className="modal-overlay" onClick={onClose}>
+      <div ref={modalRef} className="modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div
           style={{

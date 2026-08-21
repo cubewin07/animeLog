@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ActiveTab, Anime, Book, FavoriteCharacter, Genre, JournalStats, Rewatch, Studio } from './types';
 import {
   animeApi,
@@ -19,11 +19,15 @@ import { BookView } from './views/BookView';
 import { CharactersView } from './views/CharactersView';
 import { RewatchesView } from './views/RewatchesView';
 import { Loader2 } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from './utils/animations';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const viewContainerRef = useRef<HTMLDivElement>(null);
 
   // Data states
   const [animeList, setAnimeList] = useState<Anime[]>([]);
@@ -98,6 +102,26 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Tab View Transition Animation
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !viewContainerRef.current) return;
+
+      gsap.fromTo(
+        viewContainerRef.current,
+        { opacity: 0, y: 14 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.35,
+          ease: EASING.smooth,
+          clearProps: 'transform,opacity',
+        }
+      );
+    },
+    { scope: viewContainerRef, dependencies: [activeTab, loading] }
+  );
 
   // Refresh stats helper
   const refreshStats = async () => {
@@ -330,7 +354,7 @@ export const App: React.FC = () => {
             <p style={{ fontSize: '14px' }}>Loading your reflections & journal...</p>
           </div>
         ) : (
-          <>
+          <div ref={viewContainerRef}>
             {activeTab === 'dashboard' && (
               <DashboardView
                 stats={stats}
@@ -396,7 +420,7 @@ export const App: React.FC = () => {
                 }}
               />
             )}
-          </>
+          </div>
         )}
       </main>
 

@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Anime } from '../types';
 import { AnimeCard } from '../components/AnimeCard';
 import { SeriesTableView } from '../components/SeriesTableView';
 import { Plus, Film, LayoutGrid, List } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface AnimeViewProps {
   animeList: Anime[];
@@ -27,6 +30,8 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentAreaRef = useRef<HTMLDivElement>(null);
 
   const filterTabs: { id: string; label: string; count: number }[] = [
     { id: 'ALL', label: 'All Series', count: animeList.length },
@@ -69,8 +74,33 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
     return matchesStatus && matchesSearch;
   });
 
+  // Stagger cards or content when filter/viewMode changes
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !contentAreaRef.current) return;
+
+      const cards = contentAreaRef.current.querySelectorAll('.anime-grid-card');
+      if (cards.length > 0) {
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 16, scale: 0.98 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.4,
+            stagger: 0.05,
+            ease: EASING.smooth,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: contentAreaRef, dependencies: [selectedStatus, viewMode, filtered.length, searchQuery] }
+  );
+
   return (
-    <div>
+    <div ref={containerRef}>
       {/* Header & Controls Row */}
       <div
         style={{
@@ -200,53 +230,56 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       </div>
 
       {/* Main Content: Table or Cards */}
-      {filtered.length === 0 ? (
-        <div
-          className="glass-card"
-          style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
-        >
-          <Film size={36} color="var(--color-primary)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
-          <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
-            No Anime Found
-          </h3>
-          <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
-            {searchQuery
-              ? `No entries match "${searchQuery}". Try refining your search query.`
-              : 'There are no series under this status filter yet.'}
-          </p>
-          <button className="btn btn-secondary" onClick={onOpenNewModal}>
-            <Plus size={15} /> Log Your First Series
-          </button>
-        </div>
-      ) : viewMode === 'table' ? (
-        <SeriesTableView
-          animeList={filtered}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onProgressDelta={onProgressDelta}
-          onAddRewatch={onAddRewatch}
-        />
-      ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: '20px',
-          }}
-        >
-          {filtered.map((anime) => (
-            <AnimeCard
-              key={anime.id}
-              anime={anime}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onProgressDelta={onProgressDelta}
-              onAddRewatch={onAddRewatch}
-              onAddCharacter={onAddCharacter}
-            />
-          ))}
-        </div>
-      )}
+      <div ref={contentAreaRef}>
+        {filtered.length === 0 ? (
+          <div
+            className="glass-card"
+            style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
+          >
+            <Film size={36} color="var(--color-primary)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
+            <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
+              No Anime Found
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
+              {searchQuery
+                ? `No entries match "${searchQuery}". Try refining your search query.`
+                : 'There are no series under this status filter yet.'}
+            </p>
+            <button className="btn btn-secondary" onClick={onOpenNewModal}>
+              <Plus size={15} /> Log Your First Series
+            </button>
+          </div>
+        ) : viewMode === 'table' ? (
+          <SeriesTableView
+            animeList={filtered}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onProgressDelta={onProgressDelta}
+            onAddRewatch={onAddRewatch}
+          />
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '20px',
+            }}
+          >
+            {filtered.map((anime) => (
+              <div key={anime.id} className="anime-grid-card">
+                <AnimeCard
+                  anime={anime}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onProgressDelta={onProgressDelta}
+                  onAddRewatch={onAddRewatch}
+                  onAddCharacter={onAddCharacter}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Anime } from '../types';
 import {
   Star,
@@ -9,9 +9,10 @@ import {
   RotateCcw,
   ArrowUpDown,
   BookOpen,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface SeriesTableViewProps {
   animeList: Anime[];
@@ -34,6 +35,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
   const [sortField, setSortField] = useState<SortField>('rating');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -63,6 +65,29 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
     }
     return sortOrder === 'asc' ? comparison : -comparison;
   });
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !tableBodyRef.current) return;
+
+      const rows = tableBodyRef.current.querySelectorAll('.table-row-item');
+      if (rows.length > 0) {
+        gsap.fromTo(
+          rows,
+          { opacity: 0, x: -8 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.3,
+            stagger: 0.03,
+            ease: EASING.gentle,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: tableBodyRef, dependencies: [sortField, sortOrder, animeList.length] }
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -239,7 +264,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
               </th>
             </tr>
           </thead>
-          <tbody>
+          <tbody ref={tableBodyRef}>
             {sortedList.map((anime) => {
               const seasonLabel = parseSeason(anime.title);
               const progressPct =
@@ -259,7 +284,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                       background: isNotesOpen ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
                       transition: 'background 0.15s ease',
                     }}
-                    className="table-row-hover"
+                    className="table-row-hover table-row-item"
                   >
                     {/* Series Title */}
                     <td style={{ padding: '14px 18px' }}>

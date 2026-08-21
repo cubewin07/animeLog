@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Rewatch } from '../types';
 import { RotateCcw, Star, Calendar, Trash2, Film, Quote } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface RewatchTimelineProps {
   rewatches: Rewatch[];
@@ -8,6 +11,31 @@ interface RewatchTimelineProps {
 }
 
 export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onDelete }) => {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !listRef.current) return;
+
+      const items = listRef.current.querySelectorAll('.rewatch-timeline-item');
+      if (items.length > 0) {
+        gsap.fromTo(
+          items,
+          { opacity: 0, x: -16 },
+          {
+            opacity: 1,
+            x: 0,
+            duration: 0.4,
+            stagger: 0.06,
+            ease: EASING.smooth,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: listRef, dependencies: [rewatches.length] }
+  );
+
   if (rewatches.length === 0) {
     return (
       <div
@@ -30,11 +58,11 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {rewatches.map((r) => (
         <div
           key={r.id}
-          className="glass-card"
+          className="glass-card rewatch-timeline-item"
           style={{
             padding: '20px',
             display: 'flex',
