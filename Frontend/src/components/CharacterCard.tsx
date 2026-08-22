@@ -33,7 +33,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
           </div>
           <div>
             <h3 style={{ fontSize: '17px', color: '#ffffff' }}>{character.name}</h3>
-            {character.anime_title && (
+            {character.series_title && (
               <span
                 style={{
                   fontSize: '12px',
@@ -44,7 +44,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
                   marginTop: '2px',
                 }}
               >
-                <Film size={12} /> {character.anime_title}
+                <Film size={12} /> {character.series_title}
               </span>
             )}
           </div>
@@ -84,7 +84,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
           </span>
         </div>
         <p style={{ fontSize: '13px', color: '#d4e4fa', lineHeight: '1.6', fontStyle: 'italic' }}>
-          "{character.why || 'A character that made an impression.'}"
+          "{character.why || 'A character that made a lasting impression.'}"
         </p>
       </div>
     </div>

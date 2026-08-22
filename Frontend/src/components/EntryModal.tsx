@@ -1,36 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Anime, AnimeStatus, Book, BookStatus, Genre, Studio } from '../types';
-import { X, Film, BookOpen, Lightbulb } from 'lucide-react';
+import {
+  AnimeMovie,
+  AnimeSeason,
+  AnimeSeries,
+  AnimeStatus,
+  Book,
+  BookStatus,
+  Genre,
+  Studio,
+} from '../types';
+import { X, Film, BookOpen, Lightbulb, Tv, Clapperboard, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 
+export type EntryModalMode =
+  | 'new-franchise'
+  | 'add-season'
+  | 'add-movie'
+  | 'book'
+  | 'edit-series'
+  | 'edit-season'
+  | 'edit-movie'
+  | 'edit-book';
+
 interface EntryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveAnime: (data: Omit<Anime, 'id' | 'created_at'>, id?: number) => void;
-  onSaveBook: (data: Omit<Book, 'id' | 'created_at'>, id?: number) => void;
-  editItem?: Anime | Book | null;
-  defaultType?: 'anime' | 'book';
+  mode?: EntryModalMode;
+  editTarget?: {
+    type: 'series' | 'season' | 'movie' | 'book';
+    data: any;
+  } | null;
+  targetSeries?: AnimeSeries | null;
+  seriesList: AnimeSeries[];
   genres: Genre[];
   studios: Studio[];
+  onSaveSeries: (data: { title: string; genres: number[]; initial_season?: any }, id?: number) => Promise<void>;
+  onSaveSeason: (data: any, id?: number) => Promise<void>;
+  onSaveMovie: (data: any, id?: number) => Promise<void>;
+  onSaveBook: (data: any, id?: number) => Promise<void>;
 }
 
 export const EntryModal: React.FC<EntryModalProps> = ({
   isOpen,
   onClose,
-  onSaveAnime,
-  onSaveBook,
-  editItem,
-  defaultType = 'anime',
+  mode = 'new-franchise',
+  editTarget,
+  targetSeries,
+  seriesList,
   genres,
   studios,
+  onSaveSeries,
+  onSaveSeason,
+  onSaveMovie,
+  onSaveBook,
 }) => {
-  const isEditing = !!editItem;
-  const initialType = editItem ? ('total_pages' in editItem ? 'book' : 'anime') : defaultType;
+  const [activeTab, setActiveTab] = useState<EntryModalMode>(mode);
 
-  const [entryType, setEntryType] = useState<'anime' | 'book'>(initialType);
+  // Form states
+  const [seriesId, setSeriesId] = useState<number>(1);
   const [title, setTitle] = useState('');
+  const [seasonTitle, setSeasonTitle] = useState('Season 1');
+  const [seasonNumber, setSeasonNumber] = useState<number>(1);
   const [author, setAuthor] = useState('');
   const [status, setStatus] = useState<string>('WATCHING');
   const [rating, setRating] = useState<number | null>(null);
@@ -41,35 +73,66 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [notes, setNotes] = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
   const [selectedStudioIds, setSelectedStudioIds] = useState<number[]>([]);
+  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (editItem) {
-      setTitle(editItem.title || '');
-      setStatus(editItem.status || 'WATCHING');
-      setRating(editItem.rating || null);
-      setProgress(editItem.progress || 0);
-      setStartDate(editItem.start_date || '');
-      setFinishDate(editItem.finish_date || '');
-      setNotes(editItem.notes || '');
-      setSelectedGenreIds(editItem.genres ? editItem.genres.map((g) => g.id) : []);
+    if (!isOpen) return;
+    setErrorMsg('');
+    setActiveTab(mode);
 
-      if ('total_pages' in editItem) {
-        setEntryType('book');
-        setAuthor(editItem.author || '');
-        setTotalCount(editItem.total_pages ?? '');
-      } else {
-        setEntryType('anime');
-        setTotalCount(editItem.total_episodes ?? '');
-        setSelectedStudioIds(editItem.studios ? editItem.studios.map((s) => s.id) : []);
+    if (editTarget) {
+      const { type, data } = editTarget;
+      if (type === 'series') {
+        setTitle(data.title || '');
+        setSelectedGenreIds(data.genres ? data.genres.map((g: Genre) => g.id) : []);
+      } else if (type === 'season') {
+        setSeriesId(data.series);
+        setTitle(data.title || '');
+        setSeasonNumber(data.season_number || 1);
+        setStatus(data.status || 'WATCHING');
+        setRating(data.rating || null);
+        setProgress(data.progress || 0);
+        setTotalCount(data.total_episodes ?? '');
+        setStartDate(data.start_date || '');
+        setFinishDate(data.finish_date || '');
+        setNotes(data.notes || '');
+        setSelectedStudioIds(data.studios ? data.studios.map((s: Studio) => s.id) : []);
+      } else if (type === 'movie') {
+        setSeriesId(data.series);
+        setTitle(data.title || '');
+        setStatus(data.status || 'WATCHING');
+        setRating(data.rating || null);
+        setProgress(data.progress_minutes || 0);
+        setTotalCount(data.total_minutes ?? '');
+        setStartDate(data.start_date || '');
+        setFinishDate(data.finish_date || '');
+        setNotes(data.notes || '');
+        setSelectedStudioIds(data.studios ? data.studios.map((s: Studio) => s.id) : []);
+      } else if (type === 'book') {
+        setTitle(data.title || '');
+        setAuthor(data.author || '');
+        setStatus(data.status || 'READING');
+        setRating(data.rating || null);
+        setProgress(data.progress || 0);
+        setTotalCount(data.total_pages ?? '');
+        setStartDate(data.start_date || '');
+        setFinishDate(data.finish_date || '');
+        setNotes(data.notes || '');
+        setSelectedGenreIds(data.genres ? data.genres.map((g: Genre) => g.id) : []);
       }
     } else {
-      setEntryType(defaultType);
+      // New creation defaults
+      const chosenSeriesId = targetSeries ? targetSeries.id : seriesList[0]?.id || 1;
+      setSeriesId(chosenSeriesId);
       setTitle('');
+      setSeasonTitle('Season 1');
+      setSeasonNumber(1);
       setAuthor('');
-      setStatus(defaultType === 'anime' ? 'WATCHING' : 'READING');
+      setStatus(mode === 'book' ? 'READING' : 'WATCHING');
       setRating(null);
       setProgress(0);
       setTotalCount('');
@@ -79,12 +142,11 @@ export const EntryModal: React.FC<EntryModalProps> = ({
       setSelectedGenreIds([]);
       setSelectedStudioIds([]);
     }
-  }, [editItem, defaultType, isOpen]);
+  }, [isOpen, mode, editTarget, targetSeries, seriesList]);
 
   useGSAP(
     () => {
       if (!isOpen || prefersReducedMotion()) return;
-
       if (overlayRef.current) {
         gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
       }
@@ -101,6 +163,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isEditing = !!editTarget;
+
   const handleToggleGenre = (id: number) => {
     setSelectedGenreIds((prev) =>
       prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
@@ -113,53 +177,170 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    setErrorMsg('');
 
-    const chosenGenres = genres.filter((g) => selectedGenreIds.includes(g.id));
-    const chosenStudios = studios.filter((s) => selectedStudioIds.includes(s.id));
+    try {
+      setSubmitting(true);
 
-    if (entryType === 'anime') {
-      onSaveAnime(
-        {
+      if (activeTab === 'new-franchise') {
+        if (!title.trim()) {
+          setErrorMsg('Franchise title is required.');
+          return;
+        }
+        await onSaveSeries({
           title: title.trim(),
-          status: status as AnimeStatus,
-          rating,
+          genres: selectedGenreIds,
+          initial_season: {
+            title: seasonTitle.trim() || 'Season 1',
+            season_number: 1,
+            status,
+            progress: Number(progress) || 0,
+            total_episodes: totalCount !== '' ? Number(totalCount) : null,
+            rating,
+            start_date: startDate || null,
+            finish_date: finishDate || null,
+            notes: notes.trim() || null,
+            studios: selectedStudioIds,
+          },
+        });
+      } else if (activeTab === 'add-season') {
+        if (!title.trim()) {
+          setErrorMsg('Season title is required.');
+          return;
+        }
+        await onSaveSeason({
+          series: seriesId,
+          title: title.trim(),
+          season_number: Number(seasonNumber) || 1,
+          status,
           progress: Number(progress) || 0,
           total_episodes: totalCount !== '' ? Number(totalCount) : null,
-          start_date: startDate || null,
-          finish_date: finishDate || null,
-          notes: notes.trim() || null,
-          genres: chosenGenres,
-          studios: chosenStudios,
-        },
-        editItem?.id
-      );
-    } else {
-      onSaveBook(
-        {
-          title: title.trim(),
-          author: author.trim() || null,
-          status: status as BookStatus,
           rating,
-          progress: Number(progress) || 0,
-          total_pages: totalCount !== '' ? Number(totalCount) : null,
           start_date: startDate || null,
           finish_date: finishDate || null,
           notes: notes.trim() || null,
-          genres: chosenGenres,
-        },
-        editItem?.id
-      );
+          studios: selectedStudioIds,
+        });
+      } else if (activeTab === 'add-movie') {
+        if (!title.trim()) {
+          setErrorMsg('Film title is required.');
+          return;
+        }
+        await onSaveMovie({
+          series: seriesId,
+          title: title.trim(),
+          status,
+          progress_minutes: Number(progress) || 0,
+          total_minutes: totalCount !== '' ? Number(totalCount) : null,
+          rating,
+          start_date: startDate || null,
+          finish_date: finishDate || null,
+          notes: notes.trim() || null,
+          studios: selectedStudioIds,
+        });
+      } else if (activeTab === 'book' || activeTab === 'edit-book') {
+        if (!title.trim()) {
+          setErrorMsg('Book title is required.');
+          return;
+        }
+        await onSaveBook(
+          {
+            title: title.trim(),
+            author: author.trim() || null,
+            status: status as BookStatus,
+            rating,
+            progress: Number(progress) || 0,
+            total_pages: totalCount !== '' ? Number(totalCount) : null,
+            start_date: startDate || null,
+            finish_date: finishDate || null,
+            notes: notes.trim() || null,
+            genres: selectedGenreIds,
+          },
+          editTarget?.data?.id
+        );
+      } else if (activeTab === 'edit-series') {
+        if (!title.trim()) {
+          setErrorMsg('Franchise title is required.');
+          return;
+        }
+        await onSaveSeries(
+          {
+            title: title.trim(),
+            genres: selectedGenreIds,
+          },
+          editTarget?.data?.id
+        );
+      } else if (activeTab === 'edit-season') {
+        if (!title.trim()) {
+          setErrorMsg('Season title is required.');
+          return;
+        }
+        await onSaveSeason(
+          {
+            series: seriesId,
+            title: title.trim(),
+            season_number: Number(seasonNumber),
+            status,
+            progress: Number(progress) || 0,
+            total_episodes: totalCount !== '' ? Number(totalCount) : null,
+            rating,
+            start_date: startDate || null,
+            finish_date: finishDate || null,
+            notes: notes.trim() || null,
+            studios: selectedStudioIds,
+          },
+          editTarget?.data?.id
+        );
+      } else if (activeTab === 'edit-movie') {
+        if (!title.trim()) {
+          setErrorMsg('Film title is required.');
+          return;
+        }
+        await onSaveMovie(
+          {
+            series: seriesId,
+            title: title.trim(),
+            status,
+            progress_minutes: Number(progress) || 0,
+            total_minutes: totalCount !== '' ? Number(totalCount) : null,
+            rating,
+            start_date: startDate || null,
+            finish_date: finishDate || null,
+            notes: notes.trim() || null,
+            studios: selectedStudioIds,
+          },
+          editTarget?.data?.id
+        );
+      }
+
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error saving journal entry.');
+    } finally {
+      setSubmitting(false);
     }
-    onClose();
+  };
+
+  const getHeaderTitle = () => {
+    if (isEditing) {
+      if (editTarget?.type === 'series') return 'Edit Franchise';
+      if (editTarget?.type === 'season') return `Edit Season: ${editTarget.data.title}`;
+      if (editTarget?.type === 'movie') return `Edit Film: ${editTarget.data.title}`;
+      if (editTarget?.type === 'book') return `Edit Book: ${editTarget.data.title}`;
+    }
+    if (activeTab === 'new-franchise') return 'Log New Anime Franchise';
+    if (activeTab === 'add-season') return 'Add TV Season';
+    if (activeTab === 'add-movie') return 'Add Anime Film';
+    if (activeTab === 'book') return 'Log Book Entry';
+    return 'Log Journal Entry';
   };
 
   return (
     <div ref={overlayRef} className="modal-overlay" onClick={onClose}>
       <div ref={modalRef} className="modal-container" onClick={(e) => e.stopPropagation()}>
-        {/* Modal Header */}
+        {/* Header */}
         <div
           style={{
             padding: '20px 24px',
@@ -182,11 +363,15 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                 justifyContent: 'center',
               }}
             >
-              {entryType === 'anime' ? <Film size={18} /> : <BookOpen size={18} />}
+              {activeTab === 'book' || activeTab === 'edit-book' ? (
+                <BookOpen size={18} />
+              ) : activeTab === 'add-movie' || activeTab === 'edit-movie' ? (
+                <Clapperboard size={18} />
+              ) : (
+                <Film size={18} />
+              )}
             </div>
-            <h2 style={{ fontSize: '18px', color: '#ffffff' }}>
-              {isEditing ? `Edit ${entryType === 'anime' ? 'Anime' : 'Book'}` : 'Log New Journey'}
-            </h2>
+            <h2 style={{ fontSize: '18px', color: '#ffffff' }}>{getHeaderTitle()}</h2>
           </div>
 
           <button className="btn-icon" onClick={onClose}>
@@ -194,52 +379,119 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
-          {/* Media Type Selector (When not editing) */}
-          {!isEditing && (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className={`btn ${entryType === 'anime' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ flex: 1 }}
-                onClick={() => {
-                  setEntryType('anime');
-                  setStatus('WATCHING');
-                }}
-              >
-                <Film size={16} /> Anime Entry
-              </button>
-              <button
-                type="button"
-                className={`btn ${entryType === 'book' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ flex: 1 }}
-                onClick={() => {
-                  setEntryType('book');
-                  setStatus('READING');
-                }}
-              >
-                <BookOpen size={16} /> Book Entry
-              </button>
+        {/* Mode Selector for New Entries */}
+        {!isEditing && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '6px',
+              padding: '12px 24px 0 24px',
+              overflowX: 'auto',
+            }}
+          >
+            <button
+              type="button"
+              className={`btn ${activeTab === 'new-franchise' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setActiveTab('new-franchise')}
+            >
+              <Film size={14} /> New Franchise
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeTab === 'add-season' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setActiveTab('add-season')}
+            >
+              <Tv size={14} /> + Season
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeTab === 'add-movie' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setActiveTab('add-movie')}
+            >
+              <Clapperboard size={14} /> + Film
+            </button>
+            <button
+              type="button"
+              className={`btn ${activeTab === 'book' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setActiveTab('book')}
+            >
+              <BookOpen size={14} /> Book
+            </button>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {errorMsg && (
+            <div
+              style={{
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(251, 113, 133, 0.15)',
+                border: '1px solid rgba(251, 113, 133, 0.3)',
+                color: '#fb7185',
+                fontSize: '12px',
+              }}
+            >
+              {errorMsg}
             </div>
           )}
 
-          {/* Title */}
+          {/* Franchise Selector when adding season/movie */}
+          {(activeTab === 'add-season' || activeTab === 'add-movie') && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                Target Franchise <span style={{ color: '#fb7185' }}>*</span>
+              </label>
+              <select
+                value={seriesId}
+                onChange={(e) => setSeriesId(Number(e.target.value))}
+                className="form-select"
+              >
+                {seriesList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Primary Title */}
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-              Title <span style={{ color: '#fb7185' }}>*</span>
+              {activeTab === 'new-franchise' || activeTab === 'edit-series'
+                ? 'Franchise Title'
+                : activeTab === 'add-season' || activeTab === 'edit-season'
+                ? 'Season Title'
+                : activeTab === 'add-movie' || activeTab === 'edit-movie'
+                ? 'Film Title'
+                : 'Book Title'}{' '}
+              <span style={{ color: '#fb7185' }}>*</span>
             </label>
             <input
               type="text"
               required
-              placeholder={entryType === 'anime' ? 'e.g. Frieren, Steins;Gate...' : 'e.g. Dune, Meditations...'}
+              placeholder={
+                activeTab === 'new-franchise'
+                  ? 'e.g. Frieren: Beyond Journey\'s End, Attack on Titan'
+                  : activeTab === 'add-season'
+                  ? 'e.g. Season 2, Entertainment District Arc'
+                  : activeTab === 'add-movie'
+                  ? 'e.g. Mugen Train, Load Region of Déjà Vu'
+                  : 'e.g. Dune, Meditations'
+              }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="form-input"
             />
           </div>
 
-          {/* Author (if Book) */}
-          {entryType === 'book' && (
+          {/* Author if Book */}
+          {(activeTab === 'book' || activeTab === 'edit-book') && (
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
                 Author
@@ -254,142 +506,193 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* Status & Rating */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Status
-              </label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-select">
-                {entryType === 'anime' ? (
-                  <>
-                    <option value="WATCHING">Watching</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="PLAN_TO_WATCH">Plan to Watch</option>
-                    <option value="ON_HOLD">On Hold</option>
-                    <option value="DROPPED">Dropped</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="READING">Reading</option>
-                    <option value="COMPLETED">Completed</option>
-                    <option value="PLAN_TO_READ">Plan to Read</option>
-                    <option value="ON_HOLD">On Hold</option>
-                    <option value="DROPPED">Dropped</option>
-                  </>
-                )}
-              </select>
+          {/* Initial Season Name if New Franchise */}
+          {activeTab === 'new-franchise' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  Initial TV Season Title
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Season 1"
+                  value={seasonTitle}
+                  onChange={(e) => setSeasonTitle(e.target.value)}
+                  className="form-input"
+                />
+              </div>
             </div>
+          )}
 
+          {/* Season Number if Season */}
+          {(activeTab === 'add-season' || activeTab === 'edit-season') && (
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Rating (1 - 10)
-              </label>
-              <select
-                value={rating !== null ? rating : ''}
-                onChange={(e) => setRating(e.target.value === '' ? null : Number(e.target.value))}
-                className="form-select"
-              >
-                <option value="">No rating (unrated)</option>
-                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    ★ {n} / 10
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Progress & Total */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                {entryType === 'anime' ? 'Episodes Watched' : 'Pages Read'}
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={progress}
-                onChange={(e) => setProgress(Number(e.target.value))}
-                className="form-input mono"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                {entryType === 'anime' ? 'Total Episodes' : 'Total Pages'} (optional)
+                Season Number
               </label>
               <input
                 type="number"
                 min="1"
-                placeholder="e.g. 24 or 350"
-                value={totalCount}
-                onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
+                required
+                value={seasonNumber}
+                onChange={(e) => setSeasonNumber(Number(e.target.value))}
                 className="form-input mono"
               />
             </div>
-          </div>
+          )}
+
+          {/* Status & Rating (For Releases and Books) */}
+          {activeTab !== 'edit-series' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  Status
+                </label>
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-select">
+                  {activeTab === 'book' || activeTab === 'edit-book' ? (
+                    <>
+                      <option value="READING">Reading</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="PLAN_TO_READ">Plan to Read</option>
+                      <option value="ON_HOLD">On Hold</option>
+                      <option value="DROPPED">Dropped</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="WATCHING">Watching</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="PLAN_TO_WATCH">Plan to Watch</option>
+                      <option value="ON_HOLD">On Hold</option>
+                      <option value="DROPPED">Dropped</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  Rating (1 - 10)
+                </label>
+                <select
+                  value={rating !== null ? rating : ''}
+                  onChange={(e) => setRating(e.target.value === '' ? null : Number(e.target.value))}
+                  className="form-select"
+                >
+                  <option value="">No rating (unrated)</option>
+                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+                    <option key={n} value={n}>
+                      ★ {n} / 10
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {/* Progress & Total */}
+          {activeTab !== 'edit-series' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  {activeTab === 'add-movie' || activeTab === 'edit-movie'
+                    ? 'Minutes Watched'
+                    : activeTab === 'book' || activeTab === 'edit-book'
+                    ? 'Pages Read'
+                    : 'Episodes Watched'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={progress}
+                  onChange={(e) => setProgress(Number(e.target.value))}
+                  className="form-input mono"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  {activeTab === 'add-movie' || activeTab === 'edit-movie'
+                    ? 'Total Duration (Minutes)'
+                    : activeTab === 'book' || activeTab === 'edit-book'
+                    ? 'Total Pages'
+                    : 'Total Episodes'}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="optional"
+                  value={totalCount}
+                  onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="form-input mono"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Dates */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="form-input"
-              />
+          {activeTab !== 'edit-series' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                  Finish Date
+                </label>
+                <input
+                  type="date"
+                  value={finishDate}
+                  onChange={(e) => setFinishDate(e.target.value)}
+                  className="form-input"
+                />
+              </div>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Finish Date
-              </label>
-              <input
-                type="date"
-                value={finishDate}
-                onChange={(e) => setFinishDate(e.target.value)}
-                className="form-input"
-              />
-            </div>
-          </div>
+          )}
 
-          {/* Genres */}
-          <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
-              Genres
-            </label>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {genres.map((g) => {
-                const isSelected = selectedGenreIds.includes(g.id);
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    onClick={() => handleToggleGenre(g.id)}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      border: '1px solid',
-                      borderColor: isSelected ? 'var(--color-primary-action)' : 'var(--border-subtle)',
-                      background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                      color: isSelected ? 'var(--color-primary)' : 'var(--text-muted)',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {g.name}
-                  </button>
-                );
-              })}
+          {/* Genres (Franchise & Books) */}
+          {(activeTab === 'new-franchise' || activeTab === 'edit-series' || activeTab === 'book' || activeTab === 'edit-book') && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
+                Genres
+              </label>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {genres.map((g) => {
+                  const isSelected = selectedGenreIds.includes(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => handleToggleGenre(g.id)}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        border: '1px solid',
+                        borderColor: isSelected ? 'var(--color-primary-action)' : 'var(--border-subtle)',
+                        background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                        color: isSelected ? 'var(--color-primary)' : 'var(--text-muted)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {g.name}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Studios (for Anime) */}
-          {entryType === 'anime' && (
+          {/* Studios (for Season & Movie & New Franchise) */}
+          {activeTab !== 'book' && activeTab !== 'edit-book' && activeTab !== 'edit-series' && (
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600 }}>
                 Animation Studio
@@ -422,34 +725,33 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* Lessons & Notes (Highlighted) */}
-          <div
-            style={{
-              background: 'rgba(99, 102, 241, 0.06)',
-              border: '1px solid rgba(99, 102, 241, 0.2)',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-              <Lightbulb size={16} color="var(--color-primary)" />
-              <label style={{ fontSize: '13px', color: '#ffffff', fontWeight: 600 }}>
-                Lessons, Memories & Key Takeaways
-              </label>
+          {/* Reflections / Lessons */}
+          {activeTab !== 'edit-series' && (
+            <div
+              style={{
+                background: 'rgba(99, 102, 241, 0.06)',
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+                borderRadius: 'var(--radius-md)',
+                padding: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Lightbulb size={16} color="var(--color-primary)" />
+                <label style={{ fontSize: '13px', color: '#ffffff', fontWeight: 600 }}>
+                  Overall Reflection, Lessons & Memories
+                </label>
+              </div>
+              <textarea
+                rows={3}
+                placeholder="What did you learn or take away from this journey?"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="form-textarea"
+              />
             </div>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-              The core of your journal. What perspective or feeling did you gain from this journey?
-            </p>
-            <textarea
-              rows={4}
-              placeholder="Write your reflections, favorite quotes, or what this story taught you..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="form-textarea"
-            />
-          </div>
+          )}
 
-          {/* Modal Actions */}
+          {/* Actions */}
           <div
             style={{
               display: 'flex',
@@ -462,7 +764,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               {isEditing ? 'Save Changes' : 'Log to Journal'}
             </button>
           </div>

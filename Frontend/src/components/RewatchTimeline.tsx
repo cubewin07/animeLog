@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Star, Calendar, Trash2, Film, Quote } from 'lucide-react';
+import { RotateCcw, Star, Calendar, Trash2, Film, Quote, Tv, Clapperboard } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -51,7 +51,7 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
           No Rewatches Logged Yet
         </h3>
         <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-          Rewatching is how lessons deepen. Log your second or third passes through anime to record how your perspective evolved.
+          Rewatching is how lessons deepen. Log your second or third passes through anime seasons or movies to record how your perspective evolved.
         </p>
       </div>
     );
@@ -74,20 +74,26 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <Film size={16} color="var(--color-secondary)" />
-                <h3 style={{ fontSize: '17px', color: '#ffffff' }}>{r.anime_title}</h3>
+                {r.movie ? (
+                  <Clapperboard size={16} color="var(--color-accent-cyan)" />
+                ) : (
+                  <Tv size={16} color="var(--color-primary)" />
+                )}
+                <h3 style={{ fontSize: '17px', color: '#ffffff' }}>
+                  {r.release_title || 'Rewatch Target'}
+                </h3>
                 <span
                   style={{
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontFamily: 'var(--font-mono)',
                     padding: '2px 8px',
                     borderRadius: '4px',
-                    background: 'rgba(196, 193, 251, 0.15)',
-                    color: 'var(--color-secondary)',
+                    background: r.movie ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
+                    color: r.movie ? 'var(--color-accent-cyan)' : 'var(--color-primary)',
                     fontWeight: 600,
                   }}
                 >
-                  REWATCH PASS
+                  {r.movie ? 'FILM REWATCH' : 'TV SEASON REWATCH'}
                 </span>
               </div>
 

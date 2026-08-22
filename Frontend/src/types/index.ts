@@ -22,10 +22,22 @@ export interface Studio {
   name: string;
 }
 
+export interface EpisodeNote {
+  id: number;
+  season: number;
+  season_title?: string;
+  episode_number: number;
+  episode_title: string | null;
+  note: string;
+  rating: number | null;
+  created_at: string;
+}
+
 export interface Rewatch {
   id: number;
-  anime: number;
-  anime_title?: string;
+  season: number | null;
+  movie: number | null;
+  release_title?: string;
   start_date: string | null;
   finish_date: string | null;
   rating: number | null;
@@ -34,26 +46,56 @@ export interface Rewatch {
 
 export interface FavoriteCharacter {
   id: number;
-  anime: number;
-  anime_title?: string;
+  series: number;
+  series_title?: string;
   name: string;
   why: string | null;
 }
 
-export interface Anime {
+export interface AnimeSeason {
   id: number;
+  series: number;
+  series_title?: string;
   title: string;
+  season_number: number;
   status: AnimeStatus;
-  rating: number | null;
   progress: number;
   total_episodes: number | null;
+  rating: number | null;
   start_date: string | null;
   finish_date: string | null;
   notes: string | null;
   created_at: string;
-  genres: Genre[];
+  studios: Studio[];
+  episode_notes?: EpisodeNote[];
+  rewatches?: Rewatch[];
+}
+
+export interface AnimeMovie {
+  id: number;
+  series: number;
+  series_title?: string;
+  title: string;
+  status: AnimeStatus;
+  progress_minutes: number;
+  total_minutes: number | null;
+  rating: number | null;
+  start_date: string | null;
+  finish_date: string | null;
+  notes: string | null;
+  created_at: string;
   studios: Studio[];
   rewatches?: Rewatch[];
+}
+
+export interface AnimeSeries {
+  id: number;
+  title: string;
+  created_at: string;
+  genres: Genre[];
+  studios: Studio[];
+  seasons: AnimeSeason[];
+  movies: AnimeMovie[];
   favorite_characters?: FavoriteCharacter[];
 }
 

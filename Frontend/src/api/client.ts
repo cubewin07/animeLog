@@ -1,4 +1,15 @@
-import { Anime, Book, FavoriteCharacter, Genre, JournalStats, Rewatch, Studio } from '../types';
+import {
+  AnimeMovie,
+  AnimeSeason,
+  AnimeSeries,
+  Book,
+  EpisodeNote,
+  FavoriteCharacter,
+  Genre,
+  JournalStats,
+  Rewatch,
+  Studio,
+} from '../types';
 
 const API_BASE = '/api';
 
@@ -44,59 +55,175 @@ function withQuery(params?: Record<string, string | number | undefined>): string
   return serialized ? `?${serialized}` : '';
 }
 
-export const animeApi = {
-  async list(params?: { status?: string; search?: string }): Promise<Anime[]> {
-    return fetchJson<Anime[]>(`${API_BASE}/anime/${withQuery(params)}`);
+export const seriesApi = {
+  async list(params?: { status?: string; search?: string; genre?: string | number }): Promise<AnimeSeries[]> {
+    return fetchJson<AnimeSeries[]>(`${API_BASE}/series/${withQuery(params)}`);
   },
 
-  async get(id: number): Promise<Anime> {
-    return fetchJson<Anime>(`${API_BASE}/anime/${id}/`);
+  async get(id: number): Promise<AnimeSeries> {
+    return fetchJson<AnimeSeries>(`${API_BASE}/series/${id}/`);
   },
 
-  async create(data: Omit<Anime, 'id' | 'created_at'>): Promise<Anime> {
-    return fetchJson<Anime>(`${API_BASE}/anime/`, {
+  async create(data: {
+    title: string;
+    genres?: number[] | Genre[];
+    initial_season?: any;
+  }): Promise<AnimeSeries> {
+    return fetchJson<AnimeSeries>(`${API_BASE}/series/`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async update(id: number, data: Partial<Anime>): Promise<Anime> {
-    return fetchJson<Anime>(`${API_BASE}/anime/${id}/`, {
+  async update(id: number, data: Partial<AnimeSeries>): Promise<AnimeSeries> {
+    return fetchJson<AnimeSeries>(`${API_BASE}/series/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
 
-  async updateProgress(id: number, delta: number): Promise<Anime> {
-    const current = await animeApi.get(id);
-    const max = current.total_episodes || 9999;
-    const newProgress = Math.max(0, Math.min(max, current.progress + delta));
-    const newStatus =
-      current.status === 'PLAN_TO_WATCH' && newProgress > 0
-        ? 'WATCHING'
-        : current.total_episodes && newProgress >= current.total_episodes && current.status === 'WATCHING'
-          ? 'COMPLETED'
-          : current.status;
+  async delete(id: number): Promise<void> {
+    await fetchJson(`${API_BASE}/series/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+};
 
-    return animeApi.update(id, {
-      progress: newProgress,
-      status: newStatus,
-      finish_date:
-        newStatus === 'COMPLETED' && !current.finish_date
-          ? new Date().toISOString().split('T')[0]
-          : current.finish_date,
+export const seasonApi = {
+  async list(params?: { series?: number; status?: string; search?: string }): Promise<AnimeSeason[]> {
+    return fetchJson<AnimeSeason[]>(`${API_BASE}/seasons/${withQuery(params)}`);
+  },
+
+  async get(id: number): Promise<AnimeSeason> {
+    return fetchJson<AnimeSeason>(`${API_BASE}/seasons/${id}/`);
+  },
+
+  async create(data: {
+    series: number;
+    title: string;
+    season_number: number;
+    status?: string;
+    progress?: number;
+    total_episodes?: number | null;
+    rating?: number | null;
+    start_date?: string | null;
+    finish_date?: string | null;
+    notes?: string | null;
+    studios?: number[] | Studio[];
+  }): Promise<AnimeSeason> {
+    return fetchJson<AnimeSeason>(`${API_BASE}/seasons/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: number, data: Partial<AnimeSeason>): Promise<AnimeSeason> {
+    return fetchJson<AnimeSeason>(`${API_BASE}/seasons/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProgress(id: number, delta: number): Promise<AnimeSeason> {
+    return fetchJson<AnimeSeason>(`${API_BASE}/seasons/${id}/progress/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ delta }),
     });
   },
 
   async delete(id: number): Promise<void> {
-    await fetchJson(`${API_BASE}/anime/${id}/`, {
+    await fetchJson(`${API_BASE}/seasons/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+export const movieApi = {
+  async list(params?: { series?: number; status?: string; search?: string }): Promise<AnimeMovie[]> {
+    return fetchJson<AnimeMovie[]>(`${API_BASE}/movies/${withQuery(params)}`);
+  },
+
+  async get(id: number): Promise<AnimeMovie> {
+    return fetchJson<AnimeMovie>(`${API_BASE}/movies/${id}/`);
+  },
+
+  async create(data: {
+    series: number;
+    title: string;
+    status?: string;
+    progress_minutes?: number;
+    total_minutes?: number | null;
+    rating?: number | null;
+    start_date?: string | null;
+    finish_date?: string | null;
+    notes?: string | null;
+    studios?: number[] | Studio[];
+  }): Promise<AnimeMovie> {
+    return fetchJson<AnimeMovie>(`${API_BASE}/movies/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: number, data: Partial<AnimeMovie>): Promise<AnimeMovie> {
+    return fetchJson<AnimeMovie>(`${API_BASE}/movies/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateProgress(id: number, delta: number): Promise<AnimeMovie> {
+    return fetchJson<AnimeMovie>(`${API_BASE}/movies/${id}/progress/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ delta }),
+    });
+  },
+
+  async delete(id: number): Promise<void> {
+    await fetchJson(`${API_BASE}/movies/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+export const episodeNoteApi = {
+  async list(seasonId?: number): Promise<EpisodeNote[]> {
+    return fetchJson<EpisodeNote[]>(`${API_BASE}/episode-notes/${withQuery({ season: seasonId })}`);
+  },
+
+  async get(id: number): Promise<EpisodeNote> {
+    return fetchJson<EpisodeNote>(`${API_BASE}/episode-notes/${id}/`);
+  },
+
+  async create(data: {
+    season: number;
+    episode_number: number;
+    episode_title?: string | null;
+    note: string;
+    rating?: number | null;
+  }): Promise<EpisodeNote> {
+    return fetchJson<EpisodeNote>(`${API_BASE}/episode-notes/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: number, data: Partial<EpisodeNote>): Promise<EpisodeNote> {
+    return fetchJson<EpisodeNote>(`${API_BASE}/episode-notes/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: number): Promise<void> {
+    await fetchJson(`${API_BASE}/episode-notes/${id}/`, {
       method: 'DELETE',
     });
   },
 };
 
 export const bookApi = {
-  async list(params?: { status?: string; search?: string }): Promise<Book[]> {
+  async list(params?: { status?: string; search?: string; genre?: string | number }): Promise<Book[]> {
     return fetchJson<Book[]>(`${API_BASE}/books/${withQuery(params)}`);
   },
 
@@ -147,11 +274,18 @@ export const bookApi = {
 };
 
 export const rewatchApi = {
-  async list(animeId?: number): Promise<Rewatch[]> {
-    return fetchJson<Rewatch[]>(`${API_BASE}/rewatches/${withQuery({ anime: animeId })}`);
+  async list(params?: { series?: number; season?: number; movie?: number }): Promise<Rewatch[]> {
+    return fetchJson<Rewatch[]>(`${API_BASE}/rewatches/${withQuery(params)}`);
   },
 
-  async create(data: Omit<Rewatch, 'id'>): Promise<Rewatch> {
+  async create(data: {
+    season?: number | null;
+    movie?: number | null;
+    start_date?: string | null;
+    finish_date?: string | null;
+    rating?: number | null;
+    notes?: string | null;
+  }): Promise<Rewatch> {
     return fetchJson<Rewatch>(`${API_BASE}/rewatches/`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -166,11 +300,15 @@ export const rewatchApi = {
 };
 
 export const characterApi = {
-  async list(animeId?: number): Promise<FavoriteCharacter[]> {
-    return fetchJson<FavoriteCharacter[]>(`${API_BASE}/characters/${withQuery({ anime: animeId })}`);
+  async list(seriesId?: number): Promise<FavoriteCharacter[]> {
+    return fetchJson<FavoriteCharacter[]>(`${API_BASE}/characters/${withQuery({ series: seriesId })}`);
   },
 
-  async create(data: Omit<FavoriteCharacter, 'id'>): Promise<FavoriteCharacter> {
+  async create(data: {
+    series: number;
+    name: string;
+    why?: string | null;
+  }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/`, {
       method: 'POST',
       body: JSON.stringify(data),

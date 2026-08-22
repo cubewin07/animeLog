@@ -25,7 +25,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
     return (
       searchQuery.trim() === '' ||
       c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.anime_title && c.anime_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.series_title && c.series_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (c.why && c.why.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });

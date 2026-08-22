@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Anime, FavoriteCharacter, Rewatch } from '../types';
+import { AnimeMovie, AnimeSeason, AnimeSeries, FavoriteCharacter, Rewatch } from '../types';
 import { X, RotateCcw, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -8,30 +8,85 @@ import { EASING, prefersReducedMotion } from '../utils/animations';
 interface RewatchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  anime: Anime | null;
-  onSave: (data: Omit<Rewatch, 'id'>) => void;
+  targetSeason?: AnimeSeason | null;
+  targetMovie?: AnimeMovie | null;
+  seriesList?: AnimeSeries[];
+  onSave: (data: {
+    season?: number | null;
+    movie?: number | null;
+    start_date?: string | null;
+    finish_date?: string | null;
+    rating?: number | null;
+    notes?: string | null;
+  }) => Promise<void>;
 }
 
 export const RewatchModal: React.FC<RewatchModalProps> = ({
   isOpen,
   onClose,
-  anime,
+  targetSeason,
+  targetMovie,
+  seriesList = [],
   onSave,
 }) => {
+  const [selectedTargetType, setSelectedTargetType] = useState<'season' | 'movie'>(
+    targetMovie ? 'movie' : 'season'
+  );
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(
+    targetSeason ? targetSeason.id : null
+  );
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(
+    targetMovie ? targetMovie.id : null
+  );
+
   const [rating, setRating] = useState<number | null>(10);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [finishDate, setFinishDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
+  // Flatten all seasons and movies from series list for selection if not preselected
+  const allSeasons: { id: number; label: string }[] = [];
+  const allMovies: { id: number; label: string }[] = [];
+  seriesList.forEach((s) => {
+    s.seasons.forEach((sea) => {
+      allSeasons.push({ id: sea.id, label: `${s.title} — Season ${sea.season_number}: ${sea.title}` });
+    });
+    s.movies.forEach((m) => {
+      allMovies.push({ id: m.id, label: `${s.title} — Film: ${m.title}` });
+    });
+  });
+
   useEffect(() => {
     if (!isOpen) return;
+    if (targetSeason) {
+      setSelectedTargetType('season');
+      setSelectedSeasonId(targetSeason.id);
+      setSelectedMovieId(null);
+    } else if (targetMovie) {
+      setSelectedTargetType('movie');
+      setSelectedMovieId(targetMovie.id);
+      setSelectedSeasonId(null);
+    } else {
+      if (allSeasons.length > 0) {
+        setSelectedTargetType('season');
+        setSelectedSeasonId(allSeasons[0].id);
+        setSelectedMovieId(null);
+      } else if (allMovies.length > 0) {
+        setSelectedTargetType('movie');
+        setSelectedMovieId(allMovies[0].id);
+        setSelectedSeasonId(null);
+      }
+    }
+
     setRating(10);
     setStartDate(new Date().toISOString().split('T')[0]);
     setFinishDate('');
     setNotes('');
-  }, [isOpen, anime]);
+  }, [isOpen, targetSeason, targetMovie]);
 
   useGSAP(
     () => {
@@ -50,18 +105,36 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
     { dependencies: [isOpen] }
   );
 
-  if (!isOpen || !anime) return null;
+  if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const targetTitle = targetSeason
+    ? targetSeason.title
+    : targetMovie
+    ? targetMovie.title
+    : 'Anime Release';
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({
-      anime: anime.id,
-      start_date: startDate || null,
-      finish_date: finishDate || null,
-      rating,
-      notes: notes.trim() || null,
-    });
-    onClose();
+    if (
+      (selectedTargetType === 'season' && selectedSeasonId === null) ||
+      (selectedTargetType === 'movie' && selectedMovieId === null)
+    ) {
+      return;
+    }
+    try {
+      setSubmitting(true);
+      await onSave({
+        season: selectedTargetType === 'season' ? selectedSeasonId : null,
+        movie: selectedTargetType === 'movie' ? selectedMovieId : null,
+        start_date: startDate || null,
+        finish_date: finishDate || null,
+        rating,
+        notes: notes.trim() || null,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -78,7 +151,9 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <RotateCcw size={18} color="var(--color-secondary)" />
-            <h3 style={{ fontSize: '16px', color: '#ffffff' }}>Log Rewatch for "{anime.title}"</h3>
+            <h3 style={{ fontSize: '16px', color: '#ffffff' }}>
+              Log Rewatch {targetSeason || targetMovie ? `for "${targetTitle}"` : ''}
+            </h3>
           </div>
           <button className="btn-icon" onClick={onClose}>
             <X size={14} />
@@ -86,6 +161,56 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* Target selector if neither is preselected */}
+          {!targetSeason && !targetMovie && (
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Select Release
+              </label>
+              <select
+                value={
+                  selectedTargetType === 'season'
+                    ? `season:${selectedSeasonId ?? ''}`
+                    : `movie:${selectedMovieId ?? ''}`
+                }
+                onChange={(e) => {
+                  const [targetType, id] = e.target.value.split(':');
+                  const targetId = Number(id);
+                  if (targetType === 'season') {
+                    setSelectedTargetType('season');
+                    setSelectedSeasonId(targetId);
+                    setSelectedMovieId(null);
+                  } else {
+                    setSelectedTargetType('movie');
+                    setSelectedMovieId(targetId);
+                    setSelectedSeasonId(null);
+                  }
+                }}
+                className="form-select"
+                disabled={allSeasons.length === 0 && allMovies.length === 0}
+              >
+                {allSeasons.length > 0 && (
+                  <optgroup label="TV Seasons">
+                    {allSeasons.map((season) => (
+                      <option key={season.id} value={`season:${season.id}`}>
+                        {season.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {allMovies.length > 0 && (
+                  <optgroup label="Films">
+                    {allMovies.map((movie) => (
+                      <option key={movie.id} value={`movie:${movie.id}`}>
+                        {movie.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
+          )}
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
@@ -130,11 +255,11 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-              How did your perspective change? (Notes & Insights)
+              How did your perspective change? (Deepened Takeaways)
             </label>
             <textarea
               rows={3}
-              placeholder="What new details did you notice? How did this pass feel different?"
+              placeholder="What new details did you notice on this pass? How did your reflections deepen?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="form-textarea"
@@ -145,7 +270,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               Record Rewatch
             </button>
           </div>
@@ -158,32 +283,33 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
 interface CharacterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  animeList: Anime[];
-  preselectedAnime?: Anime | null;
-  onSave: (data: Omit<FavoriteCharacter, 'id'>) => void;
+  seriesList: AnimeSeries[];
+  preselectedSeries?: AnimeSeries | null;
+  onSave: (data: { series: number; name: string; why?: string | null }) => Promise<void>;
 }
 
 export const CharacterModal: React.FC<CharacterModalProps> = ({
   isOpen,
   onClose,
-  animeList,
-  preselectedAnime,
+  seriesList,
+  preselectedSeries,
   onSave,
 }) => {
-  const [animeId, setAnimeId] = useState<number>(
-    preselectedAnime ? preselectedAnime.id : animeList[0]?.id || 1
+  const [seriesId, setSeriesId] = useState<number>(
+    preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1
   );
   const [name, setName] = useState('');
   const [why, setWhy] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!isOpen) return;
-    setAnimeId(preselectedAnime ? preselectedAnime.id : animeList[0]?.id || 1);
+    setSeriesId(preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1);
     setName('');
     setWhy('');
-  }, [isOpen, preselectedAnime, animeList]);
+  }, [isOpen, preselectedSeries, seriesList]);
 
   useGSAP(
     () => {
@@ -204,15 +330,20 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave({
-      anime: animeId,
-      name: name.trim(),
-      why: why.trim() || null,
-    });
-    onClose();
+    try {
+      setSubmitting(true);
+      await onSave({
+        series: seriesId,
+        name: name.trim(),
+        why: why.trim() || null,
+      });
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -239,16 +370,16 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
         <form onSubmit={handleSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-              Associated Anime
+              Associated Franchise
             </label>
             <select
-              value={animeId}
-              onChange={(e) => setAnimeId(Number(e.target.value))}
+              value={seriesId}
+              onChange={(e) => setSeriesId(Number(e.target.value))}
               className="form-select"
             >
-              {animeList.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
+              {seriesList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
                 </option>
               ))}
             </select>
@@ -261,7 +392,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             <input
               type="text"
               required
-              placeholder="e.g. Himmel, Thorfinn, Kurisu Makise..."
+              placeholder="e.g. Himmel, Erwin Smith, Kurisu Makise..."
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="form-input"
@@ -270,7 +401,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
-              Why is this character worth remembering? (Lesson / Memory)
+              Why is this character worth remembering? (Lesson / Ideal)
             </label>
             <textarea
               rows={3}
@@ -285,7 +416,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
               Save Character
             </button>
           </div>

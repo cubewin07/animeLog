@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Anime } from '../types';
+import { AnimeMovie, AnimeSeason, AnimeSeries } from '../types';
 import { AnimeCard } from '../components/AnimeCard';
 import { SeriesTableView } from '../components/SeriesTableView';
 import { Plus, Film, LayoutGrid, List } from 'lucide-react';
@@ -8,25 +8,43 @@ import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface AnimeViewProps {
-  animeList: Anime[];
+  seriesList: AnimeSeries[];
   searchQuery: string;
-  onEdit: (anime: Anime) => void;
-  onDelete: (id: number) => void;
-  onProgressDelta: (id: number, delta: number) => void;
-  onAddRewatch: (anime: Anime) => void;
-  onAddCharacter: (anime: Anime) => void;
-  onOpenNewModal: () => void;
+  onEditSeries: (series: AnimeSeries) => void;
+  onDeleteSeries: (id: number) => void;
+  onAddSeason: (series: AnimeSeries) => void;
+  onAddMovie: (series: AnimeSeries) => void;
+  onEditSeason: (season: AnimeSeason) => void;
+  onDeleteSeason: (id: number) => void;
+  onSeasonProgressDelta: (id: number, delta: number) => void;
+  onEditMovie: (movie: AnimeMovie) => void;
+  onDeleteMovie: (id: number) => void;
+  onMovieProgressDelta: (id: number, delta: number) => void;
+  onOpenEpisodeNotes: (season: AnimeSeason) => void;
+  onAddRewatchSeason: (season: AnimeSeason) => void;
+  onAddRewatchMovie: (movie: AnimeMovie) => void;
+  onAddCharacter: (series: AnimeSeries) => void;
+  onOpenNewFranchiseModal: () => void;
 }
 
 export const AnimeView: React.FC<AnimeViewProps> = ({
-  animeList,
+  seriesList,
   searchQuery,
-  onEdit,
-  onDelete,
-  onProgressDelta,
-  onAddRewatch,
+  onEditSeries,
+  onDeleteSeries,
+  onAddSeason,
+  onAddMovie,
+  onEditSeason,
+  onDeleteSeason,
+  onSeasonProgressDelta,
+  onEditMovie,
+  onDeleteMovie,
+  onMovieProgressDelta,
+  onOpenEpisodeNotes,
+  onAddRewatchSeason,
+  onAddRewatchMovie,
   onAddCharacter,
-  onOpenNewModal,
+  onOpenNewFranchiseModal,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
@@ -34,51 +52,90 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
   const filterTabs: { id: string; label: string; count: number }[] = [
-    { id: 'ALL', label: 'All Series', count: animeList.length },
+    { id: 'ALL', label: 'All Franchises', count: seriesList.length },
     {
       id: 'WATCHING',
       label: 'Watching',
-      count: animeList.filter((a) => a.status === 'WATCHING').length,
+      count: seriesList.filter((s) =>
+        s.seasons.some((sea) => sea.status === 'WATCHING') ||
+        s.movies.some((m) => m.status === 'WATCHING')
+      ).length,
     },
     {
       id: 'COMPLETED',
       label: 'Completed',
-      count: animeList.filter((a) => a.status === 'COMPLETED').length,
+      count: seriesList.filter((s) =>
+        s.seasons.some((sea) => sea.status === 'COMPLETED') ||
+        s.movies.some((m) => m.status === 'COMPLETED')
+      ).length,
     },
     {
       id: 'PLAN_TO_WATCH',
       label: 'Plan to Watch',
-      count: animeList.filter((a) => a.status === 'PLAN_TO_WATCH').length,
+      count: seriesList.filter((s) =>
+        s.seasons.some((sea) => sea.status === 'PLAN_TO_WATCH') ||
+        s.movies.some((m) => m.status === 'PLAN_TO_WATCH')
+      ).length,
     },
     {
       id: 'ON_HOLD',
       label: 'On Hold',
-      count: animeList.filter((a) => a.status === 'ON_HOLD').length,
+      count: seriesList.filter((s) =>
+        s.seasons.some((sea) => sea.status === 'ON_HOLD') ||
+        s.movies.some((m) => m.status === 'ON_HOLD')
+      ).length,
     },
     {
       id: 'DROPPED',
       label: 'Dropped',
-      count: animeList.filter((a) => a.status === 'DROPPED').length,
+      count: seriesList.filter((s) =>
+        s.seasons.some((sea) => sea.status === 'DROPPED') ||
+        s.movies.some((m) => m.status === 'DROPPED')
+      ).length,
     },
   ];
 
-  const filtered = animeList.filter((anime) => {
-    const matchesStatus = selectedStatus === 'ALL' || anime.status === selectedStatus;
+  const filtered = seriesList.filter((series) => {
+    const matchesStatus =
+      selectedStatus === 'ALL' ||
+      series.seasons.some((sea) => sea.status === selectedStatus) ||
+      series.movies.some((m) => m.status === selectedStatus);
+
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      searchQuery.trim() === '' ||
-      anime.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (anime.notes && anime.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (anime.studios && anime.studios.some((s) => s.name.toLowerCase().includes(searchQuery.toLowerCase()))) ||
-      (anime.genres && anime.genres.some((g) => g.name.toLowerCase().includes(searchQuery.toLowerCase())));
+      q === '' ||
+      series.title.toLowerCase().includes(q) ||
+      series.seasons.some(
+        (sea) =>
+          sea.title.toLowerCase().includes(q) ||
+          (sea.notes && sea.notes.toLowerCase().includes(q)) ||
+          sea.studios.some((st) => st.name.toLowerCase().includes(q)) ||
+          (sea.episode_notes &&
+            sea.episode_notes.some(
+              (ep) =>
+                ep.note.toLowerCase().includes(q) ||
+                (ep.episode_title && ep.episode_title.toLowerCase().includes(q))
+            ))
+      ) ||
+      series.movies.some(
+        (m) =>
+          m.title.toLowerCase().includes(q) ||
+          (m.notes && m.notes.toLowerCase().includes(q)) ||
+          m.studios.some((st) => st.name.toLowerCase().includes(q))
+      ) ||
+      series.genres.some((g) => g.name.toLowerCase().includes(q)) ||
+      (series.studios && series.studios.some((st) => st.name.toLowerCase().includes(q))) ||
+      (series.favorite_characters &&
+        series.favorite_characters.some(
+          (c) => c.name.toLowerCase().includes(q) || (c.why && c.why.toLowerCase().includes(q))
+        ));
 
     return matchesStatus && matchesSearch;
   });
 
-  // Stagger cards or content when filter/viewMode changes
   useGSAP(
     () => {
       if (prefersReducedMotion() || !contentAreaRef.current) return;
-
       const cards = contentAreaRef.current.querySelectorAll('.anime-grid-card');
       if (cards.length > 0) {
         gsap.fromTo(
@@ -113,9 +170,9 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         }}
       >
         <div>
-          <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Anime Series & Journal</h2>
+          <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Anime Franchises & Journal</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            High-clarity overview of all series, seasons, episode progress, and lessons.
+            Franchise hierarchy keeping series memories separate from TV-season and film progress.
           </p>
         </div>
 
@@ -146,7 +203,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              title="High-Clarity Series Table"
+              title="High-Clarity Franchise Table"
             >
               <List size={14} /> Series Table
             </button>
@@ -168,12 +225,12 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               }}
               title="Journal Cards View"
             >
-              <LayoutGrid size={14} /> Journal Cards
+              <LayoutGrid size={14} /> Cards View
             </button>
           </div>
 
-          <button className="btn btn-primary" onClick={onOpenNewModal}>
-            <Plus size={16} /> Log Series
+          <button className="btn btn-primary" onClick={onOpenNewFranchiseModal}>
+            <Plus size={16} /> Log Franchise
           </button>
         </div>
       </div>
@@ -242,20 +299,30 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
               {searchQuery
-                ? `No entries match "${searchQuery}". Try refining your search query.`
-                : 'There are no series under this status filter yet.'}
+                ? `No entries match "${searchQuery}". Try refining your search.`
+                : 'There are no franchises under this status filter yet.'}
             </p>
-            <button className="btn btn-secondary" onClick={onOpenNewModal}>
-              <Plus size={15} /> Log Your First Series
+            <button className="btn btn-secondary" onClick={onOpenNewFranchiseModal}>
+              <Plus size={15} /> Log Your First Franchise
             </button>
           </div>
         ) : viewMode === 'table' ? (
           <SeriesTableView
-            animeList={filtered}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onProgressDelta={onProgressDelta}
-            onAddRewatch={onAddRewatch}
+            seriesList={filtered}
+            onEditSeries={onEditSeries}
+            onDeleteSeries={onDeleteSeries}
+            onAddSeason={onAddSeason}
+            onAddMovie={onAddMovie}
+            onEditSeason={onEditSeason}
+            onDeleteSeason={onDeleteSeason}
+            onSeasonProgressDelta={onSeasonProgressDelta}
+            onEditMovie={onEditMovie}
+            onDeleteMovie={onDeleteMovie}
+            onMovieProgressDelta={onMovieProgressDelta}
+            onOpenEpisodeNotes={onOpenEpisodeNotes}
+            onAddRewatchSeason={onAddRewatchSeason}
+            onAddRewatchMovie={onAddRewatchMovie}
+            onAddCharacter={onAddCharacter}
           />
         ) : (
           <div
@@ -265,14 +332,23 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               gap: '20px',
             }}
           >
-            {filtered.map((anime) => (
-              <div key={anime.id} className="anime-grid-card">
+            {filtered.map((series) => (
+              <div key={series.id} className="anime-grid-card">
                 <AnimeCard
-                  anime={anime}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onProgressDelta={onProgressDelta}
-                  onAddRewatch={onAddRewatch}
+                  series={series}
+                  onEditSeries={onEditSeries}
+                  onDeleteSeries={onDeleteSeries}
+                  onAddSeason={onAddSeason}
+                  onAddMovie={onAddMovie}
+                  onEditSeason={onEditSeason}
+                  onDeleteSeason={onDeleteSeason}
+                  onSeasonProgressDelta={onSeasonProgressDelta}
+                  onEditMovie={onEditMovie}
+                  onDeleteMovie={onDeleteMovie}
+                  onMovieProgressDelta={onMovieProgressDelta}
+                  onOpenEpisodeNotes={onOpenEpisodeNotes}
+                  onAddRewatchSeason={onAddRewatchSeason}
+                  onAddRewatchMovie={onAddRewatchMovie}
                   onAddCharacter={onAddCharacter}
                 />
               </div>
