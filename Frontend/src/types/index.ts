@@ -30,6 +30,7 @@ export interface EpisodeNote {
   episode_title: string | null;
   note: string;
   rating: number | null;
+  image_url?: string | null;
   created_at: string;
 }
 
@@ -50,6 +51,7 @@ export interface FavoriteCharacter {
   series_title?: string;
   name: string;
   why: string | null;
+  image_url?: string | null;
 }
 
 export interface AnimeSeason {
@@ -65,6 +67,7 @@ export interface AnimeSeason {
   start_date: string | null;
   finish_date: string | null;
   notes: string | null;
+  image_url?: string | null;
   created_at: string;
   studios: Studio[];
   episode_notes?: EpisodeNote[];
@@ -83,6 +86,7 @@ export interface AnimeMovie {
   start_date: string | null;
   finish_date: string | null;
   notes: string | null;
+  image_url?: string | null;
   created_at: string;
   studios: Studio[];
   rewatches?: Rewatch[];
@@ -91,12 +95,24 @@ export interface AnimeMovie {
 export interface AnimeSeries {
   id: number;
   title: string;
+  image_url?: string | null;
   created_at: string;
   genres: Genre[];
   studios: Studio[];
   seasons: AnimeSeason[];
   movies: AnimeMovie[];
   favorite_characters?: FavoriteCharacter[];
+}
+
+export interface MediaAsset {
+  id: number;
+  url: string;
+  title?: string;
+  caption?: string;
+  folder?: string;
+  entity_type?: 'series' | 'season' | 'movie' | 'character' | 'episode';
+  entity_id?: number;
+  created_at?: string;
 }
 
 export interface Book {

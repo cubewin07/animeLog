@@ -37,6 +37,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 1,
     title: "Frieren: Beyond Journey's End",
+    image_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
     created_at: '2025-10-15T12:00:00Z',
     genres: [
       { id: 1, name: 'Fantasy' },
@@ -55,6 +56,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 10,
         progress: 28,
         total_episodes: 28,
+        image_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
         start_date: '2025-10-15',
         finish_date: '2025-11-20',
         notes:
@@ -70,6 +72,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
             episode_title: "The Journey's End",
             note: 'Realizing that 10 years of adventuring was barely a drop in an elf lifespan, yet it became the emotional anchor for the rest of her existence.',
             rating: 10,
+            image_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=400&auto=format&fit=crop&q=80',
             created_at: '2025-10-15T12:30:00Z',
           },
           {
@@ -115,6 +118,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         series: 1,
         series_title: "Frieren: Beyond Journey's End",
         name: 'Himmel the Hero',
+        image_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
         why: 'He never took for granted that life is short. He deliberately erected statues not out of narcissism, but so Frieren would never feel lonely when everyone else was gone.',
       },
     ],
@@ -122,6 +126,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 2,
     title: 'Attack on Titan',
+    image_url: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=600&auto=format&fit=crop&q=80',
     created_at: '2023-01-10T08:00:00Z',
     genres: [
       { id: 9, name: 'Action' },
@@ -144,6 +149,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 9,
         progress: 25,
         total_episodes: 25,
+        image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
         start_date: '2023-01-10',
         finish_date: '2023-02-01',
         notes: 'The visceral terror of powerlessness within the walls and humanity fierce instinct to fight.',
@@ -160,6 +166,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 9,
         progress: 12,
         total_episodes: 12,
+        image_url: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=600&auto=format&fit=crop&q=80',
         start_date: '2023-02-05',
         finish_date: '2023-02-20',
         notes: 'Betrayal, loyalty, and the revelation that enemies are people we once broke bread with.',
@@ -176,6 +183,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 10,
         progress: 22,
         total_episodes: 22,
+        image_url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=600&auto=format&fit=crop&q=80',
         start_date: '2023-03-01',
         finish_date: '2023-03-28',
         notes: "Erwin's charge: giving meaning to the lives of fallen comrades. Beyond the sea lies not freedom, but complex truth.",
@@ -192,6 +200,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 10,
         progress: 28,
         total_episodes: 28,
+        image_url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-01-15',
         finish_date: '2024-03-10',
         notes: 'The devastating cycle of hatred and generational trauma. There are no villains on either side of the sea—only humans trapped by history.',
@@ -206,6 +215,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         series: 2,
         series_title: 'Attack on Titan',
         name: 'Erwin Smith',
+        image_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
         why: "The ultimate leader who bore the weight of deception to charge into the unknown, giving purpose to every soldier's sacrifice.",
       },
     ],
@@ -213,6 +223,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 3,
     title: 'Demon Slayer: Kimetsu no Yaiba',
+    image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
     created_at: '2024-06-01T08:00:00Z',
     genres: [
       { id: 9, name: 'Action' },
@@ -231,6 +242,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 9,
         progress: 26,
         total_episodes: 26,
+        image_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-06-01',
         finish_date: '2024-06-20',
         notes: "Tanjiro's unwavering compassion even towards demons who caused him immense suffering.",
@@ -247,6 +259,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 9,
         progress: 11,
         total_episodes: 11,
+        image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-08-01',
         finish_date: '2024-08-15',
         notes: 'Spectacular visual storytelling emphasizing perseverance when pushing past physical limits.',
@@ -264,6 +277,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 10,
         progress_minutes: 117,
         total_minutes: 117,
+        image_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-07-01',
         finish_date: '2024-07-01',
         notes: "'Set your heart ablaze.' Rengoku demonstrated what it means to fulfill one's duty and protect the weak with warmth and courage until the very end.",
@@ -288,6 +302,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 4,
     title: 'Steins;Gate',
+    image_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
     created_at: '2024-05-01T14:30:00Z',
     genres: [
       { id: 3, name: 'Sci-Fi' },
@@ -306,6 +321,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 10,
         progress: 24,
         total_episodes: 24,
+        image_url: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-05-01',
         finish_date: '2024-05-18',
         notes:
@@ -337,6 +353,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rating: 8,
         progress_minutes: 90,
         total_minutes: 90,
+        image_url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=600&auto=format&fit=crop&q=80',
         start_date: '2024-06-01',
         finish_date: '2024-06-01',
         notes: "Kurisu's perspective bearing the weight of rescuing Okabe from the R worldline.",
@@ -350,6 +367,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         series: 4,
         series_title: 'Steins;Gate',
         name: 'Rintaro Okabe',
+        image_url: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
         why: 'Willing to endure countless cycles of psychological trauma to protect the worldline where everyone he loves survives.',
       },
       {
@@ -357,6 +375,7 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         series: 4,
         series_title: 'Steins;Gate',
         name: 'Kurisu Makise',
+        image_url: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80',
         why: 'Brilliant intellect combined with genuine emotional vulnerability and selflessness.',
       },
     ],

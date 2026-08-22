@@ -7,7 +7,7 @@ import {
 import { AnimeSeries, Book, Genre, Studio } from '../types';
 
 const STORAGE_KEYS = {
-  SERIES: 'animelog_series_v1',
+  SERIES: 'animelog_series_v2',
   BOOKS: 'animelog_books_v1',
   GENRES: 'animelog_genres_v1',
   STUDIOS: 'animelog_studios_v1',

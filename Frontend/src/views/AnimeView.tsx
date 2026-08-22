@@ -157,7 +157,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   );
 
   return (
-    <div ref={containerRef}>
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header & Controls Row */}
       <div
         style={{
@@ -166,25 +166,42 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
           alignItems: 'center',
           gap: '16px',
           flexWrap: 'wrap',
-          marginBottom: '20px',
         }}
       >
         <div>
-          <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Anime Franchises & Journal</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.02em' }}>
+              Anime Franchises & Journal
+            </h2>
+            <span
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--color-primary)',
+                background: 'rgba(99, 102, 241, 0.15)',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-pill)',
+                fontWeight: 600,
+              }}
+            >
+              ARCHIVE
+            </span>
+          </div>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>
             Franchise hierarchy keeping series memories separate from TV-season and film progress.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* View Mode Switcher */}
           <div
             style={{
               display: 'flex',
-              background: 'rgba(18, 33, 49, 0.9)',
+              background: 'rgba(10, 24, 40, 0.9)',
               padding: '3px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
             <button
@@ -193,7 +210,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 10px',
+                padding: '7px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
                 background: viewMode === 'table' ? 'var(--color-primary-action)' : 'transparent',
@@ -202,10 +219,11 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                boxShadow: viewMode === 'table' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
               }}
-              title="High-Clarity Franchise Table"
+              title="Editorial Series Table View"
             >
-              <List size={14} /> Series Table
+              <List size={15} /> Series Table
             </button>
             <button
               onClick={() => setViewMode('cards')}
@@ -213,7 +231,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '6px 10px',
+                padding: '7px 12px',
                 borderRadius: 'var(--radius-sm)',
                 border: 'none',
                 background: viewMode === 'cards' ? 'var(--color-primary-action)' : 'transparent',
@@ -222,14 +240,15 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                boxShadow: viewMode === 'cards' ? '0 2px 8px rgba(99, 102, 241, 0.35)' : 'none',
               }}
-              title="Journal Cards View"
+              title="Interactive Cards View"
             >
-              <LayoutGrid size={14} /> Cards View
+              <LayoutGrid size={15} /> Cards View
             </button>
           </div>
 
-          <button className="btn btn-primary" onClick={onOpenNewFranchiseModal}>
+          <button className="btn btn-primary" onClick={onOpenNewFranchiseModal} style={{ padding: '8px 18px' }}>
             <Plus size={16} /> Log Franchise
           </button>
         </div>
@@ -241,8 +260,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
           display: 'flex',
           gap: '8px',
           overflowX: 'auto',
-          paddingBottom: '8px',
-          marginBottom: '20px',
+          paddingBottom: '4px',
         }}
       >
         {filterTabs.map((tab) => {
@@ -255,17 +273,18 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 14px',
+                padding: '7px 16px',
                 borderRadius: 'var(--radius-pill)',
                 border: '1px solid',
                 borderColor: isActive ? 'var(--color-primary-action)' : 'var(--border-subtle)',
-                background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'rgba(18, 33, 49, 0.6)',
-                color: isActive ? 'var(--color-primary)' : 'var(--text-muted)',
+                background: isActive ? 'rgba(99, 102, 241, 0.22)' : 'rgba(12, 26, 44, 0.7)',
+                color: isActive ? '#ffffff' : 'var(--text-muted)',
                 fontSize: '13px',
                 fontWeight: isActive ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
                 whiteSpace: 'nowrap',
+                boxShadow: isActive ? '0 0 12px rgba(99, 102, 241, 0.25)' : 'none',
               }}
             >
               <span>{tab.label}</span>
@@ -275,8 +294,9 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                   fontSize: '11px',
                   background: isActive ? 'var(--color-primary-action)' : 'rgba(255, 255, 255, 0.08)',
                   color: '#ffffff',
-                  padding: '1px 6px',
+                  padding: '1px 7px',
                   borderRadius: '10px',
+                  fontWeight: 600,
                 }}
               >
                 {tab.count}
@@ -291,16 +311,21 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         {filtered.length === 0 ? (
           <div
             className="glass-card"
-            style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
+            style={{
+              padding: '56px 20px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              background: 'rgba(11, 24, 40, 0.65)',
+            }}
           >
-            <Film size={36} color="var(--color-primary)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
-            <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
+            <Film size={40} color="var(--color-primary)" style={{ margin: '0 auto 14px', opacity: 0.8 }} />
+            <h3 style={{ fontSize: '18px', color: '#ffffff', marginBottom: '8px' }}>
               No Anime Found
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '420px', margin: '0 auto 20px', lineHeight: 1.5 }}>
               {searchQuery
-                ? `No entries match "${searchQuery}". Try refining your search.`
-                : 'There are no franchises under this status filter yet.'}
+                ? `No entries match "${searchQuery}". Try refining your search query.`
+                : 'There are no anime franchises under this status filter yet.'}
             </p>
             <button className="btn btn-secondary" onClick={onOpenNewFranchiseModal}>
               <Plus size={15} /> Log Your First Franchise
@@ -328,8 +353,8 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-              gap: '20px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))',
+              gap: '24px',
             }}
           >
             {filtered.map((series) => (
