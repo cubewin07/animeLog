@@ -5,7 +5,6 @@ import {
   AnimeSeason,
   AnimeSeries,
   Book,
-  EpisodeNote,
   FavoriteCharacter,
   Genre,
   JournalStats,
@@ -34,6 +33,7 @@ import { AnimeView } from './views/AnimeView';
 import { BookView } from './views/BookView';
 import { CharactersView } from './views/CharactersView';
 import { RewatchesView } from './views/RewatchesView';
+import { MediaView } from './views/MediaView';
 import { Loader2 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -177,7 +177,7 @@ export const App: React.FC = () => {
 
   // --- Series Handlers ---
   const handleSaveSeries = async (
-    data: { title: string; genres: number[]; initial_season?: any },
+    data: { title: string; cover_image?: number | null; genres: number[]; initial_season?: any },
     id?: number
   ) => {
     try {
@@ -298,7 +298,7 @@ export const App: React.FC = () => {
         await episodeNoteApi.create(data);
         addToast(`Recorded Ep ${data.episode_number} memory`);
       }
-      await refreshSeries();
+      await refreshAll();
       // Update targetSeasonForNotes if open
       if (targetSeasonForNotes) {
         const freshSeason = await seasonApi.get(targetSeasonForNotes.id);
@@ -356,7 +356,7 @@ export const App: React.FC = () => {
   };
 
   // --- Character Handlers ---
-  const handleSaveCharacter = async (data: { series: number; name: string; why?: string | null }) => {
+  const handleSaveCharacter = async (data: { series: number; name: string; why?: string | null; images?: number[] }) => {
     try {
       const created = await characterApi.create(data);
       addToast(`Added "${created.name}" to memorable characters`);
@@ -605,6 +605,10 @@ export const App: React.FC = () => {
                   setRewatchModalOpen(true);
                 }}
               />
+            )}
+
+            {activeTab === 'media' && (
+              <MediaView onNotify={addToast} />
             )}
           </div>
         )}

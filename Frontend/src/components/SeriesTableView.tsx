@@ -7,24 +7,18 @@ import {
   Edit3,
   Trash2,
   RotateCcw,
-  BookOpen,
   Tv,
   Clapperboard,
   BookmarkCheck,
   Sparkles,
   Quote,
   CheckCircle2,
-  Layers,
   Sparkle,
+  Film,
 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
-import {
-  getCharacterAvatar,
-  getReleaseStill,
-  getSeriesPoster,
-} from '../utils/mockImages';
 
 interface SeriesTableViewProps {
   seriesList: AnimeSeries[];
@@ -246,14 +240,26 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
               {/* Franchise Header Banner */}
               <div className="franchise-section-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <img
-                    src={getSeriesPoster(series.title, series.image_url)}
-                    alt={series.title}
-                    className="franchise-poster-thumb"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
-                    }}
-                  />
+                  {series.cover_image_url || series.image_url ? (
+                    <img
+                      src={series.cover_image_url || series.image_url || ''}
+                      alt={series.title}
+                      className="franchise-poster-thumb"
+                    />
+                  ) : (
+                    <div
+                      className="franchise-poster-thumb"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
+                      <Film size={18} opacity={0.6} />
+                    </div>
+                  )}
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -390,14 +396,26 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                       >
                         {/* Title & Metadata */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '220px' }}>
-                          <img
-                            src={getReleaseStill(season.title, season.image_url)}
-                            alt={season.title}
-                            className="release-still-thumb"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
-                            }}
-                          />
+                          {season.cover_image_url || season.image_url ? (
+                            <img
+                              src={season.cover_image_url || season.image_url || ''}
+                              alt={season.title}
+                              className="release-still-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="release-still-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(99, 102, 241, 0.12)',
+                                color: 'var(--color-primary)',
+                              }}
+                            >
+                              <Tv size={14} opacity={0.7} />
+                            </div>
+                          )}
                           <span className="type-badge-tv">
                             <Tv size={11} /> S{season.season_number}
                           </span>
@@ -592,14 +610,26 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                       >
                         {/* Title & Metadata */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '220px' }}>
-                          <img
-                            src={getReleaseStill(movie.title, movie.image_url)}
-                            alt={movie.title}
-                            className="release-still-thumb"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLElement).style.display = 'none';
-                            }}
-                          />
+                          {movie.cover_image_url || movie.image_url ? (
+                            <img
+                              src={movie.cover_image_url || movie.image_url || ''}
+                              alt={movie.title}
+                              className="release-still-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="release-still-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                color: 'var(--color-accent-cyan)',
+                              }}
+                            >
+                              <Clapperboard size={14} opacity={0.7} />
+                            </div>
+                          )}
                           <span className="type-badge-movie">
                             <Clapperboard size={11} /> FILM
                           </span>
@@ -758,24 +788,39 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {series.favorite_characters.map((c) => (
-                      <div key={c.id} className="character-badge" title={c.why || c.name}>
-                        <img
-                          src={getCharacterAvatar(c.name, c.image_url)}
-                          alt={c.name}
-                          className="character-avatar-thumb"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLElement).style.display = 'none';
-                          }}
-                        />
-                        <span>{c.name}</span>
-                        {c.why && (
-                          <span style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
-                            — "{c.why.slice(0, 28)}{c.why.length > 28 ? '…' : ''}"
-                          </span>
-                        )}
-                      </div>
-                    ))}
+                    {series.favorite_characters.map((c) => {
+                      const charImg = (c.images && c.images.length > 0) ? c.images[0].url : c.image_url;
+                      return (
+                        <div key={c.id} className="character-badge" title={c.why || c.name}>
+                          {charImg ? (
+                            <img
+                              src={charImg}
+                              alt={c.name}
+                              className="character-avatar-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="character-avatar-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(78, 222, 163, 0.15)',
+                                color: 'var(--color-accent-emerald)',
+                              }}
+                            >
+                              <Sparkles size={10} />
+                            </div>
+                          )}
+                          <span>{c.name}</span>
+                          {c.why && (
+                            <span style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
+                              — "{c.why.slice(0, 28)}{c.why.length > 28 ? '…' : ''}"
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}

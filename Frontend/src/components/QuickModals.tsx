@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { AnimeMovie, AnimeSeason, AnimeSeries, FavoriteCharacter, Rewatch } from '../types';
+import { AnimeMovie, AnimeSeason, AnimeSeries } from '../types';
 import { X, RotateCcw, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -280,12 +280,14 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   );
 };
 
+import { ImageUploadField } from './ImageUploadField';
+
 interface CharacterModalProps {
   isOpen: boolean;
   onClose: () => void;
   seriesList: AnimeSeries[];
   preselectedSeries?: AnimeSeries | null;
-  onSave: (data: { series: number; name: string; why?: string | null }) => Promise<void>;
+  onSave: (data: { series: number; name: string; why?: string | null; images?: number[] }) => Promise<void>;
 }
 
 export const CharacterModal: React.FC<CharacterModalProps> = ({
@@ -300,6 +302,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   );
   const [name, setName] = useState('');
   const [why, setWhy] = useState('');
+  const [imageId, setImageId] = useState<number | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -309,6 +313,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
     setSeriesId(preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1);
     setName('');
     setWhy('');
+    setImageId(null);
+    setImageUrl(null);
   }, [isOpen, preselectedSeries, seriesList]);
 
   useGSAP(
@@ -339,6 +345,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
         series: seriesId,
         name: name.trim(),
         why: why.trim() || null,
+        images: imageId ? [imageId] : [],
       });
       onClose();
     } finally {
@@ -398,6 +405,16 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               className="form-input"
             />
           </div>
+
+          <ImageUploadField
+            label="Character Avatar / Image"
+            imageId={imageId}
+            imageUrl={imageUrl}
+            onChange={(id, url) => {
+              setImageId(id);
+              setImageUrl(url);
+            }}
+          />
 
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>

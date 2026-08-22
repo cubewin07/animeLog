@@ -71,14 +71,47 @@ export const BookCard: React.FC<BookCardProps> = ({
   return (
     <div className="glass-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* Header: Title + Author + Status + Rating */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-            <h3 style={{ fontSize: '18px', color: '#ffffff' }}>{book.title}</h3>
-            <span className={`status-badge ${getStatusClass(book.status)}`}>
-              {formatStatus(book.status)}
-            </span>
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px' }}>
+        <div style={{ display: 'flex', gap: '12px', flex: 1, minWidth: 0 }}>
+          {book.cover_image_url || book.image_url ? (
+            <img
+              src={book.cover_image_url || book.image_url || ''}
+              alt={book.title}
+              style={{
+                width: '46px',
+                height: '64px',
+                objectFit: 'cover',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--border-medium)',
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '46px',
+                height: '64px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-primary)',
+                flexShrink: 0,
+              }}
+            >
+              <BookOpen size={20} opacity={0.6} />
+            </div>
+          )}
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
+              <h3 style={{ fontSize: '18px', color: '#ffffff' }}>{book.title}</h3>
+              <span className={`status-badge ${getStatusClass(book.status)}`}>
+                {formatStatus(book.status)}
+              </span>
+            </div>
 
           {/* Author & Genres */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
@@ -103,6 +136,7 @@ export const BookCard: React.FC<BookCardProps> = ({
               ))}
           </div>
         </div>
+      </div>
 
         {/* Rating */}
         {book.rating ? (

@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Star, Calendar, Trash2, Film, Quote, Tv, Clapperboard } from 'lucide-react';
+import { RotateCcw, Star, Calendar, Trash2, Quote, Tv, Clapperboard } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';

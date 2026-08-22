@@ -20,17 +20,38 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div
-            style={{
-              padding: '8px',
-              borderRadius: '8px',
-              background: 'rgba(78, 222, 163, 0.12)',
-              color: 'var(--color-accent-emerald)',
-            }}
-          >
-            <Heart size={18} />
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {(() => {
+            const charImg = (character.images && character.images.length > 0) ? character.images[0].url : character.image_url;
+            if (charImg) {
+              return (
+                <img
+                  src={charImg}
+                  alt={character.name}
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '10px',
+                    objectFit: 'cover',
+                    border: '1px solid rgba(78, 222, 163, 0.4)',
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+                  }}
+                />
+              );
+            }
+            return (
+              <div
+                style={{
+                  padding: '10px',
+                  borderRadius: '10px',
+                  background: 'rgba(78, 222, 163, 0.12)',
+                  color: 'var(--color-accent-emerald)',
+                }}
+              >
+                <Heart size={20} />
+              </div>
+            );
+          })()}
           <div>
             <h3 style={{ fontSize: '17px', color: '#ffffff' }}>{character.name}</h3>
             {character.series_title && (

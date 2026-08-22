@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { AnimeMovie, AnimeSeason, AnimeSeries, Book, JournalStats } from '../types';
 import { StatsOverview } from '../components/StatsOverview';
 import { BookCard } from '../components/BookCard';
-import { Lightbulb, ArrowRight, Quote, Tv, Clapperboard, Plus, Minus, Star } from 'lucide-react';
+import { Lightbulb, ArrowRight, Quote, Tv, Clapperboard, Plus, Minus } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';

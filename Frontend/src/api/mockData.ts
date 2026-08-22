@@ -1,12 +1,7 @@
 import {
-  AnimeMovie,
-  AnimeSeason,
   AnimeSeries,
   Book,
-  EpisodeNote,
-  FavoriteCharacter,
   Genre,
-  Rewatch,
   Studio,
 } from '../types';
 

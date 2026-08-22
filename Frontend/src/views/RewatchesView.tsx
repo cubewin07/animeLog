@@ -1,11 +1,11 @@
 import React from 'react';
 import { AnimeSeries, Rewatch } from '../types';
 import { RewatchTimeline } from '../components/RewatchTimeline';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface RewatchesViewProps {
   rewatches: Rewatch[];
-  seriesList: AnimeSeries[];
+  seriesList?: AnimeSeries[];
   searchQuery: string;
   onDelete: (id: number) => void;
   onOpenRewatchModal: () => void;
@@ -13,7 +13,6 @@ interface RewatchesViewProps {
 
 export const RewatchesView: React.FC<RewatchesViewProps> = ({
   rewatches,
-  seriesList,
   searchQuery,
   onDelete,
   onOpenRewatchModal,

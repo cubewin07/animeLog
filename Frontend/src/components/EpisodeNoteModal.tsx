@@ -4,6 +4,7 @@ import { X, BookmarkCheck, Star, Trash2 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
+import { ImageUploadField } from './ImageUploadField';
 
 interface EpisodeNoteModalProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface EpisodeNoteModalProps {
     season: number;
     episode_number: number;
     episode_title?: string | null;
+    cover_image?: number | null;
     note: string;
     rating?: number | null;
   }, noteId?: number) => Promise<void>;
@@ -29,6 +31,8 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
   const [selectedNote, setSelectedNote] = useState<EpisodeNote | null>(null);
   const [episodeNumber, setEpisodeNumber] = useState<number>(1);
   const [episodeTitle, setEpisodeTitle] = useState<string>('');
+  const [coverImageId, setCoverImageId] = useState<number | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -53,6 +57,8 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
     if (selectedNote && selectedNote.season === season.id) {
       setEpisodeNumber(selectedNote.episode_number);
       setEpisodeTitle(selectedNote.episode_title || '');
+      setCoverImageId(selectedNote.cover_image ?? null);
+      setCoverImageUrl(selectedNote.cover_image_url || selectedNote.image_url || null);
       setRating(selectedNote.rating || null);
       setNote(selectedNote.note);
     } else {
@@ -64,6 +70,8 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
       }
       setEpisodeNumber(nextEp);
       setEpisodeTitle('');
+      setCoverImageId(null);
+      setCoverImageUrl(null);
       setRating(10);
       setNote('');
     }
@@ -119,6 +127,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
           season: season.id,
           episode_number: Number(episodeNumber),
           episode_title: episodeTitle.trim() || null,
+          cover_image: coverImageId,
           note: note.trim(),
           rating,
         },
@@ -320,6 +329,17 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
                 </select>
               </div>
             </div>
+
+            {/* Episode Screenshot / Image */}
+            <ImageUploadField
+              label="Episode Still / Screenshot"
+              imageId={coverImageId}
+              imageUrl={coverImageUrl}
+              onChange={(id, url) => {
+                setCoverImageId(id);
+                setCoverImageUrl(url);
+              }}
+            />
 
             <div>
               <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>

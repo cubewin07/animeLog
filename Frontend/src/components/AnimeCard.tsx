@@ -14,12 +14,8 @@ import {
   Quote,
   CheckCircle2,
   Sparkle,
+  Film,
 } from 'lucide-react';
-import {
-  getCharacterAvatar,
-  getReleaseStill,
-  getSeriesPoster,
-} from '../utils/mockImages';
 
 interface AnimeCardProps {
   series: AnimeSeries;
@@ -139,14 +135,26 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
       {/* Franchise Top Bar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px' }}>
         <div style={{ display: 'flex', gap: '14px', flex: 1, minWidth: 0 }}>
-          <img
-            src={getSeriesPoster(series.title, series.image_url)}
-            alt={series.title}
-            className="franchise-card-poster"
-            onError={(e) => {
-              (e.currentTarget as HTMLElement).style.display = 'none';
-            }}
-          />
+          {series.cover_image_url || series.image_url ? (
+            <img
+              src={series.cover_image_url || series.image_url || ''}
+              alt={series.title}
+              className="franchise-card-poster"
+            />
+          ) : (
+            <div
+              className="franchise-card-poster"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(99, 102, 241, 0.12)',
+                color: 'var(--color-primary)',
+              }}
+            >
+              <Film size={22} opacity={0.6} />
+            </div>
+          )}
 
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -264,14 +272,26 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
                   {/* Release Title + Status + Rating */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img
-                        src={getReleaseStill(season.title, season.image_url)}
-                        alt={season.title}
-                        className="release-still-thumb"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                      {season.cover_image_url || season.image_url ? (
+                        <img
+                          src={season.cover_image_url || season.image_url || ''}
+                          alt={season.title}
+                          className="release-still-thumb"
+                        />
+                      ) : (
+                        <div
+                          className="release-still-thumb"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(99, 102, 241, 0.12)',
+                            color: 'var(--color-primary)',
+                          }}
+                        >
+                          <Tv size={14} opacity={0.7} />
+                        </div>
+                      )}
                       <span className="type-badge-tv">
                         <Tv size={11} /> S{season.season_number}
                       </span>
@@ -500,14 +520,26 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
                   {/* Release Title + Status + Rating */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <img
-                        src={getReleaseStill(movie.title, movie.image_url)}
-                        alt={movie.title}
-                        className="release-still-thumb"
-                        onError={(e) => {
-                          (e.currentTarget as HTMLElement).style.display = 'none';
-                        }}
-                      />
+                      {movie.cover_image_url || movie.image_url ? (
+                        <img
+                          src={movie.cover_image_url || movie.image_url || ''}
+                          alt={movie.title}
+                          className="release-still-thumb"
+                        />
+                      ) : (
+                        <div
+                          className="release-still-thumb"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            color: 'var(--color-accent-cyan)',
+                          }}
+                        >
+                          <Clapperboard size={14} opacity={0.7} />
+                        </div>
+                      )}
                       <span className="type-badge-movie">
                         <Clapperboard size={11} /> FILM
                       </span>
@@ -709,24 +741,39 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
           </div>
 
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {series.favorite_characters.map((c) => (
-              <div key={c.id} className="character-badge" title={c.why || c.name}>
-                <img
-                  src={getCharacterAvatar(c.name, c.image_url)}
-                  alt={c.name}
-                  className="character-avatar-thumb"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLElement).style.display = 'none';
-                  }}
-                />
-                <span>{c.name}</span>
-                {c.why && (
-                  <span style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
-                    — "{c.why.slice(0, 24)}{c.why.length > 24 ? '…' : ''}"
-                  </span>
-                )}
-              </div>
-            ))}
+            {series.favorite_characters.map((c) => {
+              const charImg = (c.images && c.images.length > 0) ? c.images[0].url : c.image_url;
+              return (
+                <div key={c.id} className="character-badge" title={c.why || c.name}>
+                  {charImg ? (
+                    <img
+                      src={charImg}
+                      alt={c.name}
+                      className="character-avatar-thumb"
+                    />
+                  ) : (
+                    <div
+                      className="character-avatar-thumb"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(78, 222, 163, 0.15)',
+                        color: 'var(--color-accent-emerald)',
+                      }}
+                    >
+                      <Sparkles size={11} />
+                    </div>
+                  )}
+                  <span>{c.name}</span>
+                  {c.why && (
+                    <span style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
+                      — "{c.why.slice(0, 24)}{c.why.length > 24 ? '…' : ''}"
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

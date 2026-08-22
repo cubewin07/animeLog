@@ -5,7 +5,9 @@ import {
   Book,
   EpisodeNote,
   FavoriteCharacter,
+  Folder,
   Genre,
+  ImageAsset,
   JournalStats,
   Rewatch,
   Studio,
@@ -13,14 +15,24 @@ import {
 
 const API_BASE = '/api';
 
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const csrfToken = getCsrfToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(csrfToken ? { 'X-CSRFToken': csrfToken } : {}),
+    ...(options?.headers as Record<string, string>),
+  };
+
   const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...options?.headers,
-    },
     ...options,
+    headers,
   });
 
   if (!res.ok) {
@@ -55,6 +67,85 @@ function withQuery(params?: Record<string, string | number | undefined>): string
   return serialized ? `?${serialized}` : '';
 }
 
+export const folderApi = {
+  async list(params?: { parent?: number | string }): Promise<Folder[]> {
+    return fetchJson<Folder[]>(`${API_BASE}/folders/${withQuery(params)}`);
+  },
+
+  async create(data: { name: string; parent?: number | null }): Promise<Folder> {
+    return fetchJson<Folder>(`${API_BASE}/folders/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async delete(id: number): Promise<void> {
+    await fetchJson(`${API_BASE}/folders/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+};
+
+export const imageApi = {
+  async list(params?: { folder?: number | string; search?: string }): Promise<ImageAsset[]> {
+    return fetchJson<ImageAsset[]>(`${API_BASE}/images/${withQuery(params)}`);
+  },
+
+  async get(id: number): Promise<ImageAsset> {
+    return fetchJson<ImageAsset>(`${API_BASE}/images/${id}/`);
+  },
+
+  async upload(
+    file: File,
+    options?: { folder?: number | null; title?: string; alt_text?: string }
+  ): Promise<ImageAsset> {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (options?.folder !== undefined && options.folder !== null) {
+      formData.append('folder', String(options.folder));
+    }
+    if (options?.title) {
+      formData.append('title', options.title);
+    }
+    if (options?.alt_text) {
+      formData.append('alt_text', options.alt_text);
+    }
+
+    const csrfToken = getCsrfToken();
+    const headers: Record<string, string> = {};
+    if (csrfToken) {
+      headers['X-CSRFToken'] = csrfToken;
+    }
+
+    const res = await fetch(`${API_BASE}/images/`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    if (!res.ok) {
+      let errorMessage = `Upload failed with status ${res.status}`;
+      try {
+        const errorData = await res.json();
+        if (typeof errorData === 'object' && errorData !== null) {
+          errorMessage = JSON.stringify(errorData);
+        }
+      } catch {
+        // ignore json parse error
+      }
+      throw new Error(errorMessage);
+    }
+
+    return res.json();
+  },
+
+  async delete(id: number): Promise<void> {
+    await fetchJson(`${API_BASE}/images/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export const seriesApi = {
   async list(params?: { status?: string; search?: string; genre?: string | number }): Promise<AnimeSeries[]> {
     return fetchJson<AnimeSeries[]>(`${API_BASE}/series/${withQuery(params)}`);
@@ -66,6 +157,7 @@ export const seriesApi = {
 
   async create(data: {
     title: string;
+    cover_image?: number | null;
     genres?: number[] | Genre[];
     initial_season?: any;
   }): Promise<AnimeSeries> {
@@ -75,7 +167,13 @@ export const seriesApi = {
     });
   },
 
-  async update(id: number, data: Partial<AnimeSeries>): Promise<AnimeSeries> {
+  async update(
+    id: number,
+    data: Partial<Omit<AnimeSeries, 'genres' | 'studios'>> & {
+      genres?: number[] | Genre[];
+      studios?: number[] | Studio[];
+    }
+  ): Promise<AnimeSeries> {
     return fetchJson<AnimeSeries>(`${API_BASE}/series/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -102,6 +200,7 @@ export const seasonApi = {
     series: number;
     title: string;
     season_number: number;
+    cover_image?: number | null;
     status?: string;
     progress?: number;
     total_episodes?: number | null;
@@ -117,7 +216,10 @@ export const seasonApi = {
     });
   },
 
-  async update(id: number, data: Partial<AnimeSeason>): Promise<AnimeSeason> {
+  async update(
+    id: number,
+    data: Partial<Omit<AnimeSeason, 'studios'>> & { studios?: number[] | Studio[] }
+  ): Promise<AnimeSeason> {
     return fetchJson<AnimeSeason>(`${API_BASE}/seasons/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -150,6 +252,7 @@ export const movieApi = {
   async create(data: {
     series: number;
     title: string;
+    cover_image?: number | null;
     status?: string;
     progress_minutes?: number;
     total_minutes?: number | null;
@@ -165,7 +268,10 @@ export const movieApi = {
     });
   },
 
-  async update(id: number, data: Partial<AnimeMovie>): Promise<AnimeMovie> {
+  async update(
+    id: number,
+    data: Partial<Omit<AnimeMovie, 'studios'>> & { studios?: number[] | Studio[] }
+  ): Promise<AnimeMovie> {
     return fetchJson<AnimeMovie>(`${API_BASE}/movies/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -199,6 +305,7 @@ export const episodeNoteApi = {
     season: number;
     episode_number: number;
     episode_title?: string | null;
+    cover_image?: number | null;
     note: string;
     rating?: number | null;
   }): Promise<EpisodeNote> {
@@ -231,14 +338,19 @@ export const bookApi = {
     return fetchJson<Book>(`${API_BASE}/books/${id}/`);
   },
 
-  async create(data: Omit<Book, 'id' | 'created_at'>): Promise<Book> {
+  async create(
+    data: Omit<Book, 'id' | 'created_at' | 'genres'> & { genres?: number[] | Genre[] }
+  ): Promise<Book> {
     return fetchJson<Book>(`${API_BASE}/books/`, {
       method: 'POST',
       body: JSON.stringify(data),
     });
   },
 
-  async update(id: number, data: Partial<Book>): Promise<Book> {
+  async update(
+    id: number,
+    data: Partial<Omit<Book, 'genres'>> & { genres?: number[] | Genre[] }
+  ): Promise<Book> {
     return fetchJson<Book>(`${API_BASE}/books/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -308,9 +420,17 @@ export const characterApi = {
     series: number;
     name: string;
     why?: string | null;
+    images?: number[];
   }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(id: number, data: Partial<FavoriteCharacter> & { images?: number[] }): Promise<FavoriteCharacter> {
+    return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/${id}/`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
