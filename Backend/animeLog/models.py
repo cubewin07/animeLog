@@ -83,6 +83,11 @@ class Image(models.Model):
     def __str__(self):
         return self.title or (self.file.name if self.file else f"Image #{self.id}")
 
+    def delete(self, *args, **kwargs):
+        if self.file:
+            self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
 
 class AnimeStatus(models.TextChoices):
     WATCHING = "WATCHING", "Watching"

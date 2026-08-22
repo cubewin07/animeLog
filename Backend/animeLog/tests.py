@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import patch, MagicMock
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
@@ -234,6 +235,19 @@ class MediaModelTests(TestCase):
         self.assertEqual(char.images.count(), 0)
         self.assertEqual(char.why, "Kindness")
 
+    def test_delete_image_triggers_storage_file_deletion(self):
+        img = Image.objects.create(file="anime_log/images/test_signal.jpg", title="Test Signal")
+        with patch.object(img.file.storage, "delete", return_value=True) as mock_delete:
+            img.delete()
+            mock_delete.assert_called_once_with("anime_log/images/test_signal.jpg")
+
+    def test_update_image_file_triggers_old_file_deletion(self):
+        img = Image.objects.create(file="anime_log/images/initial.jpg", title="Initial")
+        with patch.object(img.file.storage, "delete", return_value=True) as mock_delete:
+            img.file = "anime_log/images/replaced.jpg"
+            img.save()
+            mock_delete.assert_called_once_with("anime_log/images/initial.jpg")
+
 
 class JournalAPIFixtureMixin:
     def setUp(self):
@@ -341,6 +355,14 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertEqual(res_root.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res_root.data), 1)
         self.assertEqual(res_root.data[0]["title"], "Unorganized")
+
+    def test_delete_image_via_api_triggers_file_deletion(self):
+        img = Image.objects.create(file="anime_log/images/api_del.jpg", title="API Del")
+        with patch.object(img.file.storage, "delete", return_value=True) as mock_delete:
+            res = self.client.delete(f"/api/images/{img.id}/")
+            self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+            self.assertFalse(Image.objects.filter(id=img.id).exists())
+            mock_delete.assert_called_once_with("anime_log/images/api_del.jpg")
 
     def test_list_genres(self):
         response = self.client.get("/api/genres/")
