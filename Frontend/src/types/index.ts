@@ -22,10 +22,45 @@ export interface Studio {
   name: string;
 }
 
+export interface Folder {
+  id: number;
+  name: string;
+  parent: number | null;
+  parent_name?: string | null;
+  images_count?: number;
+  created_at: string;
+}
+
+export interface ImageAsset {
+  id: number;
+  file: string;
+  url: string;
+  title: string;
+  alt_text?: string | null;
+  folder?: number | null;
+  folder_name?: string | null;
+  created_at: string;
+}
+
+export interface EpisodeNote {
+  id: number;
+  season: number;
+  season_title?: string;
+  episode_number: number;
+  episode_title: string | null;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
+  image_url?: string | null;
+  note: string;
+  rating: number | null;
+  created_at: string;
+}
+
 export interface Rewatch {
   id: number;
-  anime: number;
-  anime_title?: string;
+  season: number | null;
+  movie: number | null;
+  release_title?: string;
   start_date: string | null;
   finish_date: string | null;
   rating: number | null;
@@ -34,26 +69,67 @@ export interface Rewatch {
 
 export interface FavoriteCharacter {
   id: number;
-  anime: number;
-  anime_title?: string;
+  series: number;
+  series_title?: string;
   name: string;
   why: string | null;
+  images?: ImageAsset[];
+  image_url?: string | null;
 }
 
-export interface Anime {
+export interface AnimeSeason {
   id: number;
+  series: number;
+  series_title?: string;
   title: string;
+  season_number: number;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
+  image_url?: string | null;
   status: AnimeStatus;
-  rating: number | null;
   progress: number;
   total_episodes: number | null;
+  rating: number | null;
   start_date: string | null;
   finish_date: string | null;
   notes: string | null;
   created_at: string;
-  genres: Genre[];
+  studios: Studio[];
+  episode_notes?: EpisodeNote[];
+  rewatches?: Rewatch[];
+}
+
+export interface AnimeMovie {
+  id: number;
+  series: number;
+  series_title?: string;
+  title: string;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
+  image_url?: string | null;
+  status: AnimeStatus;
+  progress_minutes: number;
+  total_minutes: number | null;
+  rating: number | null;
+  start_date: string | null;
+  finish_date: string | null;
+  notes: string | null;
+  created_at: string;
   studios: Studio[];
   rewatches?: Rewatch[];
+}
+
+export interface AnimeSeries {
+  id: number;
+  title: string;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
+  image_url?: string | null;
+  created_at: string;
+  genres: Genre[];
+  studios: Studio[];
+  seasons: AnimeSeason[];
+  movies: AnimeMovie[];
   favorite_characters?: FavoriteCharacter[];
 }
 
@@ -61,6 +137,9 @@ export interface Book {
   id: number;
   title: string;
   author: string | null;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
+  image_url?: string | null;
   status: BookStatus;
   rating: number | null;
   progress: number;
@@ -72,7 +151,7 @@ export interface Book {
   genres: Genre[];
 }
 
-export type ActiveTab = 'dashboard' | 'anime' | 'books' | 'characters' | 'rewatches';
+export type ActiveTab = 'dashboard' | 'anime' | 'books' | 'characters' | 'rewatches' | 'media';
 
 export interface JournalStats {
   activeWatching: number;

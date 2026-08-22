@@ -1,11 +1,11 @@
 import React from 'react';
-import { Anime, Rewatch } from '../types';
+import { AnimeSeries, Rewatch } from '../types';
 import { RewatchTimeline } from '../components/RewatchTimeline';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 interface RewatchesViewProps {
   rewatches: Rewatch[];
-  animeList: Anime[];
+  seriesList?: AnimeSeries[];
   searchQuery: string;
   onDelete: (id: number) => void;
   onOpenRewatchModal: () => void;
@@ -20,7 +20,7 @@ export const RewatchesView: React.FC<RewatchesViewProps> = ({
   const filtered = rewatches.filter((r) => {
     return (
       searchQuery.trim() === '' ||
-      (r.anime_title && r.anime_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (r.release_title && r.release_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (r.notes && r.notes.toLowerCase().includes(searchQuery.toLowerCase()))
     );
   });
@@ -41,7 +41,7 @@ export const RewatchesView: React.FC<RewatchesViewProps> = ({
         <div>
           <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Rewatches Journal</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            First-class rewatch passes. Compare how your mindset and takeaways deepened across time.
+            First-class rewatch passes across seasons and films. Compare how your mindset deepened over time.
           </p>
         </div>
 

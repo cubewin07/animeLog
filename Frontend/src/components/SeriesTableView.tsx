@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Anime } from '../types';
+import React, { useRef } from 'react';
+import { AnimeMovie, AnimeSeason, AnimeSeries } from '../types';
 import {
   Star,
   Plus,
@@ -7,62 +7,77 @@ import {
   Edit3,
   Trash2,
   RotateCcw,
-  ArrowUpDown,
-  BookOpen,
-  ChevronDown,
-  ChevronUp,
+  Tv,
+  Clapperboard,
+  BookmarkCheck,
+  Sparkles,
+  Quote,
+  CheckCircle2,
+  Sparkle,
+  Film,
 } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface SeriesTableViewProps {
-  animeList: Anime[];
-  onEdit: (anime: Anime) => void;
-  onDelete: (id: number) => void;
-  onProgressDelta: (id: number, delta: number) => void;
-  onAddRewatch: (anime: Anime) => void;
+  seriesList: AnimeSeries[];
+  onEditSeries: (series: AnimeSeries) => void;
+  onDeleteSeries: (id: number) => void;
+  onAddSeason: (series: AnimeSeries) => void;
+  onAddMovie: (series: AnimeSeries) => void;
+  onEditSeason: (season: AnimeSeason) => void;
+  onDeleteSeason: (id: number) => void;
+  onSeasonProgressDelta: (id: number, delta: number) => void;
+  onEditMovie: (movie: AnimeMovie) => void;
+  onDeleteMovie: (id: number) => void;
+  onMovieProgressDelta: (id: number, delta: number) => void;
+  onOpenEpisodeNotes: (season: AnimeSeason) => void;
+  onAddRewatchSeason: (season: AnimeSeason) => void;
+  onAddRewatchMovie: (movie: AnimeMovie) => void;
+  onAddCharacter: (series: AnimeSeries) => void;
 }
 
-type SortField = 'title' | 'progress' | 'rating' | 'status' | 'date';
-type SortOrder = 'asc' | 'desc';
-
 export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
-  animeList,
-  onEdit,
-  onDelete,
-  onProgressDelta,
-  onAddRewatch,
+  seriesList,
+  onEditSeries,
+  onDeleteSeries,
+  onAddSeason,
+  onAddMovie,
+  onEditSeason,
+  onDeleteSeason,
+  onSeasonProgressDelta,
+  onEditMovie,
+  onDeleteMovie,
+  onMovieProgressDelta,
+  onOpenEpisodeNotes,
+  onAddRewatchSeason,
+  onAddRewatchMovie,
+  onAddCharacter,
 }) => {
-  const [sortField, setSortField] = useState<SortField>('rating');
-  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
-  const [expandedNotesId, setExpandedNotesId] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder(field === 'title' ? 'asc' : 'desc');
-    }
-  };
-
-  const sortedList = [...animeList].sort((a, b) => {
-    let comparison = 0;
-    if (sortField === 'title') {
-      comparison = a.title.localeCompare(b.title);
-    } else if (sortField === 'rating') {
-      const rA = a.rating || 0;
-      const rB = b.rating || 0;
-      comparison = rA - rB;
-    } else if (sortField === 'progress') {
-      comparison = a.progress - b.progress;
-    } else if (sortField === 'status') {
-      comparison = a.status.localeCompare(b.status);
-    } else if (sortField === 'date') {
-      const dA = a.start_date || a.created_at;
-      const dB = b.start_date || b.created_at;
-      comparison = dA.localeCompare(dB);
-    }
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
+  useGSAP(
+    () => {
+      if (prefersReducedMotion() || !containerRef.current) return;
+      const cards = containerRef.current.querySelectorAll('.franchise-section-card');
+      if (cards.length > 0) {
+        gsap.fromTo(
+          cards,
+          { opacity: 0, y: 12 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.35,
+            stagger: 0.05,
+            ease: EASING.gentle,
+            clearProps: 'transform,opacity',
+          }
+        );
+      }
+    },
+    { scope: containerRef, dependencies: [seriesList.length] }
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -81,373 +96,737 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
     }
   };
 
-  // Helper to detect season name or sub-label from title
-  const parseSeason = (title: string) => {
-    const match = title.match(/(Season\s*\d+|S\d+|Part\s*\d+|Cour\s*\d+|Movie|II|III|IV|V)/i);
-    return match ? match[0] : null;
-  };
+  // Summary Metrics
+  const totalSeasons = seriesList.reduce((acc, s) => acc + s.seasons.length, 0);
+  const totalMovies = seriesList.reduce((acc, s) => acc + s.movies.length, 0);
+  const totalTvWatched = seriesList.reduce(
+    (acc, s) => acc + s.seasons.reduce((sAcc, sea) => sAcc + sea.progress, 0),
+    0
+  );
+  const totalTvKnown = seriesList.reduce(
+    (acc, s) =>
+      acc + s.seasons.reduce((sAcc, sea) => sAcc + (sea.total_episodes || sea.progress), 0),
+    0
+  );
 
-  // Total summary metrics
-  const totalEpisodesWatched = animeList.reduce((sum, a) => sum + a.progress, 0);
-  const totalEpisodesOverall = animeList.reduce((sum, a) => sum + (a.total_episodes || a.progress), 0);
-  const ratedAnime = animeList.filter((a) => a.rating !== null);
-  const avgScore =
-    ratedAnime.length > 0
-      ? (ratedAnime.reduce((sum, a) => sum + (a.rating || 0), 0) / ratedAnime.length).toFixed(1)
-      : 'N/A';
+  const totalMemories = seriesList.reduce(
+    (acc, s) =>
+      acc +
+      s.seasons.filter((sea) => sea.notes && sea.notes.trim().length > 0).length +
+      s.movies.filter((m) => m.notes && m.notes.trim().length > 0).length +
+      s.seasons.reduce((epAcc, sea) => epAcc + (sea.episode_notes?.length || 0), 0),
+    0
+  );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* High-clarity Summary Strip */}
+    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* High-Clarity Journal Metrics Strip */}
       <div
         className="glass-panel"
         style={{
-          padding: '12px 20px',
+          padding: '16px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '16px',
-          borderRadius: 'var(--radius-md)',
+          borderRadius: 'var(--radius-lg)',
+          background: 'linear-gradient(135deg, rgba(14, 30, 50, 0.9) 0%, rgba(8, 20, 36, 0.95) 100%)',
+          border: '1px solid var(--border-subtle)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '28px', flexWrap: 'wrap' }}>
           <div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-              Total Series
+            <span
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+              }}
+            >
+              Franchises
             </span>
-            <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff' }}>
-              {animeList.length}
+            <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: '#ffffff' }}>
+              {seriesList.length}
             </div>
           </div>
-          <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
+
+          <div style={{ width: '1px', height: '28px', background: 'var(--border-subtle)' }} />
+
           <div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-              Episodes Watched
+            <span
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+              }}
+            >
+              Logged Releases
             </span>
-            <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: 'var(--color-primary)' }}>
-              {totalEpisodesWatched} <span style={{ fontSize: '13px', color: 'var(--text-dim)' }}>/ {totalEpisodesOverall}</span>
+            <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-secondary)' }}>
+              {totalSeasons} TV <span style={{ color: 'var(--text-dim)', fontSize: '14px' }}>·</span> {totalMovies} Film{totalMovies === 1 ? '' : 's'}
             </div>
           </div>
-          <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
+
+          <div style={{ width: '1px', height: '28px', background: 'var(--border-subtle)' }} />
+
           <div>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'var(--font-mono)' }}>
-              Mean Score
+            <span
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+              }}
+            >
+              TV Episodes Watched
             </span>
-            <div className="mono" style={{ fontSize: '18px', fontWeight: 700, color: '#fbbf24' }}>
-              ★ {avgScore}
+            <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-primary)' }}>
+              {totalTvWatched} <span style={{ fontSize: '14px', color: 'var(--text-dim)' }}>/ {totalTvKnown}</span>
+            </div>
+          </div>
+
+          <div style={{ width: '1px', height: '28px', background: 'var(--border-subtle)' }} />
+
+          <div>
+            <span
+              style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+              }}
+            >
+              Memories & Takeaways
+            </span>
+            <div className="mono" style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-accent-emerald)' }}>
+              {totalMemories}
             </div>
           </div>
         </div>
 
         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          Click column headers to sort series.
+          Detailed chronological table of franchises, releases & lessons
         </div>
       </div>
 
-      {/* Structured Table */}
-      <div
-        className="glass-card"
-        style={{
-          overflowX: 'auto',
-          borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr
-              style={{
-                borderBottom: '1px solid var(--border-medium)',
-                background: 'rgba(5, 20, 36, 0.8)',
-              }}
-            >
-              <th
-                onClick={() => handleSort('title')}
-                style={{
-                  padding: '14px 18px',
-                  fontSize: '12px',
-                  color: sortField === 'title' ? 'var(--color-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Series & Season</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
+      {/* Franchise Editorial Section Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {seriesList.map((series) => {
+          const allReleasesCount = series.seasons.length + series.movies.length;
+          const completedReleasesCount =
+            series.seasons.filter((s) => s.status === 'COMPLETED').length +
+            series.movies.filter((m) => m.status === 'COMPLETED').length;
 
-              <th
-                onClick={() => handleSort('status')}
-                style={{
-                  padding: '14px 16px',
-                  fontSize: '12px',
-                  color: sortField === 'status' ? 'var(--color-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Status</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
+          const seriesTvWatched = series.seasons.reduce((sum, s) => sum + s.progress, 0);
+          const seriesTvTotal = series.seasons.reduce(
+            (sum, s) => sum + (s.total_episodes || s.progress),
+            0
+          );
+          const isAllCompleted = allReleasesCount > 0 && completedReleasesCount === allReleasesCount;
 
-              <th
-                onClick={() => handleSort('progress')}
-                style={{
-                  padding: '14px 16px',
-                  fontSize: '12px',
-                  color: sortField === 'progress' ? 'var(--color-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Episode Progress</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
+          return (
+            <div key={series.id} className="franchise-section-card">
+              {/* Franchise Header Banner */}
+              <div className="franchise-section-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                  {series.cover_image_url || series.image_url ? (
+                    <img
+                      src={series.cover_image_url || series.image_url || ''}
+                      alt={series.title}
+                      className="franchise-poster-thumb"
+                    />
+                  ) : (
+                    <div
+                      className="franchise-poster-thumb"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(99, 102, 241, 0.12)',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
+                      <Film size={18} opacity={0.6} />
+                    </div>
+                  )}
 
-              <th
-                onClick={() => handleSort('rating')}
-                style={{
-                  padding: '14px 16px',
-                  fontSize: '12px',
-                  color: sortField === 'rating' ? 'var(--color-primary)' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Score</span>
-                  <ArrowUpDown size={12} />
-                </div>
-              </th>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                        {series.title}
+                      </h3>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: '10px',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: isAllCompleted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)',
+                          color: isAllCompleted ? '#34d399' : 'var(--color-primary)',
+                          fontWeight: 700,
+                        }}
+                      >
+                        FRANCHISE
+                      </span>
+                    </div>
 
-              <th style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Studio & Genres
-              </th>
-
-              <th style={{ padding: '14px 16px', fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, textAlign: 'right' }}>
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedList.map((anime) => {
-              const seasonLabel = parseSeason(anime.title);
-              const progressPct =
-                anime.total_episodes && anime.total_episodes > 0
-                  ? Math.min(100, Math.round((anime.progress / anime.total_episodes) * 100))
-                  : anime.progress > 0
-                  ? 50
-                  : 0;
-
-              const isNotesOpen = expandedNotesId === anime.id;
-
-              return (
-                <React.Fragment key={anime.id}>
-                  <tr
-                    style={{
-                      borderBottom: '1px solid var(--border-subtle)',
-                      background: isNotesOpen ? 'rgba(99, 102, 241, 0.05)' : 'transparent',
-                      transition: 'background 0.15s ease',
-                    }}
-                    className="table-row-hover"
-                  >
-                    {/* Series Title */}
-                    <td style={{ padding: '14px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '14px' }}>
-                          {anime.title}
+                    {/* Studios & Genres */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      {series.studios && series.studios.length > 0 && (
+                        <span className="studio-tag">
+                          {series.studios.map((s) => s.name).join(', ')}
                         </span>
-                        {seasonLabel && (
-                          <span
-                            className="mono"
-                            style={{
-                              fontSize: '10px',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              background: 'rgba(99, 102, 241, 0.15)',
-                              color: 'var(--color-primary)',
-                              border: '1px solid rgba(99, 102, 241, 0.3)',
-                              fontWeight: 600,
-                            }}
-                          >
-                            {seasonLabel}
+                      )}
+                      {series.genres &&
+                        series.genres.map((g) => (
+                          <span key={g.id} className="genre-tag">
+                            {g.name}
                           </span>
-                        )}
-                        {anime.rewatches && anime.rewatches.length > 0 && (
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              padding: '1px 5px',
-                              borderRadius: '4px',
-                              background: 'rgba(196, 193, 251, 0.15)',
-                              color: 'var(--color-secondary)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                            }}
-                            title={`${anime.rewatches.length} rewatch pass(es)`}
-                          >
-                            <RotateCcw size={10} /> {anime.rewatches.length}
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Franchise Completion & Quick Actions */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {isAllCompleted && <CheckCircle2 size={14} color="#34d399" />}
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: isAllCompleted ? '#34d399' : '#ffffff',
+                      }}
+                    >
+                      {completedReleasesCount} / {allReleasesCount} completed
+                    </span>
+                  </div>
+
+                  {series.seasons.length > 0 && (
+                    <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      {seriesTvWatched} / {seriesTvTotal} eps
+                    </span>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-subtle)' }}
+                      onClick={() => onAddSeason(series)}
+                      title="Add TV Season"
+                    >
+                      <Plus size={12} />
+                      <span>Season</span>
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-subtle)' }}
+                      onClick={() => onAddMovie(series)}
+                      title="Add Film"
+                    >
+                      <Plus size={12} />
+                      <span>Film</span>
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => onAddCharacter(series)}
+                      title="Remember a Character"
+                      style={{ padding: '5px 7px' }}
+                    >
+                      <Sparkles size={13} />
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => onEditSeries(series)}
+                      title="Edit Franchise"
+                      style={{ padding: '5px 7px' }}
+                    >
+                      <Edit3 size={13} />
+                    </button>
+                    <button
+                      className="btn-icon"
+                      onClick={() => onDeleteSeries(series.id)}
+                      title="Delete Franchise"
+                      style={{ color: '#fb7185', padding: '5px 7px' }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Releases Linear List */}
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {/* TV Seasons */}
+                {series.seasons.map((season) => {
+                  const progressPct =
+                    season.total_episodes && season.total_episodes > 0
+                      ? Math.min(100, Math.round((season.progress / season.total_episodes) * 100))
+                      : season.progress > 0
+                      ? 50
+                      : 0;
+                  const isCompleted = season.status === 'COMPLETED';
+                  const episodeNotesCount = season.episode_notes?.length || 0;
+                  const rewatchesCount = season.rewatches?.length || 0;
+
+                  return (
+                    <div key={`table-season-${season.id}`} className="release-linear-item">
+                      {/* Top Release Line: Title, Status, Rating, Stepper, Actions */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {/* Title & Metadata */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '220px' }}>
+                          {season.cover_image_url || season.image_url ? (
+                            <img
+                              src={season.cover_image_url || season.image_url || ''}
+                              alt={season.title}
+                              className="release-still-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="release-still-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(99, 102, 241, 0.12)',
+                                color: 'var(--color-primary)',
+                              }}
+                            >
+                              <Tv size={14} opacity={0.7} />
+                            </div>
+                          )}
+                          <span className="type-badge-tv">
+                            <Tv size={11} /> S{season.season_number}
                           </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      {getStatusBadge(anime.status)}
-                    </td>
-
-                    {/* Episode Progress & Stepper */}
-                    <td style={{ padding: '14px 16px', minWidth: '180px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
-                            {anime.progress} / {anime.total_episodes ?? '??'}
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                              ({progressPct}%)
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#ffffff' }}>
+                            {season.title}
+                          </span>
+                          {season.studios && season.studios.length > 0 && (
+                            <span style={{ fontSize: '11px', color: 'var(--color-secondary)' }}>
+                              ({season.studios.map((s) => s.name).join(', ')})
                             </span>
-                          </span>
-                          <div style={{ display: 'flex', gap: '3px' }}>
+                          )}
+                        </div>
+
+                        {/* Status & Rating */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {getStatusBadge(season.status)}
+                          {season.rating && (
+                            <div className="rating-pill">
+                              <Star size={11} fill="#fbbf24" color="#fbbf24" />
+                              <span>{season.rating}/10</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Tactile Progress Stepper */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                                {season.progress}{' '}
+                                <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>
+                                  / {season.total_episodes ?? '??'} eps
+                                </span>
+                              </span>
+                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? '#34d399' : 'var(--text-muted)' }}>
+                                ({progressPct}%)
+                              </span>
+                            </div>
+                            <div className="progress-track" style={{ height: '4px' }}>
+                              <div
+                                className={`progress-fill ${isCompleted ? 'completed' : ''}`}
+                                style={{ width: `${progressPct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="stepper-group">
                             <button
-                              className="btn-icon"
-                              style={{ padding: '3px 5px' }}
-                              onClick={() => onProgressDelta(anime.id, -1)}
-                              disabled={anime.progress <= 0}
-                              title="Subtract 1 episode"
+                              className="stepper-btn"
+                              onClick={() => onSeasonProgressDelta(season.id, -1)}
+                              disabled={season.progress <= 0}
+                              title="Step back 1 episode"
                             >
                               <Minus size={11} />
                             </button>
                             <button
-                              className="btn-icon"
-                              style={{ padding: '3px 5px', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--color-primary)' }}
-                              onClick={() => onProgressDelta(anime.id, 1)}
-                              disabled={anime.total_episodes !== null && anime.progress >= anime.total_episodes}
-                              title="Add 1 episode"
+                              className="stepper-btn"
+                              style={{ background: 'rgba(99, 102, 241, 0.2)', color: 'var(--color-primary)' }}
+                              onClick={() => onSeasonProgressDelta(season.id, 1)}
+                              disabled={season.total_episodes !== null && season.progress >= season.total_episodes}
+                              title="Advance 1 episode"
                             >
                               <Plus size={11} />
                             </button>
                           </div>
                         </div>
 
-                        <div className="progress-track" style={{ height: '4px' }}>
-                          <div
-                            className={`progress-fill ${anime.status === 'COMPLETED' ? 'completed' : ''}`}
-                            style={{ width: `${progressPct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
+                        {/* Release Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <button
+                            className="btn btn-ghost"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              color: episodeNotesCount > 0 ? 'var(--color-primary)' : 'var(--text-muted)',
+                              background: episodeNotesCount > 0 ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                            }}
+                            onClick={() => onOpenEpisodeNotes(season)}
+                            title="Standout Episode Memories"
+                          >
+                            <BookmarkCheck size={12} />
+                            <span>Ep Memories {episodeNotesCount > 0 ? `(${episodeNotesCount})` : ''}</span>
+                          </button>
 
-                    {/* Score */}
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      {anime.rating ? (
-                        <div className="rating-pill" style={{ padding: '2px 6px', fontSize: '11px' }}>
-                          <Star size={11} fill="#fbbf24" color="#fbbf24" />
-                          <span>{anime.rating}/10</span>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>—</span>
-                      )}
-                    </td>
+                          <button
+                            className="btn btn-ghost"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              color: rewatchesCount > 0 ? 'var(--color-secondary)' : 'var(--text-muted)',
+                              background: rewatchesCount > 0 ? 'rgba(196, 193, 251, 0.12)' : 'transparent',
+                            }}
+                            onClick={() => onAddRewatchSeason(season)}
+                            title="Log Rewatch Pass"
+                          >
+                            <RotateCcw size={12} />
+                            <span>Rewatch {rewatchesCount > 0 ? `(${rewatchesCount})` : ''}</span>
+                          </button>
 
-                    {/* Studios & Genres */}
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        {anime.studios && anime.studios.length > 0 && (
-                          <span style={{ fontSize: '11px', color: 'var(--color-secondary)', fontWeight: 600 }}>
-                            {anime.studios.map((s) => s.name).join(', ')}
-                          </span>
-                        )}
-                        {anime.genres &&
-                          anime.genres.slice(0, 2).map((g) => (
-                            <span key={g.id} className="genre-tag" style={{ fontSize: '10px', padding: '1px 5px' }}>
-                              {g.name}
-                            </span>
-                          ))}
-                        {anime.genres && anime.genres.length > 2 && (
-                          <span style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                            +{anime.genres.length - 2}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '6px' }}>
-                        {anime.notes && (
+                          <button className="btn-icon" onClick={() => onEditSeason(season)} title="Edit Season">
+                            <Edit3 size={13} />
+                          </button>
                           <button
                             className="btn-icon"
-                            onClick={() => setExpandedNotesId(isNotesOpen ? null : anime.id)}
-                            title="View lesson & reflection"
-                            style={{ color: isNotesOpen ? 'var(--color-primary)' : 'var(--text-muted)' }}
+                            onClick={() => onDeleteSeason(season.id)}
+                            title="Delete Season"
+                            style={{ color: '#fb7185' }}
                           >
-                            <BookOpen size={13} />
+                            <Trash2 size={13} />
                           </button>
-                        )}
-                        <button
-                          className="btn-icon"
-                          onClick={() => onAddRewatch(anime)}
-                          title="Add rewatch pass"
-                        >
-                          <RotateCcw size={13} />
-                        </button>
-                        <button className="btn-icon" onClick={() => onEdit(anime)} title="Edit series">
-                          <Edit3 size={13} />
-                        </button>
-                        <button
-                          className="btn-icon"
-                          onClick={() => onDelete(anime.id)}
-                          title="Delete"
-                          style={{ color: '#fb7185' }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
 
-                  {/* Expandable Lesson Drawer */}
-                  {isNotesOpen && (
-                    <tr style={{ background: 'rgba(99, 102, 241, 0.05)', borderBottom: '1px solid var(--border-subtle)' }}>
-                      <td colSpan={6} style={{ padding: '12px 20px 16px 20px' }}>
-                        <div
-                          style={{
-                            background: 'rgba(5, 20, 36, 0.8)',
-                            padding: '12px 16px',
-                            borderRadius: 'var(--radius-md)',
-                            borderLeft: '3px solid var(--color-primary-action)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                            <BookOpen size={13} color="var(--color-primary)" />
-                            <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--color-primary)', textTransform: 'uppercase' }}>
-                              Recorded Lesson & Memory
+                      {/* Line 2: Editorial Reflection & Standout Memories (High Readability) */}
+                      {season.notes && (
+                        <div className="editorial-takeaway-card">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Quote size={13} color="var(--color-primary)" />
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                color: 'var(--color-primary)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              Season Takeaway
                             </span>
                           </div>
-                          <p style={{ fontSize: '13px', color: '#d4e4fa', fontStyle: 'italic', lineHeight: '1.5' }}>
-                            "{anime.notes}"
+                          <p style={{ fontSize: '13px', color: '#e2eaf6', fontStyle: 'italic', lineHeight: 1.55 }}>
+                            "{season.notes}"
                           </p>
                         </div>
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                      )}
+
+                      {/* Standout Episode Notes Pills */}
+                      {season.episode_notes && season.episode_notes.length > 0 && (
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
+                          {season.episode_notes.map((ep) => (
+                            <div
+                              key={ep.id}
+                              style={{
+                                background: 'rgba(9, 22, 38, 0.85)',
+                                padding: '6px 10px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid var(--border-subtle)',
+                                fontSize: '11px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                              }}
+                            >
+                              <span style={{ fontWeight: 700, color: '#ffffff' }}>
+                                Ep {ep.episode_number}:
+                              </span>
+                              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                "{ep.note}"
+                              </span>
+                              {ep.rating && <span style={{ color: '#fbbf24', fontWeight: 600 }}>★{ep.rating}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Films */}
+                {series.movies.map((movie) => {
+                  const progressPct =
+                    movie.total_minutes && movie.total_minutes > 0
+                      ? Math.min(100, Math.round((movie.progress_minutes / movie.total_minutes) * 100))
+                      : movie.progress_minutes > 0
+                      ? 50
+                      : 0;
+                  const isCompleted = movie.status === 'COMPLETED';
+                  const rewatchesCount = movie.rewatches?.length || 0;
+
+                  return (
+                    <div key={`table-movie-${movie.id}`} className="release-linear-item">
+                      {/* Top Release Line */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        {/* Title & Metadata */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '220px' }}>
+                          {movie.cover_image_url || movie.image_url ? (
+                            <img
+                              src={movie.cover_image_url || movie.image_url || ''}
+                              alt={movie.title}
+                              className="release-still-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="release-still-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                color: 'var(--color-accent-cyan)',
+                              }}
+                            >
+                              <Clapperboard size={14} opacity={0.7} />
+                            </div>
+                          )}
+                          <span className="type-badge-movie">
+                            <Clapperboard size={11} /> FILM
+                          </span>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#ffffff' }}>
+                            {movie.title}
+                          </span>
+                          {movie.studios && movie.studios.length > 0 && (
+                            <span style={{ fontSize: '11px', color: 'var(--color-secondary)' }}>
+                              ({movie.studios.map((s) => s.name).join(', ')})
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Status & Rating */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {getStatusBadge(movie.status)}
+                          {movie.rating && (
+                            <div className="rating-pill">
+                              <Star size={11} fill="#fbbf24" color="#fbbf24" />
+                              <span>{movie.rating}/10</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Minutes Stepper */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                                {movie.progress_minutes}{' '}
+                                <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>
+                                  / {movie.total_minutes ?? '??'} min
+                                </span>
+                              </span>
+                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? '#38bdf8' : 'var(--text-muted)' }}>
+                                ({progressPct}%)
+                              </span>
+                            </div>
+                            <div className="progress-track" style={{ height: '4px' }}>
+                              <div
+                                className={`progress-fill ${isCompleted ? 'completed' : ''}`}
+                                style={{
+                                  width: `${progressPct}%`,
+                                  background: isCompleted ? undefined : 'linear-gradient(90deg, #38bdf8, #818cf8)',
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="stepper-group">
+                            <button
+                              className="stepper-btn"
+                              onClick={() => onMovieProgressDelta(movie.id, -10)}
+                              disabled={movie.progress_minutes <= 0}
+                              title="Step back 10 minutes"
+                            >
+                              <Minus size={11} />
+                            </button>
+                            <button
+                              className="stepper-btn"
+                              style={{ background: 'rgba(56, 189, 248, 0.2)', color: 'var(--color-accent-cyan)' }}
+                              onClick={() => onMovieProgressDelta(movie.id, 10)}
+                              disabled={movie.total_minutes !== null && movie.progress_minutes >= movie.total_minutes}
+                              title="Advance 10 minutes"
+                            >
+                              <Plus size={11} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Release Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <button
+                            className="btn btn-ghost"
+                            style={{
+                              padding: '3px 8px',
+                              fontSize: '11px',
+                              color: rewatchesCount > 0 ? 'var(--color-secondary)' : 'var(--text-muted)',
+                              background: rewatchesCount > 0 ? 'rgba(196, 193, 251, 0.12)' : 'transparent',
+                            }}
+                            onClick={() => onAddRewatchMovie(movie)}
+                            title="Log Rewatch Pass"
+                          >
+                            <RotateCcw size={12} />
+                            <span>Rewatch {rewatchesCount > 0 ? `(${rewatchesCount})` : ''}</span>
+                          </button>
+
+                          <button className="btn-icon" onClick={() => onEditMovie(movie)} title="Edit Film">
+                            <Edit3 size={13} />
+                          </button>
+                          <button
+                            className="btn-icon"
+                            onClick={() => onDeleteMovie(movie.id)}
+                            title="Delete Film"
+                            style={{ color: '#fb7185' }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Film Takeaway */}
+                      {movie.notes && (
+                        <div className="editorial-takeaway-card editorial-takeaway-movie">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Quote size={13} color="var(--color-accent-cyan)" />
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                color: 'var(--color-accent-cyan)',
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                              }}
+                            >
+                              Film Reflection & Memory
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '13px', color: '#e2eaf6', fontStyle: 'italic', lineHeight: 1.55 }}>
+                            "{movie.notes}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Franchise Beloved Characters Strip */}
+              {series.favorite_characters && series.favorite_characters.length > 0 && (
+                <div
+                  style={{
+                    padding: '12px 20px',
+                    background: 'rgba(5, 15, 27, 0.5)',
+                    borderTop: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Sparkle size={12} color="var(--color-accent-emerald)" />
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 700,
+                        color: 'var(--color-accent-emerald)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Characters:
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {series.favorite_characters.map((c) => {
+                      const charImg = (c.images && c.images.length > 0) ? c.images[0].url : c.image_url;
+                      return (
+                        <div key={c.id} className="character-badge" title={c.why || c.name}>
+                          {charImg ? (
+                            <img
+                              src={charImg}
+                              alt={c.name}
+                              className="character-avatar-thumb"
+                            />
+                          ) : (
+                            <div
+                              className="character-avatar-thumb"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(78, 222, 163, 0.15)',
+                                color: 'var(--color-accent-emerald)',
+                              }}
+                            >
+                              <Sparkles size={10} />
+                            </div>
+                          )}
+                          <span>{c.name}</span>
+                          {c.why && (
+                            <span style={{ fontSize: '10px', opacity: 0.8, fontStyle: 'italic' }}>
+                              — "{c.why.slice(0, 28)}{c.why.length > 28 ? '…' : ''}"
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

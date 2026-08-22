@@ -9,6 +9,7 @@ import {
   Plus,
   Search,
   BookMarked,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -32,6 +33,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'books', label: 'Book Journal', icon: <BookOpen size={16} /> },
     { id: 'characters', label: 'Favorite Characters', icon: <Sparkles size={16} /> },
     { id: 'rewatches', label: 'Rewatches', icon: <RotateCcw size={16} /> },
+    { id: 'media', label: 'Media Library', icon: <ImageIcon size={16} /> },
   ];
 
   return (

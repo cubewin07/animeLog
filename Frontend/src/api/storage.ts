@@ -1,18 +1,14 @@
 import {
-  INITIAL_ANIME,
   INITIAL_BOOKS,
-  INITIAL_CHARACTERS,
   INITIAL_GENRES,
-  INITIAL_REWATCHES,
+  INITIAL_SERIES,
   INITIAL_STUDIOS,
 } from './mockData';
-import { Anime, Book, FavoriteCharacter, Genre, Rewatch, Studio } from '../types';
+import { AnimeSeries, Book, Genre, Studio } from '../types';
 
 const STORAGE_KEYS = {
-  ANIME: 'animelog_anime_v1',
+  SERIES: 'animelog_series_v2',
   BOOKS: 'animelog_books_v1',
-  REWATCHES: 'animelog_rewatches_v1',
-  CHARACTERS: 'animelog_characters_v1',
   GENRES: 'animelog_genres_v1',
   STUDIOS: 'animelog_studios_v1',
 };
@@ -36,11 +32,11 @@ function setItem<T>(key: string, value: T): void {
 }
 
 export const storage = {
-  getAnime(): Anime[] {
-    return getItem<Anime[]>(STORAGE_KEYS.ANIME, INITIAL_ANIME);
+  getSeries(): AnimeSeries[] {
+    return getItem<AnimeSeries[]>(STORAGE_KEYS.SERIES, INITIAL_SERIES);
   },
-  saveAnime(items: Anime[]): void {
-    setItem(STORAGE_KEYS.ANIME, items);
+  saveSeries(items: AnimeSeries[]): void {
+    setItem(STORAGE_KEYS.SERIES, items);
   },
 
   getBooks(): Book[] {
@@ -48,20 +44,6 @@ export const storage = {
   },
   saveBooks(items: Book[]): void {
     setItem(STORAGE_KEYS.BOOKS, items);
-  },
-
-  getRewatches(): Rewatch[] {
-    return getItem<Rewatch[]>(STORAGE_KEYS.REWATCHES, INITIAL_REWATCHES);
-  },
-  saveRewatches(items: Rewatch[]): void {
-    setItem(STORAGE_KEYS.REWATCHES, items);
-  },
-
-  getCharacters(): FavoriteCharacter[] {
-    return getItem<FavoriteCharacter[]>(STORAGE_KEYS.CHARACTERS, INITIAL_CHARACTERS);
-  },
-  saveCharacters(items: FavoriteCharacter[]): void {
-    setItem(STORAGE_KEYS.CHARACTERS, items);
   },
 
   getGenres(): Genre[] {
@@ -79,10 +61,11 @@ export const storage = {
   },
 
   resetDefaults(): void {
-    localStorage.removeItem(STORAGE_KEYS.ANIME);
+    localStorage.removeItem(STORAGE_KEYS.SERIES);
+    localStorage.removeItem('animelog_anime_v1');
+    localStorage.removeItem('animelog_rewatches_v1');
+    localStorage.removeItem('animelog_characters_v1');
     localStorage.removeItem(STORAGE_KEYS.BOOKS);
-    localStorage.removeItem(STORAGE_KEYS.REWATCHES);
-    localStorage.removeItem(STORAGE_KEYS.CHARACTERS);
     localStorage.removeItem(STORAGE_KEYS.GENRES);
     localStorage.removeItem(STORAGE_KEYS.STUDIOS);
   },
