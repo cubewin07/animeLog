@@ -5,7 +5,9 @@ from .views import (
     BookViewSet,
     EpisodeNoteViewSet,
     FavoriteCharacterViewSet,
+    FolderViewSet,
     GenreViewSet,
+    ImageViewSet,
     MovieViewSet,
     RewatchViewSet,
     SeasonViewSet,
@@ -15,6 +17,8 @@ from .views import (
 )
 
 router = DefaultRouter()
+router.register(r"folders", FolderViewSet, basename="folder")
+router.register(r"images", ImageViewSet, basename="image")
 router.register(r"genres", GenreViewSet, basename="genre")
 router.register(r"studios", StudioViewSet, basename="studio")
 router.register(r"series", SeriesViewSet, basename="series")

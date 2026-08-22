@@ -11,7 +11,9 @@ from .models import (
     BookStatus,
     EpisodeNote,
     FavoriteCharacter,
+    Folder,
     Genre,
+    Image,
     Rewatch,
     Studio,
 )
@@ -29,6 +31,54 @@ class WritableNestedManyToManyField(serializers.PrimaryKeyRelatedField):
         return super().to_internal_value(data)
 
 
+class WritableNestedForeignKey(serializers.PrimaryKeyRelatedField):
+    """
+    Accepts either an ID or a dictionary with an 'id' key (e.g. {id: 1, ...})
+    when writing, making it seamless for frontend clients.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict) and "id" in data:
+            data = data["id"]
+        return super().to_internal_value(data)
+
+
+class FolderSerializer(serializers.ModelSerializer):
+    parent_name = serializers.CharField(source="parent.name", read_only=True)
+    images_count = serializers.IntegerField(source="images.count", read_only=True)
+
+    class Meta:
+        model = Folder
+        fields = [
+            "id",
+            "name",
+            "parent",
+            "parent_name",
+            "images_count",
+            "created_at",
+        ]
+        read_only_fields = ["id", "parent_name", "images_count", "created_at"]
+
+
+class ImageSerializer(serializers.ModelSerializer):
+    url = serializers.CharField(read_only=True)
+    folder_name = serializers.CharField(source="folder.name", read_only=True)
+
+    class Meta:
+        model = Image
+        fields = [
+            "id",
+            "file",
+            "url",
+            "title",
+            "alt_text",
+            "folder",
+            "folder_name",
+            "created_at",
+        ]
+        read_only_fields = ["id", "url", "folder_name", "created_at"]
+
+
 class GenreSerializer(serializers.ModelSerializer):
     class Meta:
         model = Genre
@@ -43,6 +93,11 @@ class StudioSerializer(serializers.ModelSerializer):
 
 class EpisodeNoteSerializer(serializers.ModelSerializer):
     season_title = serializers.CharField(source="season.title", read_only=True)
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
 
     class Meta:
         model = EpisodeNote
@@ -52,6 +107,7 @@ class EpisodeNoteSerializer(serializers.ModelSerializer):
             "season_title",
             "episode_number",
             "episode_title",
+            "cover_image",
             "note",
             "rating",
             "created_at",
@@ -96,6 +152,13 @@ class EpisodeNoteSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
+        data["cover_image_url"] = img_url
+        data["image_url"] = img_url
+        return data
+
 
 class RewatchSerializer(serializers.ModelSerializer):
     release_title = serializers.CharField(read_only=True)
@@ -127,6 +190,11 @@ class RewatchSerializer(serializers.ModelSerializer):
 
 class FavoriteCharacterSerializer(serializers.ModelSerializer):
     series_title = serializers.CharField(source="series.title", read_only=True)
+    images = WritableNestedManyToManyField(
+        queryset=Image.objects.all(),
+        many=True,
+        required=False,
+    )
 
     class Meta:
         model = FavoriteCharacter
@@ -136,12 +204,25 @@ class FavoriteCharacterSerializer(serializers.ModelSerializer):
             "series_title",
             "name",
             "why",
+            "images",
         ]
         read_only_fields = ["id", "series_title"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["images"] = ImageSerializer(instance.images.all(), many=True).data
+        first_image = instance.images.first()
+        data["image_url"] = first_image.url if first_image and first_image.file else None
+        return data
 
 
 class AnimeSeasonSerializer(serializers.ModelSerializer):
     series_title = serializers.CharField(source="series.title", read_only=True)
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     studios = WritableNestedManyToManyField(
         queryset=Studio.objects.all(),
         many=True,
@@ -158,6 +239,7 @@ class AnimeSeasonSerializer(serializers.ModelSerializer):
             "series_title",
             "title",
             "season_number",
+            "cover_image",
             "status",
             "progress",
             "total_episodes",
@@ -240,6 +322,9 @@ class AnimeSeasonSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
+        data["cover_image_url"] = img_url
+        data["image_url"] = img_url
         data["studios"] = StudioSerializer(instance.studios.all(), many=True).data
         data["episode_notes"] = EpisodeNoteSerializer(
             instance.episode_notes.all(), many=True
@@ -252,6 +337,11 @@ class AnimeSeasonSerializer(serializers.ModelSerializer):
 
 class AnimeMovieSerializer(serializers.ModelSerializer):
     series_title = serializers.CharField(source="series.title", read_only=True)
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     studios = WritableNestedManyToManyField(
         queryset=Studio.objects.all(),
         many=True,
@@ -266,6 +356,7 @@ class AnimeMovieSerializer(serializers.ModelSerializer):
             "series",
             "series_title",
             "title",
+            "cover_image",
             "status",
             "progress_minutes",
             "total_minutes",
@@ -338,6 +429,9 @@ class AnimeMovieSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
+        data["cover_image_url"] = img_url
+        data["image_url"] = img_url
         data["studios"] = StudioSerializer(instance.studios.all(), many=True).data
         data["rewatches"] = RewatchSerializer(
             instance.rewatches.all(), many=True
@@ -348,6 +442,11 @@ class AnimeMovieSerializer(serializers.ModelSerializer):
 class InitialSeasonPayloadSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255, default="Season 1")
     season_number = serializers.IntegerField(default=1, min_value=1)
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     status = serializers.ChoiceField(
         choices=AnimeStatus.choices, default=AnimeStatus.PLAN_TO_WATCH
     )
@@ -374,6 +473,11 @@ class InitialSeasonPayloadSerializer(serializers.Serializer):
 
 
 class AnimeSeriesSerializer(serializers.ModelSerializer):
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     genres = WritableNestedManyToManyField(
         queryset=Genre.objects.all(),
         many=True,
@@ -390,6 +494,7 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "cover_image",
             "created_at",
             "genres",
             "studios",
@@ -426,6 +531,9 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
+        data["cover_image_url"] = img_url
+        data["image_url"] = img_url
         data["genres"] = GenreSerializer(instance.genres.all(), many=True).data
         data["seasons"] = AnimeSeasonSerializer(
             instance.seasons.all(), many=True
@@ -453,6 +561,11 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
 
 
 class BookSerializer(serializers.ModelSerializer):
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     genres = WritableNestedManyToManyField(
         queryset=Genre.objects.all(),
         many=True,
@@ -465,6 +578,7 @@ class BookSerializer(serializers.ModelSerializer):
             "id",
             "title",
             "author",
+            "cover_image",
             "status",
             "rating",
             "progress",
@@ -479,6 +593,9 @@ class BookSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
+        data["cover_image_url"] = img_url
+        data["image_url"] = img_url
         data["genres"] = GenreSerializer(instance.genres.all(), many=True).data
         return data
 

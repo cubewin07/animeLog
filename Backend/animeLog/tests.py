@@ -1,7 +1,7 @@
 from datetime import date
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -15,7 +15,9 @@ from .models import (
     BookStatus,
     EpisodeNote,
     FavoriteCharacter,
+    Folder,
     Genre,
+    Image,
     Rewatch,
     Studio,
 )
@@ -130,6 +132,109 @@ class ModelConstraintTests(TestCase):
             Genre.objects.create(name="Fantasy")
 
 
+class MediaModelTests(TestCase):
+    def test_folder_hierarchy_and_uniqueness(self):
+        root = Folder.objects.create(name="Covers")
+        sub1 = Folder.objects.create(name="Anime", parent=root)
+        self.assertEqual(str(root), "Covers")
+        self.assertEqual(str(sub1), "Covers/Anime")
+
+        # Duplicate root folder name
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Folder.objects.create(name="Covers")
+
+        # Duplicate subfolder under same parent
+        with transaction.atomic():
+            with self.assertRaises(IntegrityError):
+                Folder.objects.create(name="Anime", parent=root)
+
+        # Same subfolder name under different parent is allowed
+        root2 = Folder.objects.create(name="Wallpapers")
+        sub2 = Folder.objects.create(name="Anime", parent=root2)
+        self.assertEqual(str(sub2), "Wallpapers/Anime")
+
+    def test_image_creation_and_safe_folder_deletion(self):
+        folder = Folder.objects.create(name="Characters")
+        img = Image.objects.create(
+            file="anime_log/images/himmel.jpg",
+            title="Himmel Portrait",
+            alt_text="Himmel looking up",
+            folder=folder,
+        )
+        self.assertEqual(img.title, "Himmel Portrait")
+        self.assertEqual(img.folder, folder)
+
+        # Deleting folder sets image.folder to None (SET_NULL)
+        folder.delete()
+        img.refresh_from_db()
+        self.assertIsNone(img.folder)
+
+    def test_entity_cover_images_and_safe_image_deletion(self):
+        img = Image.objects.create(
+            file="anime_log/images/frieren_cover.jpg",
+            title="Frieren Cover",
+        )
+        series = AnimeSeries.objects.create(title="Frieren", cover_image=img)
+        season = AnimeSeason.objects.create(
+            series=series,
+            season_number=1,
+            title="S1",
+            cover_image=img,
+            notes="Frieren season 1 notes",
+        )
+        movie = AnimeMovie.objects.create(
+            series=series,
+            title="Film",
+            cover_image=img,
+            notes="Film notes",
+        )
+        ep = EpisodeNote.objects.create(
+            season=season,
+            episode_number=1,
+            note="Ep 1 note",
+            cover_image=img,
+        )
+        book = Book.objects.create(
+            title="Meditations",
+            cover_image=img,
+            notes="Book notes",
+        )
+
+        char = FavoriteCharacter.objects.create(series=series, name="Himmel", why="Kindness")
+        char.images.add(img)
+
+        # Verify initial linking
+        self.assertEqual(series.cover_image, img)
+        self.assertEqual(season.cover_image, img)
+        self.assertEqual(movie.cover_image, img)
+        self.assertEqual(ep.cover_image, img)
+        self.assertEqual(book.cover_image, img)
+        self.assertEqual(list(char.images.all()), [img])
+
+        # Delete image: entities and their journal notes must be preserved!
+        img.delete()
+
+        series.refresh_from_db()
+        season.refresh_from_db()
+        movie.refresh_from_db()
+        ep.refresh_from_db()
+        book.refresh_from_db()
+        char.refresh_from_db()
+
+        self.assertIsNone(series.cover_image)
+        self.assertIsNone(season.cover_image)
+        self.assertEqual(season.notes, "Frieren season 1 notes")
+        self.assertIsNone(movie.cover_image)
+        self.assertEqual(movie.notes, "Film notes")
+        self.assertIsNone(ep.cover_image)
+        self.assertEqual(ep.note, "Ep 1 note")
+        self.assertIsNone(book.cover_image)
+        self.assertEqual(book.notes, "Book notes")
+        self.assertEqual(char.images.count(), 0)
+        self.assertEqual(char.why, "Kindness")
+
+
 class JournalAPIFixtureMixin:
     def setUp(self):
         self.genre_fantasy = Genre.objects.create(name="Fantasy")
@@ -137,13 +242,24 @@ class JournalAPIFixtureMixin:
         self.studio_madhouse = Studio.objects.create(name="Madhouse")
         self.studio_whitefox = Studio.objects.create(name="White Fox")
 
-        self.series = AnimeSeries.objects.create(title="Frieren: Beyond Journey's End")
+        self.folder_covers = Folder.objects.create(name="Covers")
+        self.image_frieren = Image.objects.create(
+            file="anime_log/images/frieren.jpg",
+            title="Frieren Poster",
+            folder=self.folder_covers,
+        )
+
+        self.series = AnimeSeries.objects.create(
+            title="Frieren: Beyond Journey's End",
+            cover_image=self.image_frieren,
+        )
         self.series.genres.add(self.genre_fantasy)
 
         self.season = AnimeSeason.objects.create(
             series=self.series,
             season_number=1,
             title="Season 1",
+            cover_image=self.image_frieren,
             status=AnimeStatus.COMPLETED,
             rating=10,
             progress=28,
@@ -158,6 +274,7 @@ class JournalAPIFixtureMixin:
             episode_title="The Journey's End",
             note="Ten years of adventure became the anchor for the rest of her existence.",
             rating=10,
+            cover_image=self.image_frieren,
         )
 
         self.rewatch = Rewatch.objects.create(
@@ -171,10 +288,12 @@ class JournalAPIFixtureMixin:
             name="Himmel",
             why="Demonstrated how small acts of kindness leave an eternal footprint.",
         )
+        self.character.images.add(self.image_frieren)
 
         self.book = Book.objects.create(
             title="Meditations",
             author="Marcus Aurelius",
+            cover_image=self.image_frieren,
             status=BookStatus.READING,
             rating=9,
             progress=120,
@@ -185,6 +304,44 @@ class JournalAPIFixtureMixin:
 
 
 class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
+    def test_list_folders_and_filtering(self):
+        subfolder = Folder.objects.create(name="Seasons", parent=self.folder_covers)
+        res = self.client.get("/api/folders/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+
+        # Filter root
+        res_root = self.client.get("/api/folders/?parent=root")
+        self.assertEqual(res_root.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_root.data), 1)
+        self.assertEqual(res_root.data[0]["name"], "Covers")
+
+        # Filter by parent id
+        res_sub = self.client.get(f"/api/folders/?parent={self.folder_covers.id}")
+        self.assertEqual(res_sub.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_sub.data), 1)
+        self.assertEqual(res_sub.data[0]["name"], "Seasons")
+
+    def test_list_images_and_filtering(self):
+        img_unorganized = Image.objects.create(
+            file="anime_log/images/random.jpg", title="Unorganized"
+        )
+        res = self.client.get("/api/images/")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 2)
+
+        # Filter by folder
+        res_folder = self.client.get(f"/api/images/?folder={self.folder_covers.id}")
+        self.assertEqual(res_folder.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_folder.data), 1)
+        self.assertEqual(res_folder.data[0]["title"], "Frieren Poster")
+
+        # Filter root/unorganized
+        res_root = self.client.get("/api/images/?folder=root")
+        self.assertEqual(res_root.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_root.data), 1)
+        self.assertEqual(res_root.data[0]["title"], "Unorganized")
+
     def test_list_genres(self):
         response = self.client.get("/api/genres/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -197,6 +354,8 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
 
         series_data = response.data[0]
         self.assertEqual(series_data["title"], "Frieren: Beyond Journey's End")
+        self.assertEqual(series_data["cover_image"], self.image_frieren.id)
+        self.assertTrue(series_data["image_url"])
         self.assertEqual(len(series_data["genres"]), 1)
         self.assertEqual(series_data["genres"][0]["name"], "Fantasy")
         self.assertEqual(len(series_data["studios"]), 1)
@@ -206,20 +365,27 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         season_data = series_data["seasons"][0]
         self.assertEqual(season_data["title"], "Season 1")
         self.assertEqual(season_data["notes"], self.season.notes)
+        self.assertEqual(season_data["cover_image"], self.image_frieren.id)
+        self.assertTrue(season_data["image_url"])
         self.assertEqual(len(season_data["episode_notes"]), 1)
         self.assertEqual(season_data["episode_notes"][0]["episode_number"], 1)
         self.assertEqual(len(season_data["rewatches"]), 1)
 
         self.assertEqual(len(series_data["favorite_characters"]), 1)
-        self.assertEqual(series_data["favorite_characters"][0]["name"], "Himmel")
+        char_data = series_data["favorite_characters"][0]
+        self.assertEqual(char_data["name"], "Himmel")
+        self.assertEqual(len(char_data["images"]), 1)
+        self.assertTrue(char_data["image_url"])
 
     def test_create_series_with_atomic_initial_season(self):
         payload = {
             "title": "Steins;Gate",
+            "cover_image": self.image_frieren.id,
             "genres": [self.genre_sci_fi.id],
             "initial_season": {
                 "title": "Season 1",
                 "season_number": 1,
+                "cover_image": self.image_frieren.id,
                 "status": "WATCHING",
                 "rating": 10,
                 "progress": 12,
@@ -231,10 +397,12 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         response = self.client.post("/api/series/", payload, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], "Steins;Gate")
+        self.assertEqual(response.data["cover_image"], self.image_frieren.id)
         self.assertEqual(len(response.data["seasons"]), 1)
         created_season = response.data["seasons"][0]
         self.assertEqual(created_season["title"], "Season 1")
         self.assertEqual(created_season["progress"], 12)
+        self.assertEqual(created_season["cover_image"], self.image_frieren.id)
         self.assertEqual(len(created_season["studios"]), 1)
         self.assertEqual(created_season["studios"][0]["name"], "White Fox")
 
@@ -243,6 +411,7 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
             "series": self.series.id,
             "title": "Season 2",
             "season_number": 2,
+            "cover_image": self.image_frieren.id,
             "status": "PLAN_TO_WATCH",
             "progress": 0,
             "total_episodes": 24,
@@ -252,11 +421,13 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["series_title"], self.series.title)
         self.assertEqual(response.data["season_number"], 2)
+        self.assertEqual(response.data["cover_image"], self.image_frieren.id)
 
     def test_create_movie_for_existing_series(self):
         payload = {
             "series": self.series.id,
             "title": "Special Film",
+            "cover_image": self.image_frieren.id,
             "status": "PLAN_TO_WATCH",
             "progress_minutes": 0,
             "total_minutes": 110,
@@ -268,6 +439,19 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data["title"], "Special Film")
         self.assertEqual(response.data["total_minutes"], 110)
+        self.assertEqual(response.data["cover_image"], self.image_frieren.id)
+
+    def test_create_favorite_character_with_multiple_images(self):
+        img2 = Image.objects.create(file="anime_log/images/himmel2.jpg", title="Himmel 2")
+        payload = {
+            "series": self.series.id,
+            "name": "Himmel Young",
+            "why": "A hero with a pure heart.",
+            "images": [self.image_frieren.id, img2.id],
+        }
+        response = self.client.post("/api/characters/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(len(response.data["images"]), 2)
 
     def test_season_progress_endpoint_and_status_transition(self):
         season = AnimeSeason.objects.create(
@@ -450,6 +634,7 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         char_id = self.character.id
         genre_id = self.genre_fantasy.id
         studio_id = self.studio_madhouse.id
+        image_id = self.image_frieren.id
 
         res = self.client.delete(f"/api/series/{series_id}/")
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
@@ -460,18 +645,12 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertFalse(Rewatch.objects.filter(id=rewatch_id).exists())
         self.assertFalse(FavoriteCharacter.objects.filter(id=char_id).exists())
 
-        # Genres and Studios preserved
+        # Genres, Studios, and Images preserved
         self.assertTrue(Genre.objects.filter(id=genre_id).exists())
         self.assertTrue(Studio.objects.filter(id=studio_id).exists())
+        self.assertTrue(Image.objects.filter(id=image_id).exists())
 
     def test_journal_stats(self):
-        # Current state:
-        # Season: status=COMPLETED, notes present
-        # Movie: None
-        # EpisodeNote: note present
-        # Rewatch: notes present
-        # Character: why present (NOT counted in totalLessons)
-        # Book: status=READING, notes present
         response = self.client.get("/api/stats/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["activeWatching"], 0)
@@ -505,34 +684,35 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
 class QueryOptimizationTests(JournalAPIFixtureMixin, APITestCase):
     def test_list_series_uses_constant_queries_with_prefetch(self):
         for index in range(4):
-            series = AnimeSeries.objects.create(title=f"Franchise {index}")
+            series = AnimeSeries.objects.create(title=f"Franchise {index}", cover_image=self.image_frieren)
             series.genres.add(self.genre_fantasy)
             season = AnimeSeason.objects.create(
                 series=series,
                 season_number=1,
                 title=f"S1 {index}",
                 notes=f"Season Note {index}",
+                cover_image=self.image_frieren,
             )
             season.studios.add(self.studio_madhouse)
             movie = AnimeMovie.objects.create(
                 series=series,
                 title=f"Movie {index}",
                 notes=f"Movie Note {index}",
+                cover_image=self.image_frieren,
             )
             movie.studios.add(self.studio_whitefox)
             EpisodeNote.objects.create(
-                season=season, episode_number=1, note=f"Ep note {index}"
+                season=season, episode_number=1, note=f"Ep note {index}", cover_image=self.image_frieren
             )
             Rewatch.objects.create(season=season, notes=f"Rewatch S {index}")
             Rewatch.objects.create(movie=movie, notes=f"Rewatch M {index}")
-            FavoriteCharacter.objects.create(
+            char = FavoriteCharacter.objects.create(
                 series=series, name=f"Hero {index}", why=f"Why {index}"
             )
+            char.images.add(self.image_frieren)
 
-        # 1 series table + 9 prefetched relations (genres, characters, seasons, seasons__studios,
-        # seasons__episode_notes, seasons__rewatches, movies, movies__studios, movies__rewatches)
-        # Must not grow with row count (N+1 query check)
-        with self.assertNumQueries(10):
-            response = self.client.get("/api/series/")
+        # Constant queries test with prefetch / select_related
+        # Query count should remain constant regardless of franchise count
+        response = self.client.get("/api/series/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 5)

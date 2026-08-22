@@ -27,6 +27,63 @@ class Studio(models.Model):
         return self.name
 
 
+class Folder(models.Model):
+    name = models.CharField(max_length=100)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="subfolders",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Folder"
+        verbose_name_plural = "Folders"
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["parent", "name"],
+                name="unique_subfolder_per_parent",
+            ),
+            models.UniqueConstraint(
+                fields=["name"],
+                condition=models.Q(parent__isnull=True),
+                name="unique_root_folder_name",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.parent.name}/{self.name}" if self.parent else self.name
+
+
+class Image(models.Model):
+    file = models.ImageField(upload_to="anime_log/images/")
+    title = models.CharField(max_length=255, blank=True)
+    alt_text = models.CharField(max_length=255, blank=True, null=True)
+    folder = models.ForeignKey(
+        Folder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="images",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Image"
+        verbose_name_plural = "Images"
+        ordering = ["-created_at"]
+
+    @property
+    def url(self):
+        return self.file.url if self.file else ""
+
+    def __str__(self):
+        return self.title or (self.file.name if self.file else f"Image #{self.id}")
+
+
 class AnimeStatus(models.TextChoices):
     WATCHING = "WATCHING", "Watching"
     COMPLETED = "COMPLETED", "Completed"
@@ -37,6 +94,13 @@ class AnimeStatus(models.TextChoices):
 
 class AnimeSeries(models.Model):
     title = models.CharField(max_length=255)
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="anime_series",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     genres = models.ManyToManyField(Genre, blank=True, related_name="anime_series")
 
@@ -57,6 +121,13 @@ class AnimeSeason(models.Model):
     )
     title = models.CharField(max_length=255)
     season_number = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="anime_seasons",
+    )
     status = models.CharField(
         max_length=20,
         choices=AnimeStatus.choices,
@@ -136,6 +207,13 @@ class AnimeMovie(models.Model):
         on_delete=models.CASCADE,
     )
     title = models.CharField(max_length=255)
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="anime_movies",
+    )
     status = models.CharField(
         max_length=20,
         choices=AnimeStatus.choices,
@@ -212,6 +290,13 @@ class EpisodeNote(models.Model):
     )
     episode_number = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     episode_title = models.CharField(max_length=255, null=True, blank=True)
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="episode_notes",
+    )
     note = models.TextField()
     rating = models.PositiveSmallIntegerField(
         null=True,
@@ -325,6 +410,11 @@ class FavoriteCharacter(models.Model):
     )
     name = models.CharField(max_length=100)
     why = models.TextField(null=True, blank=True)
+    images = models.ManyToManyField(
+        Image,
+        blank=True,
+        related_name="favorite_characters",
+    )
 
     class Meta:
         verbose_name = "Favorite Character"
@@ -349,6 +439,13 @@ class BookStatus(models.TextChoices):
 
 class Book(models.Model):
     title = models.CharField(max_length=255)
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="books",
+    )
     status = models.CharField(
         max_length=20,
         choices=BookStatus.choices,

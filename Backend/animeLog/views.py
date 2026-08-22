@@ -17,7 +17,9 @@ from .models import (
     BookStatus,
     EpisodeNote,
     FavoriteCharacter,
+    Folder,
     Genre,
+    Image,
     Rewatch,
     Studio,
 )
@@ -28,7 +30,9 @@ from .serializers import (
     BookSerializer,
     EpisodeNoteSerializer,
     FavoriteCharacterSerializer,
+    FolderSerializer,
     GenreSerializer,
+    ImageSerializer,
     JournalStatsSerializer,
     RewatchSerializer,
     StudioSerializer,
@@ -94,6 +98,45 @@ def _update_release_progress(
     return Response(viewset.get_serializer(release).data, status=status.HTTP_200_OK)
 
 
+class FolderViewSet(viewsets.ModelViewSet):
+    queryset = Folder.objects.select_related("parent").all().order_by("name")
+    serializer_class = FolderSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        parent_param = self.request.query_params.get("parent")
+        if parent_param:
+            if parent_param.lower() in ("null", "none", "root"):
+                queryset = queryset.filter(parent__isnull=True)
+            elif parent_param.isdigit():
+                queryset = queryset.filter(parent_id=int(parent_param))
+        return queryset
+
+
+class ImageViewSet(viewsets.ModelViewSet):
+    queryset = Image.objects.select_related("folder").all().order_by("-created_at")
+    serializer_class = ImageSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        folder_param = self.request.query_params.get("folder")
+        if folder_param:
+            if folder_param.lower() in ("null", "none", "root"):
+                queryset = queryset.filter(folder__isnull=True)
+            elif folder_param.isdigit():
+                queryset = queryset.filter(folder_id=int(folder_param))
+
+        search_param = self.request.query_params.get("search")
+        if search_param:
+            queryset = queryset.filter(
+                Q(title__icontains=search_param)
+                | Q(alt_text__icontains=search_param)
+                | Q(file__icontains=search_param)
+            )
+
+        return queryset
+
+
 class GenreViewSet(viewsets.ModelViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
@@ -109,13 +152,16 @@ class SeriesViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            AnimeSeries.objects.prefetch_related(
+            AnimeSeries.objects.select_related("cover_image")
+            .prefetch_related(
                 "genres",
-                "favorite_characters",
+                "favorite_characters__images",
                 "seasons__studios",
-                "seasons__episode_notes",
+                "seasons__cover_image",
+                "seasons__episode_notes__cover_image",
                 "seasons__rewatches",
                 "movies__studios",
+                "movies__cover_image",
                 "movies__rewatches",
             )
             .all()
@@ -153,12 +199,12 @@ class SeasonViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            AnimeSeason.objects.prefetch_related(
+            AnimeSeason.objects.select_related("series", "cover_image")
+            .prefetch_related(
                 "studios",
-                "episode_notes",
+                "episode_notes__cover_image",
                 "rewatches",
             )
-            .select_related("series")
             .all()
             .order_by("season_number", "id")
         )
@@ -200,11 +246,11 @@ class MovieViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            AnimeMovie.objects.prefetch_related(
+            AnimeMovie.objects.select_related("series", "cover_image")
+            .prefetch_related(
                 "studios",
                 "rewatches",
             )
-            .select_related("series")
             .all()
             .order_by("created_at", "id")
         )
@@ -246,7 +292,7 @@ class EpisodeNoteViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            EpisodeNote.objects.select_related("season", "season__series")
+            EpisodeNote.objects.select_related("season", "season__series", "cover_image")
             .all()
             .order_by("episode_number", "id")
         )
@@ -299,6 +345,7 @@ class FavoriteCharacterViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             FavoriteCharacter.objects.select_related("series")
+            .prefetch_related("images")
             .all()
             .order_by("name")
         )
@@ -323,7 +370,8 @@ class BookViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            Book.objects.prefetch_related("genres")
+            Book.objects.select_related("cover_image")
+            .prefetch_related("genres")
             .all()
             .order_by("-created_at")
         )
