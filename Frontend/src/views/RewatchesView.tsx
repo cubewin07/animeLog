@@ -7,6 +7,7 @@ interface RewatchesViewProps {
   rewatches: Rewatch[];
   seriesList?: AnimeSeries[];
   searchQuery: string;
+  onEdit?: (rewatch: Rewatch) => void;
   onDelete: (id: number) => void;
   onOpenRewatchModal: () => void;
 }
@@ -14,43 +15,47 @@ interface RewatchesViewProps {
 export const RewatchesView: React.FC<RewatchesViewProps> = ({
   rewatches,
   searchQuery,
+  onEdit,
   onDelete,
   onOpenRewatchModal,
 }) => {
+  const q = searchQuery.toLowerCase().trim();
   const filtered = rewatches.filter((r) => {
     return (
-      searchQuery.trim() === '' ||
-      (r.release_title && r.release_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (r.notes && r.notes.toLowerCase().includes(searchQuery.toLowerCase()))
+      q === '' ||
+      (r.release_title && r.release_title.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q))
     );
   });
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '16px',
+          gap: 16,
           flexWrap: 'wrap',
-          marginBottom: '24px',
         }}
       >
         <div>
-          <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Rewatches Journal</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          <h2 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 4 }}>
+            Rewatches Journal
+          </h2>
+          <p style={{ fontSize: 15, color: 'var(--text-desk-muted)' }}>
             First-class rewatch passes across seasons and films. Compare how your mindset deepened over time.
           </p>
         </div>
 
         <button className="btn btn-primary" onClick={onOpenRewatchModal}>
-          <Plus size={16} /> Log Rewatch
+          <Plus size={15} />
+          <span>Log Rewatch</span>
         </button>
       </div>
 
-      <RewatchTimeline rewatches={filtered} onDelete={onDelete} />
+      <RewatchTimeline rewatches={filtered} onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 };

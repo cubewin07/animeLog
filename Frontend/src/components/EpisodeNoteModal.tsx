@@ -62,7 +62,6 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
       setRating(selectedNote.rating || null);
       setNote(selectedNote.note);
     } else {
-      // Pick next unused episode number
       const existingEps = (season.episode_notes || []).map((n) => n.episode_number);
       let nextEp = 1;
       while (existingEps.includes(nextEp) && (!season.total_episodes || nextEp <= season.total_episodes)) {
@@ -81,13 +80,13 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
     () => {
       if (!isOpen || prefersReducedMotion()) return;
       if (overlayRef.current) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
       }
       if (modalRef.current) {
         gsap.fromTo(
           modalRef.current,
-          { opacity: 0, scale: 0.94, y: 16 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASING.spring }
+          { opacity: 0, scale: 0.95, y: 12 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
         );
       }
     },
@@ -101,27 +100,11 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!note.trim()) {
-      setErrorMsg('Note reflection is required.');
+      setErrorMsg('Please write your takeaway or memory for this episode.');
       return;
     }
-
-    if (season.total_episodes && episodeNumber > season.total_episodes) {
-      setErrorMsg(`Episode number cannot exceed season total (${season.total_episodes}).`);
-      return;
-    }
-
-    // Check duplicate if creating new
-    if (!selectedNote) {
-      const isDuplicate = notesList.some((n) => n.episode_number === Number(episodeNumber));
-      if (isDuplicate) {
-        setErrorMsg(`An episode note already exists for episode ${episodeNumber}. Select it below to edit.`);
-        return;
-      }
-    }
-
     try {
       setSubmitting(true);
-      setErrorMsg('');
       await onSaveNote(
         {
           season: season.id,
@@ -131,9 +114,9 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
           note: note.trim(),
           rating,
         },
-        selectedNote?.id
+        selectedNote ? selectedNote.id : undefined
       );
-      setSelectedNote(null);
+      handleClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save episode note.');
     } finally {
@@ -143,19 +126,18 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
 
   const handleDelete = async (noteId: number) => {
     if (!onDeleteNote) return;
-    if (!window.confirm('Delete this standout episode memory?')) return;
     try {
       await onDeleteNote(noteId);
       if (selectedNote?.id === noteId) {
         setSelectedNote(null);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to delete note.');
+      setErrorMsg('Failed to delete episode note.');
     }
   };
 
   return (
-    <div ref={overlayRef} className="modal-overlay" onClick={handleClose}>
+    <div ref={overlayRef} className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true">
       <div
         ref={modalRef}
         className="modal-container"
@@ -165,206 +147,219 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
         {/* Header */}
         <div
           style={{
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--border-subtle)',
+            padding: '18px 24px',
+            borderBottom: '1px solid var(--border-desk-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookmarkCheck size={18} color="var(--color-primary)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--tungsten-dim)',
+                color: 'var(--tungsten)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <BookmarkCheck size={18} />
+            </div>
             <div>
-              <h3 style={{ fontSize: '16px', color: '#ffffff' }}>
-                Episode Standout Notes — {season.title}
-              </h3>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Record key memories, philosophies, or moments from standout episodes.
+              <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>Episode Memories</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-desk-muted)' }}>
+                Season {season.season_number}: {season.title}
               </p>
             </div>
           </div>
-          <button className="btn-icon" onClick={handleClose}>
-            <X size={14} />
+          <button className="btn-icon" onClick={handleClose} aria-label="Close dialog">
+            <X size={16} />
           </button>
         </div>
 
-        <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Existing Notes Carousel / List */}
-          {notesList.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Recorded Standout Episodes ({notesList.length})
-                </span>
-                {selectedNote && (
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ fontSize: '11px', padding: '2px 8px' }}
-                    onClick={() => setSelectedNote(null)}
-                  >
-                    + Write New Note
-                  </button>
-                )}
-              </div>
+        {/* Existing notes tabs/pills if any */}
+        {notesList.length > 0 && (
+          <div
+            style={{
+              padding: '12px 24px 0 24px',
+              display: 'flex',
+              gap: 6,
+              overflowX: 'auto',
+              borderBottom: '1px solid var(--border-desk-subtle)',
+              paddingBottom: 10,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedNote(null)}
+              style={{
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 12,
+                fontWeight: 600,
+                border: '1px solid',
+                borderColor: selectedNote === null ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
+                backgroundColor: selectedNote === null ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                color: selectedNote === null ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                cursor: 'pointer',
+              }}
+            >
+              + New Episode Note
+            </button>
+            {notesList.map((ep) => {
+              const isSelected = selectedNote?.id === ep.id;
+              return (
+                <button
+                  key={ep.id}
+                  type="button"
+                  onClick={() => setSelectedNote(ep)}
+                  style={{
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 12,
+                    border: '1px solid',
+                    borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
+                    backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                    color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Ep {ep.episode_number} {ep.rating ? `★${ep.rating}` : ''}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-              <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-                {notesList.map((n) => {
-                  const isSelected = selectedNote?.id === n.id;
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => setSelectedNote(n)}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: isSelected ? 'rgba(99, 102, 241, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid',
-                        borderColor: isSelected ? 'var(--color-primary-action)' : 'var(--border-subtle)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        flexShrink: 0,
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      <span className="mono" style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>
-                        Ep {n.episode_number}
-                      </span>
-                      {n.rating && (
-                        <span style={{ fontSize: '11px', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                          <Star size={10} fill="#fbbf24" /> {n.rating}
-                        </span>
-                      )}
-                      {onDeleteNote && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(n.id);
-                          }}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#fb7185',
-                            cursor: 'pointer',
-                            padding: '2px',
-                            marginLeft: '2px',
-                          }}
-                          title="Delete note"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
+        {/* Form */}
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {errorMsg && (
             <div
               style={{
                 padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(251, 113, 133, 0.15)',
-                border: '1px solid rgba(251, 113, 133, 0.3)',
-                color: '#fb7185',
-                fontSize: '12px',
+                backgroundColor: 'rgba(122, 62, 56, 0.2)',
+                border: '1px solid var(--spine)',
+                color: '#e58279',
+                fontSize: 13,
               }}
             >
               {errorMsg}
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 140px', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                  Episode # <span style={{ color: '#fb7185' }}>*</span>
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={season.total_episodes || 9999}
-                  required
-                  value={episodeNumber}
-                  onChange={(e) => setEpisodeNumber(Number(e.target.value))}
-                  disabled={!!selectedNote}
-                  className="form-input mono"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                  Episode Title (optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Frieren the Slayer"
-                  value={episodeTitle}
-                  onChange={(e) => setEpisodeTitle(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                  Score (optional)
-                </label>
-                <select
-                  value={rating || ''}
-                  onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
-                  className="form-select"
-                >
-                  <option value="">No score</option>
-                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
-                    <option key={n} value={n}>
-                      ★ {n} / 10
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Episode Screenshot / Image */}
-            <ImageUploadField
-              label="Episode Still / Screenshot"
-              imageId={coverImageId}
-              imageUrl={coverImageUrl}
-              onChange={(id, url) => {
-                setCoverImageId(id);
-                setCoverImageUrl(url);
-              }}
-            />
-
+          {/* Episode Number & Title */}
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr auto', gap: 12, alignItems: 'end' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 600 }}>
-                Memory, Lesson & Takeaway <span style={{ color: '#fb7185' }}>*</span>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
+                Episode #
               </label>
-              <textarea
-                rows={4}
+              <input
+                type="number"
+                min="1"
                 required
-                placeholder="What made this episode standout? What perspective or emotional beat stayed with you?"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                className="form-textarea"
+                value={episodeNumber}
+                onChange={(e) => setEpisodeNumber(Number(e.target.value))}
+                className="form-input mono"
               />
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '8px', borderTop: '1px solid var(--border-subtle)' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
+                Episode Title (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. The End of the Journey"
+                value={episodeTitle}
+                onChange={(e) => setEpisodeTitle(e.target.value)}
+                className="form-input"
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
+                Rating
+              </label>
+              <select
+                value={rating || ''}
+                onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
+                className="form-select mono"
+                style={{ width: '95px' }}
+              >
+                <option value="">None</option>
+                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
+                  <option key={n} value={n}>
+                    ★ {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Episode Note / Takeaway (Primary, large 16px textarea) */}
+          <div>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
+              Episode Memory & Lesson <span style={{ color: 'var(--tungsten)' }}>*</span>
+            </label>
+            <textarea
+              rows={6}
+              required
+              placeholder="What specifically happened in this episode that made you think or feel deeply?"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="form-textarea"
+              style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 16,
+                lineHeight: 1.6,
+                backgroundColor: 'var(--desk)',
+                borderColor: 'var(--border-desk-medium)',
+              }}
+            />
+          </div>
+
+          {/* Episode Still */}
+          <ImageUploadField
+            label="Episode Still / Screenshot"
+            imageId={coverImageId}
+            imageUrl={coverImageUrl}
+            onChange={(id, url) => {
+              setCoverImageId(id);
+              setCoverImageUrl(url);
+            }}
+          />
+
+          {/* Footer Actions */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8 }}>
+            {selectedNote && onDeleteNote ? (
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => handleDelete(selectedNote.id)}
+                style={{ color: '#c47676' }}
+                title="Delete this note"
+                aria-label="Delete this note"
+              >
+                <Trash2 size={16} />
+              </button>
+            ) : <div />}
+
+            <div style={{ display: 'flex', gap: 10 }}>
               <button type="button" className="btn btn-ghost" onClick={handleClose}>
-                Close
+                Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {selectedNote ? 'Update Episode Note' : 'Save Standout Memory'}
+                {selectedNote ? 'Update Memory' : 'Save Memory'}
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        </form>
       </div>
     </div>
   );

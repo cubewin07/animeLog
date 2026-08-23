@@ -17,9 +17,10 @@ import {
 
 interface MediaViewProps {
   onNotify?: (text: string, type?: 'success' | 'error' | 'info') => void;
+  onRequestConfirm?: (options: { title: string; message: string; onConfirm: () => void }) => void;
 }
 
-export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
+export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm }) => {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [images, setImages] = useState<ImageAsset[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<number | 'all' | 'root'>('all');
@@ -98,35 +99,67 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
           title: file.name.replace(/\.[^/.]+$/, ''),
         });
       }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (onNotify) onNotify(`Uploaded ${files.length} image(s) to Cloudinary`);
+      if (onNotify) onNotify(`Successfully uploaded ${files.length} image(s)`);
       await loadMedia();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload failed:', err);
-      if (onNotify) onNotify('Upload failed. Check Cloudinary credentials.', 'error');
+      if (onNotify) onNotify(err.message || 'Upload failed', 'error');
     } finally {
       setUploading(false);
     }
   };
 
+  const handleCopyUrl = (image: ImageAsset) => {
+    navigator.clipboard.writeText(image.url);
+    setCopiedId(image.id);
+    if (onNotify) onNotify('Image URL copied to clipboard');
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleDeleteImage = async (id: number) => {
-    if (!window.confirm('Delete this image from Cloudinary & library?')) return;
-    try {
-      await imageApi.delete(id);
-      setImages((prev) => prev.filter((img) => img.id !== id));
-      if (onNotify) onNotify('Image deleted');
-    } catch (err) {
-      console.error('Failed to delete image:', err);
-      if (onNotify) onNotify('Failed to delete image', 'error');
+    const doDelete = async () => {
+      try {
+        await imageApi.delete(id);
+        if (onNotify) onNotify('Asset removed');
+        await loadMedia();
+      } catch (err) {
+        if (onNotify) onNotify('Failed to delete asset', 'error');
+      }
+    };
+
+    if (onRequestConfirm) {
+      onRequestConfirm({
+        title: 'Delete Asset',
+        message: 'Are you sure you want to delete this media asset?',
+        onConfirm: doDelete,
+      });
+    } else {
+      doDelete();
     }
   };
 
-  const handleCopyUrl = (img: ImageAsset) => {
-    if (img.url) {
-      navigator.clipboard.writeText(img.url);
-      setCopiedId(img.id);
-      setTimeout(() => setCopiedId(null), 2000);
-      if (onNotify) onNotify('Cloudinary URL copied to clipboard');
+  const handleDeleteFolder = async (folder: Folder) => {
+    const doDelete = async () => {
+      try {
+        await folderApi.delete(folder.id);
+        if (onNotify) onNotify(`Deleted folder "${folder.name}"`);
+        if (activeFolderId === folder.id) {
+          setActiveFolderId('all');
+        }
+        await loadMedia();
+      } catch (err) {
+        if (onNotify) onNotify('Failed to delete folder', 'error');
+      }
+    };
+
+    if (onRequestConfirm) {
+      onRequestConfirm({
+        title: 'Delete Folder',
+        message: `Delete folder "${folder.name}" and move assets to root?`,
+        onConfirm: doDelete,
+      });
+    } else {
+      doDelete();
     }
   };
 
@@ -141,320 +174,312 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top Banner */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 16,
           flexWrap: 'wrap',
-          gap: '14px',
         }}
       >
         <div>
-          <h2 style={{ fontSize: '24px', fontWeight: 800, color: '#ffffff' }}>
-            Cloudinary Media Library
+          <h2 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 4 }}>
+            Media Library
           </h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            Upload, organize, and inspect posters, covers, and screenshots synced to Cloudinary.
+          <p style={{ fontSize: 14, color: 'var(--text-desk-muted)' }}>
+            Asset management for franchise posters, stills, book covers, and portraits.
           </p>
         </div>
+
+        <button
+          className="btn btn-secondary"
+          onClick={() => setShowNewFolder(!showNewFolder)}
+          style={{ fontSize: 13, padding: '6px 14px' }}
+        >
+          <FolderPlus size={15} />
+          <span>New Folder</span>
+        </button>
       </div>
 
-      {/* Main Workspace */}
-      <div
-        className="glass-card"
-        style={{
-          display: 'flex',
-          minHeight: '600px',
-          padding: 0,
-          overflow: 'hidden',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid var(--border-subtle)',
-          background: 'linear-gradient(180deg, #091728 0%, #05101e 100%)',
-        }}
-      >
-        {/* Sidebar */}
-        <div
+      {/* New Folder Form */}
+      {showNewFolder && (
+        <form
+          onSubmit={handleCreateFolder}
+          className="desk-card"
           style={{
-            width: '260px',
-            borderRight: '1px solid var(--border-subtle)',
-            padding: '20px 16px',
+            padding: 16,
             display: 'flex',
-            flexDirection: 'column',
-            gap: '14px',
-            background: 'rgba(5, 16, 28, 0.7)',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span
-              style={{
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: 'var(--text-dim)',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Folders
-            </span>
+          <input
+            type="text"
+            placeholder="Folder name (e.g. Frieren Stills, Character Portraits)..."
+            value={newFolderName}
+            onChange={(e) => setNewFolderName(e.target.value)}
+            className="form-input"
+            style={{ flex: '1', minWidth: '220px' }}
+            autoFocus
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
             <button
+              type="button"
               className="btn btn-ghost"
-              style={{ padding: '2px 8px', fontSize: '11px', color: 'var(--color-primary)' }}
-              onClick={() => setShowNewFolder(true)}
-              title="Create Folder"
+              onClick={() => setShowNewFolder(false)}
+              style={{ fontSize: 13 }}
             >
-              <FolderPlus size={13} /> + New Folder
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={folderSubmitting || !newFolderName.trim()}
+              style={{ fontSize: 13 }}
+            >
+              {folderSubmitting ? 'Creating...' : 'Create Folder'}
             </button>
           </div>
+        </form>
+      )}
 
-          {/* New Folder Form */}
-          {showNewFolder && (
-            <form
-              onSubmit={handleCreateFolder}
-              style={{
-                padding: '10px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'rgba(99, 102, 241, 0.1)',
-                border: '1px solid var(--border-glow)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Folder name..."
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                className="form-input"
-                style={{ fontSize: '12px', padding: '6px 8px' }}
-                autoFocus
-              />
-              <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  style={{ fontSize: '11px', padding: '3px 6px' }}
-                  onClick={() => setShowNewFolder(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  style={{ fontSize: '11px', padding: '3px 8px' }}
-                  disabled={folderSubmitting || !newFolderName.trim()}
-                >
-                  Save
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Folder List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' }}>
-            <button
-              className={`folder-pill ${activeFolderId === 'all' ? 'active' : ''}`}
-              onClick={() => setActiveFolderId('all')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: activeFolderId === 'all' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                color: activeFolderId === 'all' ? '#ffffff' : 'var(--text-muted)',
-                fontSize: '13px',
-                fontWeight: activeFolderId === 'all' ? 600 : 400,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
-            >
-              <FolderIcon size={14} color={activeFolderId === 'all' ? 'var(--color-primary)' : '#64748b'} />
-              <span>All Images</span>
-            </button>
-
-            <button
-              className={`folder-pill ${activeFolderId === 'root' ? 'active' : ''}`}
-              onClick={() => setActiveFolderId('root')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: activeFolderId === 'root' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                color: activeFolderId === 'root' ? '#ffffff' : 'var(--text-muted)',
-                fontSize: '13px',
-                fontWeight: activeFolderId === 'root' ? 600 : 400,
-                cursor: 'pointer',
-                textAlign: 'left',
-                width: '100%',
-              }}
-            >
-              <FolderIcon size={14} color={activeFolderId === 'root' ? 'var(--color-primary)' : '#64748b'} />
-              <span>Unorganized (Root)</span>
-            </button>
-
-            {folders.map((f) => {
-              const isActive = activeFolderId === f.id;
-              return (
-                <button
-                  key={f.id}
-                  className={`folder-pill ${isActive ? 'active' : ''}`}
-                  onClick={() => setActiveFolderId(f.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                    color: isActive ? '#ffffff' : 'var(--text-muted)',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 600 : 400,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    width: '100%',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <FolderIcon size={14} color={isActive ? 'var(--color-primary)' : '#64748b'} />
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {f.name}
-                    </span>
-                  </div>
-                  {f.images_count !== undefined && (
-                    <span className="mono" style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                      {f.images_count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Gallery Area */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          {/* Toolbar */}
+      {/* Main Workspace Layout */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '220px 1fr',
+          gap: 20,
+          minHeight: 520,
+        }}
+      >
+        {/* Left: Folder Navigation Sidebar */}
+        <div
+          className="desk-card"
+          style={{
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
           <div
             style={{
-              padding: '18px 24px',
-              borderBottom: '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '14px',
-              background: 'rgba(10, 22, 38, 0.6)',
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              textTransform: 'uppercase',
+              color: 'var(--text-desk-dim)',
+              letterSpacing: '0.06em',
+              marginBottom: 4,
             }}
           >
-            {/* Upload Dropzone */}
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragActive(true);
-              }}
-              onDragLeave={() => setDragActive(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragActive(false);
-                handleFileUpload(e.dataTransfer.files);
-              }}
-              style={{
-                border: `2px dashed ${dragActive ? 'var(--color-primary)' : 'var(--border-medium)'}`,
-                background: dragActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.02)',
-                borderRadius: 'var(--radius-md)',
-                padding: '16px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '16px',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '10px',
-                    background: 'rgba(99, 102, 241, 0.18)',
-                    color: 'var(--color-primary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {uploading ? <Loader2 size={22} className="spin" /> : <UploadCloud size={22} />}
-                </div>
-                <div>
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff' }}>
-                    {uploading ? 'Uploading to Cloudinary...' : 'Upload Image Asset to Cloudinary'}
-                  </p>
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    Drop image files here, or click Browse to upload to current folder
-                  </p>
-                </div>
-              </div>
+            Folders
+          </div>
 
-              <div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => handleFileUpload(e.target.files)}
-                  accept="image/*"
-                  multiple
-                  style={{ display: 'none' }}
-                />
+          <button
+            type="button"
+            onClick={() => setActiveFolderId('all')}
+            className="btn btn-ghost"
+            style={{
+              justifyContent: 'flex-start',
+              padding: '8px 12px',
+              fontSize: 13,
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: activeFolderId === 'all' ? 'var(--desk-surface-high)' : 'transparent',
+              color: activeFolderId === 'all' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+              fontWeight: activeFolderId === 'all' ? 600 : 400,
+            }}
+          >
+            <ImageIcon size={14} />
+            <span>All Assets</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFolderId('root')}
+            className="btn btn-ghost"
+            style={{
+              justifyContent: 'flex-start',
+              padding: '8px 12px',
+              fontSize: 13,
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: activeFolderId === 'root' ? 'var(--desk-surface-high)' : 'transparent',
+              color: activeFolderId === 'root' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+              fontWeight: activeFolderId === 'root' ? 600 : 400,
+            }}
+          >
+            <FolderIcon size={14} />
+            <span>Root (Unorganized)</span>
+          </button>
+
+          {folders.map((folder) => {
+            const isCurrent = activeFolderId === folder.id;
+            return (
+              <div
+                key={folder.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: isCurrent ? 'var(--desk-surface-high)' : 'transparent',
+                }}
+              >
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="btn btn-primary"
-                  disabled={uploading}
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className="btn btn-ghost"
+                  style={{
+                    flex: 1,
+                    justifyContent: 'flex-start',
+                    padding: '8px 10px',
+                    fontSize: 13,
+                    color: isCurrent ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                    fontWeight: isCurrent ? 600 : 400,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={folder.name}
                 >
-                  <Plus size={15} />
-                  <span>Browse & Upload</span>
+                  <FolderIcon size={14} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{folder.name}</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFolder(folder);
+                  }}
+                  aria-label={`Delete folder ${folder.name}`}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-desk-dim)',
+                    cursor: 'pointer',
+                    padding: '6px',
+                  }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right: Upload Dropzone and Assets Grid */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Upload Dropzone */}
+          <div
+            className="desk-card"
+            style={{
+              padding: 20,
+              border: '1px dashed',
+              borderColor: dragActive ? 'var(--tungsten)' : 'var(--border-desk-medium)',
+              backgroundColor: dragActive ? 'var(--tungsten-dim)' : 'var(--desk-raised)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragActive(true);
+            }}
+            onDragLeave={() => setDragActive(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragActive(false);
+              handleFileUpload(e.dataTransfer.files);
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--desk-surface)',
+                  color: 'var(--tungsten)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <UploadCloud size={22} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-desk)' }}>
+                  Upload Images & Stills
+                </p>
+                <p style={{ fontSize: 12, color: 'var(--text-desk-muted)' }}>
+                  Drag and drop files here, or click Browse to upload.
+                </p>
               </div>
             </div>
 
-            {/* Search and Counts */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-              <div style={{ position: 'relative', flex: 1, maxWidth: '340px' }}>
-                <Search
-                  size={14}
-                  color="#64748b"
-                  style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}
-                />
-                <input
-                  type="text"
-                  placeholder="Search media..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="form-input"
-                  style={{ paddingLeft: '32px', paddingTop: '7px', paddingBottom: '7px', fontSize: '13px' }}
-                />
-              </div>
-
-              <span className="mono" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
-                {filteredImages.length} asset{filteredImages.length === 1 ? '' : 's'} in library
-              </span>
+            <div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={(e) => handleFileUpload(e.target.files)}
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn btn-primary"
+                disabled={uploading}
+                style={{ fontSize: 13 }}
+              >
+                <Plus size={14} />
+                <span>{uploading ? 'Uploading...' : 'Browse & Upload'}</span>
+              </button>
             </div>
           </div>
 
-          {/* Image Grid */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+          {/* Search bar & count */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
+              <Search
+                size={14}
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--text-desk-dim)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search media assets..."
+                aria-label="Search media assets"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-input"
+                style={{ paddingLeft: 32, paddingTop: 6, paddingBottom: 6, fontSize: 13 }}
+              />
+            </div>
+
+            <span className="mono" style={{ fontSize: 12, color: 'var(--text-desk-dim)' }}>
+              {filteredImages.length} asset{filteredImages.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          {/* Grid */}
+          <div className="desk-card" style={{ flex: 1, padding: 20 }}>
             {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '240px', color: 'var(--text-muted)' }}>
-                <Loader2 size={24} className="spin" />
-                <span style={{ marginLeft: '10px', fontSize: '13px' }}>Loading media assets...</span>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: 'var(--text-desk-muted)' }}>
+                <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
+                <span style={{ marginLeft: 10, fontSize: 14 }}>Loading media assets...</span>
               </div>
             ) : filteredImages.length === 0 ? (
               <div
@@ -463,71 +488,65 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  height: '280px',
-                  color: 'var(--text-dim)',
-                  gap: '12px',
+                  height: 240,
+                  color: 'var(--text-desk-dim)',
+                  gap: 12,
                 }}
               >
-                <ImageIcon size={42} opacity={0.4} />
-                <p style={{ fontSize: '15px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  No media uploaded yet
+                <ImageIcon size={40} opacity={0.3} />
+                <p style={{ fontSize: 15, color: 'var(--text-desk-muted)', fontWeight: 600 }}>
+                  No media found
                 </p>
-                <p style={{ fontSize: '13px' }}>
-                  Use the upload area above to test Cloudinary upload and organize folders.
+                <p style={{ fontSize: 13 }}>
+                  Upload image stills, covers, or portraits to use them across journal entries.
                 </p>
               </div>
             ) : (
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                  gap: '20px',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                  gap: 16,
                 }}
               >
                 {filteredImages.map((img) => (
                   <div
                     key={img.id}
-                    className="glass-card"
+                    className="desk-panel"
                     style={{
-                      padding: '10px',
+                      padding: 10,
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '10px',
-                      background: 'rgba(13, 28, 48, 0.75)',
-                      borderRadius: 'var(--radius-md)',
+                      gap: 8,
                       position: 'relative',
                     }}
                   >
-                    {/* Thumbnail */}
                     <div
                       style={{
                         width: '100%',
-                        height: '160px',
+                        height: 140,
                         borderRadius: 'var(--radius-sm)',
                         overflow: 'hidden',
                         position: 'relative',
-                        background: '#040d18',
+                        backgroundColor: 'var(--still-well)',
                       }}
                     >
                       <img
                         src={img.url}
                         alt={img.title || 'Asset'}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        width={180}
+                        height={140}
                         loading="lazy"
                       />
 
-                      {/* Action buttons */}
                       <div
                         style={{
                           position: 'absolute',
-                          bottom: '6px',
-                          right: '6px',
+                          bottom: 6,
+                          right: 6,
                           display: 'flex',
-                          gap: '4px',
+                          gap: 4,
                         }}
                       >
                         <a
@@ -535,16 +554,12 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
                           target="_blank"
                           rel="noreferrer"
                           className="btn-icon"
-                          title="Open original Cloudinary URL"
+                          aria-label="Open original image"
                           style={{
-                            width: '28px',
-                            height: '28px',
-                            background: 'rgba(0, 0, 0, 0.75)',
+                            width: 32,
+                            height: 32,
+                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
                             color: '#ffffff',
-                            backdropFilter: 'blur(4px)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
                           }}
                         >
                           <ExternalLink size={13} />
@@ -553,31 +568,26 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
                           type="button"
                           onClick={() => handleCopyUrl(img)}
                           className="btn-icon"
-                          title="Copy Cloudinary URL"
+                          aria-label="Copy image URL"
                           style={{
-                            width: '28px',
-                            height: '28px',
-                            background: 'rgba(0, 0, 0, 0.75)',
-                            backdropFilter: 'blur(4px)',
+                            width: 32,
+                            height: 32,
+                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                            color: copiedId === img.id ? 'var(--tungsten)' : '#ffffff',
                           }}
                         >
-                          {copiedId === img.id ? (
-                            <Check size={13} color="#34d399" />
-                          ) : (
-                            <Copy size={13} />
-                          )}
+                          {copiedId === img.id ? <Check size={13} /> : <Copy size={13} />}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteImage(img.id)}
                           className="btn-icon"
-                          title="Delete from Cloudinary"
+                          aria-label="Delete image asset"
                           style={{
-                            width: '28px',
-                            height: '28px',
-                            background: 'rgba(0, 0, 0, 0.75)',
-                            color: '#fb7185',
-                            backdropFilter: 'blur(4px)',
+                            width: 32,
+                            height: 32,
+                            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                            color: '#c47676',
                           }}
                         >
                           <Trash2 size={13} />
@@ -585,13 +595,12 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
                       </div>
                     </div>
 
-                    {/* Meta */}
                     <div>
                       <p
                         style={{
-                          fontSize: '13px',
+                          fontSize: 13,
                           fontWeight: 600,
-                          color: '#ffffff',
+                          color: 'var(--text-desk)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -600,35 +609,9 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify }) => {
                       >
                         {img.title || `Image #${img.id}`}
                       </p>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginTop: '4px',
-                        }}
-                      >
-                        {img.folder_name ? (
-                          <span
-                            style={{
-                              fontSize: '11px',
-                              color: 'var(--color-primary)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                            }}
-                          >
-                            <FolderIcon size={11} /> {img.folder_name}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                            Root
-                          </span>
-                        )}
-                        <span className="mono" style={{ fontSize: '10px', color: 'var(--text-dim)' }}>
-                          ID: {img.id}
-                        </span>
-                      </div>
+                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-desk-dim)' }}>
+                        ID: {img.id}
+                      </span>
                     </div>
                   </div>
                 ))}

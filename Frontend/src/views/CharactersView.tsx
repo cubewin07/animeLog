@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { FavoriteCharacter } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, BookMarked } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -9,6 +9,7 @@ import { EASING, prefersReducedMotion } from '../utils/animations';
 interface CharactersViewProps {
   characters: FavoriteCharacter[];
   searchQuery: string;
+  onEdit?: (character: FavoriteCharacter) => void;
   onDelete: (id: number) => void;
   onOpenAddModal: () => void;
 }
@@ -16,36 +17,36 @@ interface CharactersViewProps {
 export const CharactersView: React.FC<CharactersViewProps> = ({
   characters,
   searchQuery,
+  onEdit,
   onDelete,
   onOpenAddModal,
 }) => {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const filtered = characters.filter((c) => {
+    const q = searchQuery.toLowerCase().trim();
     return (
-      searchQuery.trim() === '' ||
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.series_title && c.series_title.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (c.why && c.why.toLowerCase().includes(searchQuery.toLowerCase()))
+      q === '' ||
+      c.name.toLowerCase().includes(q) ||
+      (c.series_title && c.series_title.toLowerCase().includes(q)) ||
+      (c.why && c.why.toLowerCase().includes(q))
     );
   });
 
   useGSAP(
     () => {
       if (prefersReducedMotion() || !contentRef.current) return;
-
-      const cards = contentRef.current.querySelectorAll('.character-grid-card');
+      const cards = contentRef.current.querySelectorAll('.desk-card');
       if (cards.length > 0) {
         gsap.fromTo(
           cards,
-          { opacity: 0, y: 16, scale: 0.98 },
+          { opacity: 0, y: 12 },
           {
             opacity: 1,
             y: 0,
-            scale: 1,
-            duration: 0.45,
-            stagger: 0.06,
-            ease: EASING.spring,
+            duration: 0.3,
+            stagger: 0.04,
+            ease: EASING.smooth,
             clearProps: 'transform,opacity',
           }
         );
@@ -55,64 +56,74 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   );
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {/* Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '16px',
+          gap: 16,
           flexWrap: 'wrap',
-          marginBottom: '24px',
         }}
       >
         <div>
-          <h2 style={{ fontSize: '22px', color: '#ffffff' }}>Favorite Characters</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+          <h2 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 4 }}>
+            Favorite Characters
+          </h2>
+          <p style={{ fontSize: 15, color: 'var(--text-desk-muted)' }}>
             Characters worth remembering—and the specific virtues, ideals, or lessons they represent.
           </p>
         </div>
 
         <button className="btn btn-primary" onClick={onOpenAddModal}>
-          <Plus size={16} /> Add Character
+          <Plus size={15} />
+          <span>Add Character</span>
         </button>
       </div>
 
       <div ref={contentRef}>
         {filtered.length === 0 ? (
           <div
-            className="glass-card"
-            style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--text-muted)' }}
+            className="desk-card"
+            style={{
+              padding: '48px 24px',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 12,
+            }}
           >
-            <Sparkles size={36} color="var(--color-accent-emerald)" style={{ margin: '0 auto 12px', opacity: 0.7 }} />
-            <h3 style={{ fontSize: '17px', color: '#ffffff', marginBottom: '6px' }}>
-              No Characters Found
-            </h3>
-            <p style={{ fontSize: '13px', color: 'var(--text-dim)', maxWidth: '400px', margin: '0 auto 16px' }}>
+            <Sparkles size={36} color="var(--graphite)" />
+            <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>No characters found</h3>
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-desk-muted)', fontStyle: 'italic', maxWidth: 460 }}>
               {searchQuery
                 ? `No characters match "${searchQuery}".`
-                : 'Remember the characters that made an impact on you.'}
+                : 'Remember the characters that made a lasting impression on you.'}
             </p>
-            <button className="btn btn-secondary" onClick={onOpenAddModal}>
-              <Plus size={15} /> Add First Character
-            </button>
+            {!searchQuery && (
+              <button className="btn btn-primary" onClick={onOpenAddModal} style={{ marginTop: 8 }}>
+                <Plus size={15} />
+                <span>Add first character</span>
+              </button>
+            )}
           </div>
         ) : (
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '20px',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+              gap: 20,
             }}
           >
             {filtered.map((character) => (
-              <div key={character.id} className="character-grid-card">
-                <CharacterCard
-                  character={character}
-                  onDelete={onDelete}
-                />
-              </div>
+              <CharacterCard
+                key={character.id}
+                character={character}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
             ))}
           </div>
         )}

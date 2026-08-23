@@ -404,6 +404,23 @@ export const rewatchApi = {
     });
   },
 
+  async update(
+    id: number,
+    data: Partial<{
+      season?: number | null;
+      movie?: number | null;
+      start_date?: string | null;
+      finish_date?: string | null;
+      rating?: number | null;
+      notes?: string | null;
+    }>
+  ): Promise<Rewatch> {
+    return fetchJson<Rewatch>(`${API_BASE}/rewatches/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
   async delete(id: number): Promise<void> {
     await fetchJson(`${API_BASE}/rewatches/${id}/`, {
       method: 'DELETE',

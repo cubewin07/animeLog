@@ -1,32 +1,34 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Star, Calendar, Trash2, Quote, Tv, Clapperboard } from 'lucide-react';
+import { TakeawaySlip } from './TakeawaySlip';
+import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface RewatchTimelineProps {
   rewatches: Rewatch[];
+  onEdit?: (rewatch: Rewatch) => void;
   onDelete: (id: number) => void;
 }
 
-export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onDelete }) => {
+export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onEdit, onDelete }) => {
   const listRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
       if (prefersReducedMotion() || !listRef.current) return;
 
-      const items = listRef.current.querySelectorAll('.rewatch-timeline-item');
+      const items = listRef.current.querySelectorAll('.desk-card');
       if (items.length > 0) {
         gsap.fromTo(
           items,
-          { opacity: 0, x: -16 },
+          { opacity: 0, y: 12 },
           {
             opacity: 1,
-            x: 0,
-            duration: 0.4,
-            stagger: 0.06,
+            y: 0,
+            duration: 0.3,
+            stagger: 0.04,
             ease: EASING.smooth,
             clearProps: 'transform,opacity',
           }
@@ -39,61 +41,54 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
   if (rewatches.length === 0) {
     return (
       <div
-        className="glass-card"
+        className="desk-card"
         style={{
-          padding: '40px 20px',
+          padding: '48px 24px',
           textAlign: 'center',
-          color: 'var(--text-muted)',
+          color: 'var(--text-desk-muted)',
         }}
       >
-        <RotateCcw size={32} color="var(--color-secondary)" style={{ margin: '0 auto 12px' }} />
-        <h3 style={{ fontSize: '16px', color: '#ffffff', marginBottom: '4px' }}>
+        <RotateCcw size={36} color="var(--tungsten)" style={{ margin: '0 auto 12px' }} />
+        <h3 style={{ fontSize: 18, color: 'var(--text-desk)', marginBottom: 6 }}>
           No Rewatches Logged Yet
         </h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-          Rewatching is how lessons deepen. Log your second or third passes through anime seasons or movies to record how your perspective evolved.
+        <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-desk-muted)', fontStyle: 'italic', maxWidth: 480, margin: '0 auto' }}>
+          Rewatching is how lessons deepen. Log your second or third passes through anime seasons or movies to record how your perspective evolved over time.
         </p>
       </div>
     );
   }
 
   return (
-    <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       {rewatches.map((r) => (
         <div
           key={r.id}
-          className="glass-card rewatch-timeline-item"
+          className="desk-card"
           style={{
-            padding: '20px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
-            borderLeft: '4px solid var(--color-secondary)',
+            gap: 14,
+            padding: 20,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          {/* Header Row */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {r.movie ? (
-                  <Clapperboard size={16} color="var(--color-accent-cyan)" />
-                ) : (
-                  <Tv size={16} color="var(--color-primary)" />
-                )}
-                <h3 style={{ fontSize: '17px', color: '#ffffff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                {r.movie ? <Film size={15} color="var(--tungsten)" /> : <Tv size={15} color="var(--tungsten)" />}
+                <h3 style={{ fontSize: 18, color: 'var(--text-desk)', fontWeight: 600 }}>
                   {r.release_title || 'Rewatch Target'}
                 </h3>
                 <span
                   style={{
-                    fontSize: '10px',
+                    fontSize: 11,
                     fontFamily: 'var(--font-mono)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: r.movie ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                    color: r.movie ? 'var(--color-accent-cyan)' : 'var(--color-primary)',
-                    fontWeight: 600,
+                    color: 'var(--text-desk-muted)',
+                    textTransform: 'uppercase',
                   }}
                 >
-                  {r.movie ? 'FILM REWATCH' : 'TV SEASON REWATCH'}
+                  {r.movie ? 'Film Pass' : 'TV Season Pass'}
                 </span>
               </div>
 
@@ -102,10 +97,9 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    color: 'var(--text-muted)',
-                    marginTop: '4px',
+                    gap: 6,
+                    fontSize: 13,
+                    color: 'var(--text-desk-muted)',
                   }}
                 >
                   <Calendar size={13} />
@@ -116,53 +110,43 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onD
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {r.rating && (
-                <div className="rating-pill">
-                  <Star size={13} fill="#fbbf24" color="#fbbf24" />
-                  <span>{r.rating}/10</span>
+                <div className="rating-mono">
+                  <span>{r.rating}</span>
+                  <span className="rating-mono-sub">/10</span>
                 </div>
+              )}
+              {onEdit && (
+                <button
+                  className="btn-icon"
+                  onClick={() => onEdit(r)}
+                  title="Edit rewatch reflection"
+                  aria-label="Edit rewatch reflection"
+                >
+                  <PenLine size={14} />
+                </button>
               )}
               <button
                 className="btn-icon"
                 onClick={() => onDelete(r.id)}
                 title="Delete rewatch entry"
-                style={{ color: '#fb7185' }}
+                aria-label="Delete rewatch entry"
+                style={{ color: '#c47676' }}
               >
                 <Trash2 size={14} />
               </button>
             </div>
           </div>
 
-          {r.notes && (
-            <div
-              style={{
-                background: 'rgba(13, 28, 45, 0.85)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <Quote size={13} color="var(--color-secondary)" />
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    fontWeight: 600,
-                    color: 'var(--color-secondary)',
-                  }}
-                >
-                  Deepened Takeaways & Perspective
-                </span>
-              </div>
-              <p style={{ fontSize: '13px', color: '#d4e4fa', lineHeight: '1.6', fontStyle: 'italic' }}>
-                "{r.notes}"
-              </p>
-            </div>
-          )}
+          {/* Deepened Takeaway Slip */}
+          <TakeawaySlip
+            text={r.notes}
+            label="Deepened Lessons & Evolved Mindset"
+            rating={r.rating}
+            status="COMPLETED"
+            onWrite={onEdit ? () => onEdit(r) : undefined}
+          />
         </div>
       ))}
     </div>

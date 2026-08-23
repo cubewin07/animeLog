@@ -1,68 +1,80 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { Sparkles, Trash2, Film, Heart } from 'lucide-react';
+import { TakeawaySlip } from './TakeawaySlip';
+import { Sparkles, Trash2, Film, PenLine } from 'lucide-react';
 
 interface CharacterCardProps {
   character: FavoriteCharacter;
+  onEdit?: (character: FavoriteCharacter) => void;
   onDelete: (id: number) => void;
 }
 
-export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelete }) => {
+export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onEdit, onDelete }) => {
+  const charImg =
+    character.images && character.images.length > 0
+      ? (character.images[0] as any).image_url || (character.images[0] as any).url
+      : character.image_url;
+
   return (
     <div
-      className="glass-card"
+      className="desk-card"
       style={{
-        padding: '20px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
-        borderLeft: '4px solid var(--color-accent-emerald)',
+        gap: 16,
+        padding: 20,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {(() => {
-            const charImg = (character.images && character.images.length > 0) ? character.images[0].url : character.image_url;
-            if (charImg) {
-              return (
-                <img
-                  src={charImg}
-                  alt={character.name}
-                  style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '10px',
-                    objectFit: 'cover',
-                    border: '1px solid rgba(78, 222, 163, 0.4)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  }}
-                />
-              );
-            }
-            return (
-              <div
-                style={{
-                  padding: '10px',
-                  borderRadius: '10px',
-                  background: 'rgba(78, 222, 163, 0.12)',
-                  color: 'var(--color-accent-emerald)',
-                }}
-              >
-                <Heart size={20} />
-              </div>
-            );
-          })()}
-          <div>
-            <h3 style={{ fontSize: '17px', color: '#ffffff' }}>{character.name}</h3>
+      {/* Top row: Avatar + Name + Series + Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          {charImg ? (
+            <img
+              src={charImg}
+              alt={character.name}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'cover',
+                border: '1px solid var(--border-desk-medium)',
+                boxShadow: 'var(--shadow-paper)',
+                flexShrink: 0,
+              }}
+              width={56}
+              height={56}
+              loading="lazy"
+            />
+          ) : (
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--desk-surface)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--graphite)',
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={24} />
+            </div>
+          )}
+
+          <div style={{ minWidth: 0 }}>
+            <h3 style={{ fontSize: 18, color: 'var(--text-desk)', lineHeight: 1.3, marginBottom: 2 }}>
+              {character.name}
+            </h3>
             {character.series_title && (
               <span
                 style={{
-                  fontSize: '12px',
-                  color: 'var(--text-muted)',
+                  fontSize: 13,
+                  color: 'var(--text-desk-muted)',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px',
-                  marginTop: '2px',
+                  gap: 4,
                 }}
               >
                 <Film size={12} /> {character.series_title}
@@ -71,43 +83,35 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelet
           </div>
         </div>
 
-        <button
-          className="btn-icon"
-          onClick={() => onDelete(character.id)}
-          title="Remove from favorites"
-          style={{ color: '#fb7185' }}
-        >
-          <Trash2 size={14} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {onEdit && (
+            <button
+              className="btn-icon"
+              onClick={() => onEdit(character)}
+              title="Edit character reflection"
+              aria-label={`Edit ${character.name}`}
+            >
+              <PenLine size={14} />
+            </button>
+          )}
+          <button
+            className="btn-icon"
+            onClick={() => onDelete(character.id)}
+            title="Remove character"
+            aria-label={`Delete ${character.name}`}
+            style={{ color: '#c47676' }}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
 
-      <div
-        style={{
-          background: 'rgba(13, 28, 45, 0.8)',
-          padding: '12px 14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-          <Sparkles size={13} color="var(--color-accent-emerald)" />
-          <span
-            style={{
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: 600,
-              color: 'var(--color-accent-emerald)',
-            }}
-          >
-            Why Worth Remembering
-          </span>
-        </div>
-        <p style={{ fontSize: '13px', color: '#d4e4fa', lineHeight: '1.6', fontStyle: 'italic' }}>
-          "{character.why || 'A character that made a lasting impression.'}"
-        </p>
-      </div>
+      {/* Why Worth Remembering (Takeaway Slip) */}
+      <TakeawaySlip
+        text={character.why}
+        label="Why Worth Remembering"
+        onWrite={onEdit ? () => onEdit(character) : undefined}
+      />
     </div>
   );
 };

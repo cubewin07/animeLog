@@ -5,7 +5,7 @@ import {
   Genre,
   Studio,
 } from '../types';
-import { X, Film, BookOpen, Lightbulb, Tv, Clapperboard } from 'lucide-react';
+import { X, Film, BookOpen, Tv, Clapperboard, ChevronDown, ChevronUp } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -72,6 +72,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [notes, setNotes] = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
   const [selectedStudioIds, setSelectedStudioIds] = useState<number[]>([]);
+  const [showCatalogDetails, setShowCatalogDetails] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
 
@@ -82,6 +83,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     if (!isOpen) return;
     setErrorMsg('');
     setActiveTab(mode);
+    setShowCatalogDetails(Boolean(editTarget));
 
     if (editTarget) {
       const { type, data } = editTarget;
@@ -127,7 +129,6 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         setSelectedGenreIds(data.genres ? data.genres.map((g: Genre) => g.id) : []);
       }
     } else {
-      // New creation defaults
       const chosenSeriesId = targetSeries ? targetSeries.id : seriesList[0]?.id || 1;
       setSeriesId(chosenSeriesId);
       setTitle('');
@@ -152,13 +153,13 @@ export const EntryModal: React.FC<EntryModalProps> = ({
     () => {
       if (!isOpen || prefersReducedMotion()) return;
       if (overlayRef.current) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.2 });
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
       }
       if (modalRef.current) {
         gsap.fromTo(
           modalRef.current,
-          { opacity: 0, scale: 0.94, y: 16 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.3, ease: EASING.spring }
+          { opacity: 0, scale: 0.95, y: 12 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
         );
       }
     },
@@ -167,24 +168,11 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isEditing = !!editTarget;
-
-  const handleToggleGenre = (id: number) => {
-    setSelectedGenreIds((prev) =>
-      prev.includes(id) ? prev.filter((g) => g !== id) : [...prev, id]
-    );
-  };
-
-  const handleToggleStudio = (id: number) => {
-    setSelectedStudioIds((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
+  const isEditing = Boolean(editTarget);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
-
     try {
       setSubmitting(true);
 
@@ -200,7 +188,6 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           initial_season: {
             title: seasonTitle.trim() || 'Season 1',
             season_number: 1,
-            cover_image: coverImageId,
             status,
             progress: Number(progress) || 0,
             total_episodes: totalCount !== '' ? Number(totalCount) : null,
@@ -219,7 +206,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         await onSaveSeason({
           series: seriesId,
           title: title.trim(),
-          season_number: Number(seasonNumber) || 1,
+          season_number: Number(seasonNumber),
           cover_image: coverImageId,
           status,
           progress: Number(progress) || 0,
@@ -350,26 +337,26 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   };
 
   return (
-    <div ref={overlayRef} className="modal-overlay" onClick={onClose}>
+    <div ref={overlayRef} className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div ref={modalRef} className="modal-container" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div
           style={{
             padding: '20px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
+            borderBottom: '1px solid var(--border-desk-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '8px',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--color-primary)',
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--tungsten-dim)',
+                color: 'var(--tungsten)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -383,10 +370,10 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                 <Film size={18} />
               )}
             </div>
-            <h2 style={{ fontSize: '18px', color: '#ffffff' }}>{getHeaderTitle()}</h2>
+            <h2 style={{ fontSize: 18, color: 'var(--text-desk)' }}>{getHeaderTitle()}</h2>
           </div>
 
-          <button className="btn-icon" onClick={onClose}>
+          <button className="btn-icon" onClick={onClose} aria-label="Close dialog">
             <X size={16} />
           </button>
         </div>
@@ -396,15 +383,15 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           <div
             style={{
               display: 'flex',
-              gap: '6px',
-              padding: '12px 24px 0 24px',
+              gap: 8,
+              padding: '16px 24px 0 24px',
               overflowX: 'auto',
             }}
           >
             <button
               type="button"
               className={`btn ${activeTab === 'new-franchise' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '12px', padding: '6px 12px' }}
+              style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('new-franchise')}
             >
               <Film size={14} /> New Franchise
@@ -412,7 +399,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             <button
               type="button"
               className={`btn ${activeTab === 'add-season' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '12px', padding: '6px 12px' }}
+              style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('add-season')}
             >
               <Tv size={14} /> + Season
@@ -420,7 +407,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             <button
               type="button"
               className={`btn ${activeTab === 'add-movie' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '12px', padding: '6px 12px' }}
+              style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('add-movie')}
             >
               <Clapperboard size={14} /> + Film
@@ -428,7 +415,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             <button
               type="button"
               className={`btn ${activeTab === 'book' ? 'btn-primary' : 'btn-ghost'}`}
-              style={{ fontSize: '12px', padding: '6px 12px' }}
+              style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('book')}
             >
               <BookOpen size={14} /> Book
@@ -436,16 +423,16 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {errorMsg && (
             <div
               style={{
                 padding: '8px 12px',
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(251, 113, 133, 0.15)',
-                border: '1px solid rgba(251, 113, 133, 0.3)',
-                color: '#fb7185',
-                fontSize: '12px',
+                backgroundColor: 'rgba(122, 62, 56, 0.2)',
+                border: '1px solid var(--spine)',
+                color: '#e58279',
+                fontSize: 13,
               }}
             >
               {errorMsg}
@@ -455,8 +442,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           {/* Franchise Selector when adding season/movie */}
           {(activeTab === 'add-season' || activeTab === 'add-movie') && (
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Target Franchise <span style={{ color: '#fb7185' }}>*</span>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                Target Franchise <span style={{ color: 'var(--tungsten)' }}>*</span>
               </label>
               <select
                 value={seriesId}
@@ -472,9 +459,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* Primary Title */}
+          {/* 1. PRIMARY TITLE (Required) */}
           <div>
-            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               {activeTab === 'new-franchise' || activeTab === 'edit-series'
                 ? 'Franchise Title'
                 : activeTab === 'add-season' || activeTab === 'edit-season'
@@ -482,19 +469,19 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                 : activeTab === 'add-movie' || activeTab === 'edit-movie'
                 ? 'Film Title'
                 : 'Book Title'}{' '}
-              <span style={{ color: '#fb7185' }}>*</span>
+              <span style={{ color: 'var(--tungsten)' }}>*</span>
             </label>
             <input
               type="text"
               required
               placeholder={
                 activeTab === 'new-franchise'
-                  ? 'e.g. Frieren: Beyond Journey\'s End, Attack on Titan'
+                  ? 'e.g. Frieren: Beyond Journey\'s End'
                   : activeTab === 'add-season'
-                  ? 'e.g. Season 2, Entertainment District Arc'
+                  ? 'e.g. Season 2'
                   : activeTab === 'add-movie'
-                  ? 'e.g. Mugen Train, Load Region of Déjà Vu'
-                  : 'e.g. Dune, Meditations'
+                  ? 'e.g. Mugen Train'
+                  : 'e.g. Dune'
               }
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -502,27 +489,10 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             />
           </div>
 
-          {/* Cover Image Upload / Selection Field */}
-          <ImageUploadField
-            label={
-              activeTab === 'book' || activeTab === 'edit-book'
-                ? 'Book Cover Image'
-                : activeTab === 'new-franchise' || activeTab === 'edit-series'
-                ? 'Franchise Poster / Cover'
-                : 'Release Poster / Still'
-            }
-            imageId={coverImageId}
-            imageUrl={coverImageUrl}
-            onChange={(id, url) => {
-              setCoverImageId(id);
-              setCoverImageUrl(url);
-            }}
-          />
-
           {/* Author if Book */}
           {(activeTab === 'book' || activeTab === 'edit-book') && (
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                 Author
               </label>
               <input
@@ -537,26 +507,24 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
           {/* Initial Season Name if New Franchise */}
           {activeTab === 'new-franchise' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  Initial TV Season Title
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Season 1"
-                  value={seasonTitle}
-                  onChange={(e) => setSeasonTitle(e.target.value)}
-                  className="form-input"
-                />
-              </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                Initial TV Season Title
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Season 1"
+                value={seasonTitle}
+                onChange={(e) => setSeasonTitle(e.target.value)}
+                className="form-input"
+              />
             </div>
           )}
 
           {/* Season Number if Season */}
           {(activeTab === 'add-season' || activeTab === 'edit-season') && (
             <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                 Season Number
               </label>
               <input
@@ -570,11 +538,34 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* Status & Rating (For Releases and Books) */}
+          {/* 2. NOTES & LESSONS FIRST (Prominent, 16px font, 6-8 rows) */}
           {activeTab !== 'edit-series' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
+                Memories, Insights & Lessons (Takeaway)
+              </label>
+              <textarea
+                rows={6}
+                placeholder="Record the philosophical insights, emotional impressions, or life lessons this title left with you..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="form-textarea"
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 16,
+                  lineHeight: 1.6,
+                  backgroundColor: 'var(--desk)',
+                  borderColor: 'var(--border-desk-medium)',
+                }}
+              />
+            </div>
+          )}
+
+          {/* 3. STATUS, RATING, PROGRESS */}
+          {activeTab !== 'edit-series' && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                   Status
                 </label>
                 <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-select">
@@ -599,15 +590,15 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  Rating (1 - 10)
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Rating (1–10)
                 </label>
                 <select
-                  value={rating !== null ? rating : ''}
-                  onChange={(e) => setRating(e.target.value === '' ? null : Number(e.target.value))}
-                  className="form-select"
+                  value={rating || ''}
+                  onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
+                  className="form-select mono"
                 >
-                  <option value="">No rating (unrated)</option>
+                  <option value="">No rating</option>
                   {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
                     <option key={n} value={n}>
                       ★ {n} / 10
@@ -615,184 +606,190 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                   ))}
                 </select>
               </div>
-            </div>
-          )}
-
-          {/* Progress & Total */}
-          {activeTab !== 'edit-series' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  {activeTab === 'add-movie' || activeTab === 'edit-movie'
-                    ? 'Minutes Watched'
-                    : activeTab === 'book' || activeTab === 'edit-book'
-                    ? 'Pages Read'
-                    : 'Episodes Watched'}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={progress}
-                  onChange={(e) => setProgress(Number(e.target.value))}
-                  className="form-input mono"
-                />
-              </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  {activeTab === 'add-movie' || activeTab === 'edit-movie'
-                    ? 'Total Duration (mins)'
-                    : activeTab === 'book' || activeTab === 'edit-book'
-                    ? 'Total Pages'
-                    : 'Total Episodes (Optional)'}
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Progress {activeTab === 'book' || activeTab === 'edit-book' ? '(Pages)' : activeTab === 'add-movie' || activeTab === 'edit-movie' ? '(Minutes)' : '(Episodes)'}
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="e.g. 24, 120 (leave blank if ongoing)"
-                  value={totalCount}
-                  onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="form-input mono"
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="Done"
+                    value={progress}
+                    onChange={(e) => setProgress(Math.max(0, Number(e.target.value)))}
+                    className="form-input mono"
+                  />
+                  <span style={{ color: 'var(--text-desk-dim)' }}>/</span>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Total"
+                    value={totalCount}
+                    onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="form-input mono"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 4. SECONDARY CATALOG DETAILS (Collapsible) */}
+          <div style={{ borderTop: '1px solid var(--border-desk-subtle)', paddingTop: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowCatalogDetails(!showCatalogDetails)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-desk-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13,
+                cursor: 'pointer',
+                padding: '4px 0',
+              }}
+            >
+              <span>{showCatalogDetails ? 'Hide catalog details' : 'Show catalog details (cover, genres, studios, dates)'}</span>
+              {showCatalogDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showCatalogDetails && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
+                {/* Cover Image */}
+                <ImageUploadField
+                  label={
+                    activeTab === 'book' || activeTab === 'edit-book'
+                      ? 'Book Cover Image'
+                      : activeTab === 'new-franchise' || activeTab === 'edit-series'
+                      ? 'Franchise Poster / Cover'
+                      : 'Release Poster / Still'
+                  }
+                  imageId={coverImageId}
+                  imageUrl={coverImageUrl}
+                  onChange={(id, url) => {
+                    setCoverImageId(id);
+                    setCoverImageUrl(url);
+                  }}
                 />
-              </div>
-            </div>
-          )}
 
-          {/* Dates */}
-          {activeTab !== 'edit-series' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="form-input"
-                />
-              </div>
+                {/* Dates */}
+                {activeTab !== 'edit-series' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
+                        Finish Date
+                      </label>
+                      <input
+                        type="date"
+                        value={finishDate}
+                        onChange={(e) => setFinishDate(e.target.value)}
+                        className="form-input"
+                      />
+                    </div>
+                  </div>
+                )}
 
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                  Finish Date (Optional)
-                </label>
-                <input
-                  type="date"
-                  value={finishDate}
-                  onChange={(e) => setFinishDate(e.target.value)}
-                  className="form-input"
-                />
-              </div>
-            </div>
-          )}
+                {/* Genres */}
+                {(activeTab === 'new-franchise' || activeTab === 'edit-series' || activeTab === 'book' || activeTab === 'edit-book') && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 6 }}>
+                      Genres
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {genres.map((g) => {
+                        const isSelected = selectedGenreIds.includes(g.id);
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedGenreIds(
+                                isSelected
+                                  ? selectedGenreIds.filter((id) => id !== g.id)
+                                  : [...selectedGenreIds, g.id]
+                              );
+                            }}
+                            style={{
+                              padding: '3px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: 12,
+                              border: '1px solid',
+                              borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
+                              backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                              color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {g.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-          {/* Studios (for Season / Movie / New Franchise) */}
-          {(activeTab === 'new-franchise' ||
-            activeTab === 'add-season' ||
-            activeTab === 'add-movie' ||
-            activeTab === 'edit-season' ||
-            activeTab === 'edit-movie') && (
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Animation Studios
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '100px', overflowY: 'auto', padding: '4px 0' }}>
-                {studios.map((st) => {
-                  const isSelected = selectedStudioIds.includes(st.id);
-                  return (
-                    <button
-                      type="button"
-                      key={st.id}
-                      onClick={() => handleToggleStudio(st.id)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '11px',
-                        border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
-                        background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                        color: isSelected ? '#ffffff' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {st.name}
-                    </button>
-                  );
-                })}
+                {/* Studios */}
+                {activeTab !== 'book' && activeTab !== 'edit-book' && activeTab !== 'edit-series' && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 6 }}>
+                      Animation Studios
+                    </label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {studios.map((st) => {
+                        const isSelected = selectedStudioIds.includes(st.id);
+                        return (
+                          <button
+                            key={st.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudioIds(
+                                isSelected
+                                  ? selectedStudioIds.filter((id) => id !== st.id)
+                                  : [...selectedStudioIds, st.id]
+                              );
+                            }}
+                            style={{
+                              padding: '3px 10px',
+                              borderRadius: 'var(--radius-sm)',
+                              fontSize: 12,
+                              border: '1px solid',
+                              borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
+                              backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                              color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {st.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
-          {/* Genres (for Series / Book) */}
-          {(activeTab === 'new-franchise' || activeTab === 'edit-series' || activeTab === 'book' || activeTab === 'edit-book') && (
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                Genres
-              </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '100px', overflowY: 'auto', padding: '4px 0' }}>
-                {genres.map((g) => {
-                  const isSelected = selectedGenreIds.includes(g.id);
-                  return (
-                    <button
-                      type="button"
-                      key={g.id}
-                      onClick={() => handleToggleGenre(g.id)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '11px',
-                        border: isSelected ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
-                        background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                        color: isSelected ? '#ffffff' : 'var(--text-muted)',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {g.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Lessons / Reflections / Journal Notes */}
-          {activeTab !== 'edit-series' && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <Lightbulb size={14} color="var(--color-primary)" />
-                <label style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Memories & Lessons (The Journal)
-                </label>
-              </div>
-              <textarea
-                rows={3}
-                placeholder="What stayed with you? What philosophical takeaway or personal memory did you gain from this?"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="form-textarea"
-              />
-            </div>
-          )}
-
-          {/* Footer Actions */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '10px',
-              paddingTop: '12px',
-              borderTop: '1px solid var(--border-subtle)',
-              marginTop: '4px',
-            }}
-          >
-            <button type="button" onClick={onClose} className="btn btn-ghost">
+          {/* Footer Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 10 }}>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" disabled={submitting} className="btn btn-primary">
-              {submitting ? 'Saving...' : isEditing ? 'Update Entry' : 'Save to Journal'}
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : isEditing ? 'Save Changes' : 'Save Entry'}
             </button>
           </div>
         </form>
