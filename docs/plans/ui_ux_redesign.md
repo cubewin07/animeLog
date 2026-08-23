@@ -5,7 +5,7 @@
 | **Document** | Frontend visual & information-architecture redesign |
 | **Author** | TBD (implementing engineer) |
 | **Date** | 2026-08-23 |
-| **Status** | Draft |
+| **Status** | Draft (open questions 1–4 resolved 2026-08-23) |
 | **Scope** | `Frontend/` SPA only. No backend rewrite. |
 | **Product** | Personal anime/book journal of memories and lessons — not a catalog |
 
@@ -811,17 +811,21 @@ See **PR Plan** below for the ordered list.
 
 ## Open Questions
 
+Resolved with the product owner on 2026-08-23 (all recommended defaults accepted):
+
 1. **Keep compact table at all?**  
-   **Recommended default:** yes, as a secondary Compact toggle, not default. User may prefer to delete it after living with the journal list.
+   **Decided:** yes. Journal list is the default. Compact table stays as an optional toggle.
 
 2. **Light vs dark journal?**  
-   **Recommended default:** dark desk + light takeaway slip (this doc). A full light theme is a later toggle, not v1.
+   **Decided:** dark desk + light takeaway slip. Not a full cream app. No light-theme toggle in v1.
 
 3. **List-first vs detail-first?**  
-   **Recommended default:** list-first (dashboard and anime/books lists), detail for reading/writing. A detail-first “one open book” app would hide the currently-watching set.
+   **Decided:** list-first (dashboard and anime/book lists). Detail is for reading and writing.
 
 4. **Media in primary nav?**  
-   **Recommended:** keep, last, quieter. Alternative: move under a “Library” overflow.
+   **Decided:** keep it last and visually quieter. It is a tool, not a journal surface.
+
+Still open (implement the recommended default unless a later PR notes a change):
 
 5. **`?q=` search in the URL vs React state?**  
    **Recommended:** URL on list routes after routing lands.
@@ -831,8 +835,6 @@ See **PR Plan** below for the ordered list.
 
 7. **Fraunces + Source Serif 4** vs a single family?  
    **Recommended:** two families as specified. If font load is a concern, drop Fraunces and use Source Serif 4 for titles too.
-
-These are taste-sensitive. Implement the recommended defaults; do not silently flip them in a PR without noting it.
 
 ---
 
@@ -861,6 +863,8 @@ These are taste-sensitive. Implement the recommended defaults; do not silently f
 11. **Status enums and rating 1–10 remain identical** to `Backend/animeLog/models.py`.
 
 12. **Signature element is the Takeaway Slip**, justified by the journal subject (stills + handwritten takeaways), not by dashboard fashion.
+
+13. **Product-owner confirmations (2026-08-23):** Compact table stays as a secondary toggle; dark desk + paper slip (not a full light theme); list-first navigation; Media Library remains in primary nav, last and quieter.
 
 ---
 
