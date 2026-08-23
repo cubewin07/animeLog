@@ -125,10 +125,9 @@ export const BookRow: React.FC<BookRowProps> = ({
             </button>
             <button
               onClick={() => onDelete(book.id)}
-              className="btn-icon"
+              className="btn-icon danger"
               title="Delete book"
               aria-label={`Delete ${book.title}`}
-              style={{ color: '#c47676' }}
             >
               <Trash2 size={14} />
             </button>
@@ -183,14 +182,21 @@ export const BookRow: React.FC<BookRowProps> = ({
           </div>
         )}
 
-        {/* Takeaway Slip */}
-        <TakeawaySlip
-          text={book.notes}
-          label="Book Reflection"
-          rating={book.rating}
-          status={book.status}
-          onWrite={() => onEdit(book)}
-        />
+        {/* Note snippet on desk surface */}
+        {book.notes && (
+          <p
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 14,
+              fontStyle: 'italic',
+              color: 'var(--text-desk-muted)',
+              lineHeight: 1.5,
+              margin: 0,
+            }}
+          >
+            "{book.notes}"
+          </p>
+        )}
       </div>
     </article>
   );

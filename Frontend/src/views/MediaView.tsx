@@ -289,7 +289,8 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
               fontSize: 13,
               borderRadius: 'var(--radius-sm)',
               backgroundColor: activeFolderId === 'all' ? 'var(--desk-surface-high)' : 'transparent',
-              color: activeFolderId === 'all' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+              color: activeFolderId === 'all' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+              border: activeFolderId === 'all' ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
               fontWeight: activeFolderId === 'all' ? 600 : 400,
             }}
           >
@@ -307,7 +308,8 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
               fontSize: 13,
               borderRadius: 'var(--radius-sm)',
               backgroundColor: activeFolderId === 'root' ? 'var(--desk-surface-high)' : 'transparent',
-              color: activeFolderId === 'root' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+              color: activeFolderId === 'root' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+              border: activeFolderId === 'root' ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
               fontWeight: activeFolderId === 'root' ? 600 : 400,
             }}
           >
@@ -326,6 +328,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                   justifyContent: 'space-between',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isCurrent ? 'var(--desk-surface-high)' : 'transparent',
+                  border: isCurrent ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
                 }}
               >
                 <button
@@ -337,7 +340,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                     justifyContent: 'flex-start',
                     padding: '8px 10px',
                     fontSize: 13,
-                    color: isCurrent ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                    color: isCurrent ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                     fontWeight: isCurrent ? 600 : 400,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -355,12 +358,13 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                     handleDeleteFolder(folder);
                   }}
                   aria-label={`Delete folder ${folder.name}`}
+                  className="btn-icon danger"
                   style={{
-                    background: 'transparent',
                     border: 'none',
-                    color: 'var(--text-desk-dim)',
-                    cursor: 'pointer',
                     padding: '6px',
+                    minWidth: 'auto',
+                    minHeight: 'auto',
+                    background: 'transparent',
                   }}
                 >
                   <Trash2 size={13} />
@@ -559,7 +563,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                             width: 32,
                             height: 32,
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: '#ffffff',
+                            color: 'var(--text-desk)',
                           }}
                         >
                           <ExternalLink size={13} />
@@ -573,7 +577,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                             width: 32,
                             height: 32,
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: copiedId === img.id ? 'var(--tungsten)' : '#ffffff',
+                            color: copiedId === img.id ? 'var(--spine-text)' : 'var(--text-desk)',
                           }}
                         >
                           {copiedId === img.id ? <Check size={13} /> : <Copy size={13} />}
@@ -581,13 +585,12 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                         <button
                           type="button"
                           onClick={() => handleDeleteImage(img.id)}
-                          className="btn-icon"
+                          className="btn-icon danger"
                           aria-label="Delete image asset"
                           style={{
                             width: 32,
                             height: 32,
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: '#c47676',
                           }}
                         >
                           <Trash2 size={13} />

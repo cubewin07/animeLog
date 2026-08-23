@@ -185,30 +185,36 @@ Justification from the subject: the product is memories and lessons. A still wit
 
 Do not rotate slips, do not use Comic Sans, do not fake torn paper. Restraint: 0–1px border, slight inner shadow, no glassmorphism.
 
-### Color tokens (replace `:root` in `index.css`)
+### Color tokens (source of truth: `Frontend/src/index.css` `:root`)
 
-Named hex tokens — 6 core + semantic status (muted, not high-chroma pills):
+Named hex tokens — core Still & Spine palette + semantic status:
 
 | Token | Hex | Role |
 |-------|-----|------|
-| `--desk` | `#161310` | App background. Warm near-black of a wooden desk in low light — **not** `#051424` navy |
-| `--desk-raised` | `#211C16` | Header, list rows, raised panels |
-| `--page` | `#EDE6D9` | Takeaway slip / reading surface |
-| `--ink` | `#1F1A14` | Text on `--page` |
-| `--tungsten` | `#D4A05A` | Lamp light: “now watching/reading”, focus ring, primary action |
-| `--spine` | `#7A3E38` | Completed / important accent (book-spine red-brown, not emerald neon) |
+| `--desk` | `#181410` | App background. Warm charcoal walnut desk in low light — **not** `#051424` navy |
+| `--desk-raised` | `#231D17` | Header, list rows, raised panels |
+| `--desk-surface` | `#2C261F` | Header bars, table headers, form inputs |
+| `--desk-surface-high`| `#3A3229` | Active chips, elevated items |
+| `--page` | `#E2D3BB` | Takeaway slip / reading surface (tea-stained paper) |
+| `--page-muted` | `#D4C3A8` | Paper slip border / subtle paper shading |
+| `--ink` | `#2A2218` | Handwritten text on `--page` |
+| `--ink-muted` | `#6B5E4E` | Secondary text on paper slips |
+| `--tungsten` | `#C9954A` | Lamp light: “now watching/reading”, focus ring, primary action (kept sparse) |
+| `--spine` | `#7A3E38` | Completed / important accent (leather book-spine red-brown) |
+| `--spine-text` | `#C9A090` | Light spine red text on dark desk cards |
 | `--graphite` | `#8A8174` | Tertiary metadata on desk |
-| `--still-well` | `#0C0A08` | Image wells behind posters |
-
-On-desk text: `#E8DFD0` (warm off-white), not `#d4e4fa` ice-blue.
+| `--still-well` | `#100E0B` | Image wells behind posters |
+| `--text-desk` | `#E6DCCE` | On-desk primary text |
+| `--text-desk-muted` | `#9C9284` | On-desk muted subtitle text |
+| `--danger` | `#C9A090` | Delete icons and error text |
 
 Status color is **a 3px left edge or a small mono word**, not a glowing pill:
 
-- Watching / Reading → `--tungsten`
-- Completed → `--spine`
-- Plan → `--graphite`
-- On Hold → `#B56A3A`
-- Dropped → `#6E3A3A` at low saturation
+- Watching / Reading → `--tungsten` (`#C9954A`)
+- Completed → `--spine` (`#7A3E38` / `--spine-text: #C9A090`)
+- Plan → `--graphite` (`#8A8174`)
+- On Hold → `--status-hold: #A88868`
+- Dropped → `--status-dropped: #8A4E46`
 
 **Delete** `--color-primary-action: #6366f1`, `--shadow-glow`, violet gradients, `.glass-card` glow hover. Primary buttons: `--tungsten` on `--desk`, ink text, no purple shadow.
 

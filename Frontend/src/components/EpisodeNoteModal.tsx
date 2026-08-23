@@ -202,9 +202,9 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
                 fontSize: 12,
                 fontWeight: 600,
                 border: '1px solid',
-                borderColor: selectedNote === null ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                backgroundColor: selectedNote === null ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
-                color: selectedNote === null ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                borderColor: selectedNote === null ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
+                backgroundColor: selectedNote === null ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                color: selectedNote === null ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                 cursor: 'pointer',
               }}
             >
@@ -222,9 +222,9 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
                     borderRadius: 'var(--radius-sm)',
                     fontSize: 12,
                     border: '1px solid',
-                    borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                    backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
-                    color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                    borderColor: isSelected ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
+                    backgroundColor: isSelected ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                    color: isSelected ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
                   }}
@@ -239,16 +239,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
           {errorMsg && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(122, 62, 56, 0.2)',
-                border: '1px solid var(--spine)',
-                color: '#e58279',
-                fontSize: 13,
-              }}
-            >
+            <div className="form-error">
               {errorMsg}
             </div>
           )}
@@ -304,8 +295,8 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
 
           {/* Episode Note / Takeaway (Primary, large 16px textarea) */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
-              Episode Memory & Lesson <span style={{ color: 'var(--tungsten)' }}>*</span>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+              Episode Memory & Lesson <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <textarea
               rows={6}
@@ -340,9 +331,8 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
             {selectedNote && onDeleteNote ? (
               <button
                 type="button"
-                className="btn-icon"
+                className="btn-icon danger"
                 onClick={() => handleDelete(selectedNote.id)}
-                style={{ color: '#c47676' }}
                 title="Delete this note"
                 aria-label="Delete this note"
               >

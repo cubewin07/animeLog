@@ -50,7 +50,7 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
 
   const borderColor =
     toast.type === 'success'
-      ? 'var(--tungsten)'
+      ? 'var(--spine-text)'
       : toast.type === 'error'
       ? 'var(--spine)'
       : 'var(--graphite)';
@@ -74,8 +74,8 @@ const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void
         color: 'var(--text-desk)',
       }}
     >
-      {toast.type === 'success' && <CheckCircle2 size={18} color="var(--tungsten)" />}
-      {toast.type === 'error' && <AlertCircle size={18} color="#e58279" />}
+      {toast.type === 'success' && <CheckCircle2 size={18} color="var(--spine-text)" />}
+      {toast.type === 'error' && <AlertCircle size={18} color="var(--danger)" />}
       {toast.type === 'info' && <Info size={18} color="var(--text-desk-muted)" />}
 
       <span style={{ fontSize: '14px', flex: 1, lineHeight: 1.4 }}>

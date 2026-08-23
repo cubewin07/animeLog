@@ -1,6 +1,5 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { TakeawaySlip } from './TakeawaySlip';
 import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
@@ -48,7 +47,7 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
           color: 'var(--text-desk-muted)',
         }}
       >
-        <RotateCcw size={36} color="var(--tungsten)" style={{ margin: '0 auto 12px' }} />
+        <RotateCcw size={36} color="var(--graphite)" style={{ margin: '0 auto 12px' }} />
         <h3 style={{ fontSize: 18, color: 'var(--text-desk)', marginBottom: 6 }}>
           No Rewatches Logged Yet
         </h3>
@@ -76,7 +75,7 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                {r.movie ? <Film size={15} color="var(--tungsten)" /> : <Tv size={15} color="var(--tungsten)" />}
+                {r.movie ? <Film size={15} color="var(--graphite)" /> : <Tv size={15} color="var(--graphite)" />}
                 <h3 style={{ fontSize: 18, color: 'var(--text-desk)', fontWeight: 600 }}>
                   {r.release_title || 'Rewatch Target'}
                 </h3>
@@ -128,25 +127,33 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
                 </button>
               )}
               <button
-                className="btn-icon"
+                className="btn-icon danger"
                 onClick={() => onDelete(r.id)}
                 title="Delete rewatch entry"
                 aria-label="Delete rewatch entry"
-                style={{ color: '#c47676' }}
               >
                 <Trash2 size={14} />
               </button>
             </div>
           </div>
 
-          {/* Deepened Takeaway Slip */}
-          <TakeawaySlip
-            text={r.notes}
-            label="Deepened Lessons & Evolved Mindset"
-            rating={r.rating}
-            status="COMPLETED"
-            onWrite={onEdit ? () => onEdit(r) : undefined}
-          />
+          {/* Deepened Takeaway Note on Desk Card */}
+          {r.notes && (
+            <div style={{ paddingTop: 10, borderTop: '1px solid var(--border-desk-subtle)' }}>
+              <p
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 15,
+                  fontStyle: 'italic',
+                  color: 'var(--text-desk)',
+                  lineHeight: 1.6,
+                  margin: 0,
+                }}
+              >
+                "{r.notes}"
+              </p>
+            </div>
+          )}
         </div>
       ))}
     </div>

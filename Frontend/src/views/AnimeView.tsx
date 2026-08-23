@@ -194,7 +194,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               className="btn-icon"
               style={{
                 backgroundColor: viewMode === 'journal' ? 'var(--desk-raised)' : 'transparent',
-                color: viewMode === 'journal' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                color: viewMode === 'journal' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                 border: 'none',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-sm)',
@@ -215,7 +215,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               className="btn-icon"
               style={{
                 backgroundColor: viewMode === 'table' ? 'var(--desk-raised)' : 'transparent',
-                color: viewMode === 'table' ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                color: viewMode === 'table' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                 border: 'none',
                 padding: '4px 10px',
                 borderRadius: 'var(--radius-sm)',

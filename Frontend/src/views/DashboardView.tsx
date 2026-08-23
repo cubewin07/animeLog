@@ -235,14 +235,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
-      <section className="desk-animate-item">
-        <p className="section-kicker">Desk</p>
-        <h1 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 8 }}>
-          What you are in the middle of
-        </h1>
-        <p style={{ fontSize: 15, color: 'var(--text-desk-muted)', marginBottom: 16, maxWidth: 560 }}>
-          Currently watching and reading sit here. Lessons live on the paper slips.
-        </p>
+      <section className="desk-animate-item" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div>
+          <p className="section-kicker" style={{ marginBottom: 2 }}>Desk</p>
+          <h1 className="display-title" style={{ color: 'var(--text-desk)', fontSize: 24 }}>
+            What you are in the middle of
+          </h1>
+        </div>
         <JournalStrip stats={stats} />
       </section>
 
@@ -344,7 +343,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </div>
 
                   {/* Content Column */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
                     {/* Header Row: Title, Status, Rating, Stepper */}
                     <div
                       style={{
@@ -369,7 +368,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         <h3
                           onClick={() => onNavigate('anime', series.id)}
                           style={{
-                            fontSize: 20,
+                            fontSize: 18,
                             color: 'var(--text-desk)',
                             cursor: 'pointer',
                           }}
@@ -392,7 +391,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                     {/* Progress Bar (Visual aid) */}
                     {season.total_episodes && (
-                      <div className="progress-track">
+                      <div className="progress-track" style={{ height: 4 }}>
                         <div
                           className="progress-fill"
                           style={{
@@ -402,14 +401,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     )}
 
-                    {/* Takeaway Slip */}
-                    <TakeawaySlip
-                      text={season.notes}
-                      label={`Season ${season.season_number} Lesson`}
-                      rating={season.rating}
-                      status={season.status}
-                      onWrite={() => onEditSeason && onEditSeason(series, season)}
-                    />
+                    {/* Clean reflection text directly on desk surface */}
+                    {season.notes ? (
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: 14,
+                          fontStyle: 'italic',
+                          color: 'var(--text-desk-muted)',
+                          lineHeight: 1.5,
+                          margin: 0,
+                        }}
+                      >
+                        "{season.notes}"
+                      </p>
+                    ) : onEditSeason ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditSeason(series, season)}
+                        className="btn btn-ghost"
+                        style={{ alignSelf: 'flex-start', padding: '2px 8px', fontSize: 12, color: 'var(--text-desk-dim)' }}
+                      >
+                        + Add reflection
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -453,7 +468,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
                     <div
                       style={{
                         display: 'flex',
@@ -476,7 +491,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
                         <h3
                           onClick={() => onNavigate('anime', series.id)}
-                          style={{ fontSize: 20, color: 'var(--text-desk)', cursor: 'pointer' }}
+                          style={{ fontSize: 18, color: 'var(--text-desk)', cursor: 'pointer' }}
                         >
                           Film: {movie.title}
                         </h3>
@@ -495,13 +510,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     </div>
 
-                    <TakeawaySlip
-                      text={movie.notes}
-                      label="Film Reflection"
-                      rating={movie.rating}
-                      status={movie.status}
-                      onWrite={() => onEditMovie && onEditMovie(series, movie)}
-                    />
+                    {/* Clean reflection text directly on desk surface */}
+                    {movie.notes ? (
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: 14,
+                          fontStyle: 'italic',
+                          color: 'var(--text-desk-muted)',
+                          lineHeight: 1.5,
+                          margin: 0,
+                        }}
+                      >
+                        "{movie.notes}"
+                      </p>
+                    ) : onEditMovie ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditMovie(series, movie)}
+                        className="btn btn-ghost"
+                        style={{ alignSelf: 'flex-start', padding: '2px 8px', fontSize: 12, color: 'var(--text-desk-dim)' }}
+                      >
+                        + Add reflection
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );
@@ -545,7 +577,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
                     <div
                       style={{
                         display: 'flex',
@@ -570,7 +602,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         )}
                         <h3
                           onClick={() => onNavigate('books', book.id)}
-                          style={{ fontSize: 20, color: 'var(--text-desk)', cursor: 'pointer' }}
+                          style={{ fontSize: 18, color: 'var(--text-desk)', cursor: 'pointer' }}
                         >
                           {book.title}
                         </h3>
@@ -589,13 +621,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     </div>
 
-                    <TakeawaySlip
-                      text={book.notes}
-                      label="Book Reflection"
-                      rating={book.rating}
-                      status={book.status}
-                      onWrite={() => onEditBook && onEditBook(book)}
-                    />
+                    {/* Clean reflection text directly on desk surface */}
+                    {book.notes ? (
+                      <p
+                        style={{
+                          fontFamily: 'var(--font-serif)',
+                          fontSize: 14,
+                          fontStyle: 'italic',
+                          color: 'var(--text-desk-muted)',
+                          lineHeight: 1.5,
+                          margin: 0,
+                        }}
+                      >
+                        "{book.notes}"
+                      </p>
+                    ) : onEditBook ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditBook(book)}
+                        className="btn btn-ghost"
+                        style={{ alignSelf: 'flex-start', padding: '2px 8px', fontSize: 12, color: 'var(--text-desk-dim)' }}
+                      >
+                        + Add reflection
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               );

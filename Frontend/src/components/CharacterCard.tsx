@@ -1,6 +1,5 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { TakeawaySlip } from './TakeawaySlip';
 import { Sparkles, Trash2, Film, PenLine } from 'lucide-react';
 
 interface CharacterCardProps {
@@ -95,23 +94,33 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onEdit,
             </button>
           )}
           <button
-            className="btn-icon"
+            className="btn-icon danger"
             onClick={() => onDelete(character.id)}
             title="Remove character"
             aria-label={`Delete ${character.name}`}
-            style={{ color: '#c47676' }}
           >
             <Trash2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Why Worth Remembering (Takeaway Slip) */}
-      <TakeawaySlip
-        text={character.why}
-        label="Why Worth Remembering"
-        onWrite={onEdit ? () => onEdit(character) : undefined}
-      />
+      {/* Why Worth Remembering */}
+      {character.why && (
+        <div style={{ paddingTop: 10, borderTop: '1px solid var(--border-desk-subtle)' }}>
+          <p
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 15,
+              fontStyle: 'italic',
+              color: 'var(--text-desk)',
+              lineHeight: 1.6,
+              margin: 0,
+            }}
+          >
+            "{character.why}"
+          </p>
+        </div>
+      )}
     </div>
   );
 };

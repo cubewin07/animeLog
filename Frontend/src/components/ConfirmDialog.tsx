@@ -68,8 +68,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 width: 36,
                 height: 36,
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(122, 62, 56, 0.2)',
-                color: '#e58279',
+                backgroundColor: 'var(--danger-dim)',
+                color: 'var(--danger)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -106,11 +106,9 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           <button
             onClick={onCancel}
             aria-label="Close dialog"
+            className="btn-icon"
             style={{
-              background: 'transparent',
               border: 'none',
-              cursor: 'pointer',
-              color: 'var(--text-desk-dim)',
               padding: 4,
             }}
           >
@@ -138,12 +136,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 
           <button
             onClick={onConfirm}
-            className="btn"
+            className={isDestructive ? 'btn btn-danger' : 'btn btn-primary'}
             style={{
               padding: '7px 16px',
               fontSize: 14,
-              backgroundColor: isDestructive ? 'var(--spine)' : 'var(--tungsten)',
-              color: '#ffffff',
             }}
           >
             {confirmLabel}

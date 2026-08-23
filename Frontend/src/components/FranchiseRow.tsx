@@ -164,10 +164,9 @@ export const FranchiseRow: React.FC<FranchiseRowProps> = ({
             </button>
             <button
               onClick={() => onDeleteSeries(series.id)}
-              className="btn-icon"
+              className="btn-icon danger"
               title="Delete franchise"
               aria-label={`Delete ${series.title}`}
-              style={{ color: '#c47676' }}
             >
               <Trash2 size={14} />
             </button>
@@ -230,24 +229,21 @@ export const FranchiseRow: React.FC<FranchiseRowProps> = ({
               )}
             </div>
 
-            {/* Takeaway Slip */}
-            <TakeawaySlip
-              text={highlightedRelease.data.notes}
-              label={
-                highlightedRelease.type === 'season'
-                  ? `Season ${(highlightedRelease.data as AnimeSeason).season_number} Lesson`
-                  : 'Film Takeaway'
-              }
-              rating={highlightedRelease.data.rating}
-              status={highlightedRelease.data.status}
-              onWrite={() => {
-                if (highlightedRelease.type === 'season') {
-                  onEditSeason(highlightedRelease.data as AnimeSeason);
-                } else {
-                  onEditMovie(highlightedRelease.data as AnimeMovie);
-                }
-              }}
-            />
+            {/* Note snippet on desk surface */}
+            {highlightedRelease.data.notes && (
+              <p
+                style={{
+                  fontFamily: 'var(--font-serif)',
+                  fontSize: 14,
+                  fontStyle: 'italic',
+                  color: 'var(--text-desk-muted)',
+                  lineHeight: 1.5,
+                  margin: 0,
+                }}
+              >
+                "{highlightedRelease.data.notes}"
+              </p>
+            )}
           </div>
         )}
 
@@ -261,12 +257,13 @@ export const FranchiseRow: React.FC<FranchiseRowProps> = ({
                 style={{
                   fontSize: 12,
                   fontFamily: 'var(--font-mono)',
-                  color: s.id === highlightedRelease?.data.id ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                  color: s.id === highlightedRelease?.data.id ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                   cursor: 'pointer',
                   padding: '2px 8px',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--desk-surface)',
-                  border: '1px solid var(--border-desk-subtle)',
+                  backgroundColor: s.id === highlightedRelease?.data.id ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                  border: '1px solid',
+                  borderColor: s.id === highlightedRelease?.data.id ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
                 }}
               >
                 S{s.season_number} {s.status === 'COMPLETED' ? '✓' : ''}
@@ -279,12 +276,13 @@ export const FranchiseRow: React.FC<FranchiseRowProps> = ({
                 style={{
                   fontSize: 12,
                   fontFamily: 'var(--font-mono)',
-                  color: m.id === highlightedRelease?.data.id ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                  color: m.id === highlightedRelease?.data.id ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                   cursor: 'pointer',
                   padding: '2px 8px',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--desk-surface)',
-                  border: '1px solid var(--border-desk-subtle)',
+                  backgroundColor: m.id === highlightedRelease?.data.id ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                  border: '1px solid',
+                  borderColor: m.id === highlightedRelease?.data.id ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
                 }}
               >
                 Film: {m.title}

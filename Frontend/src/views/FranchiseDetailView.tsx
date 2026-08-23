@@ -187,8 +187,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               </button>
               <button
                 onClick={() => onDeleteSeries(series.id)}
-                className="btn-icon"
-                style={{ color: '#c47676' }}
+                className="btn-icon danger"
                 title="Delete franchise"
                 aria-label={`Delete ${series.title}`}
               >
@@ -214,6 +213,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {series.seasons?.map((s) => {
                 const isSelected = selectedType === 'season' && selectedId === s.id;
+                const isWatching = s.status === 'WATCHING';
                 return (
                   <button
                     key={`tab-s-${s.id}`}
@@ -227,10 +227,22 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       gap: 8,
                       padding: '8px 14px',
                       borderRadius: 'var(--radius-md)',
-                      backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                      backgroundColor: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten-dim)'
+                          : 'var(--desk-surface-high)'
+                        : 'var(--desk-surface)',
                       border: '1px solid',
-                      borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                      color: isSelected ? 'var(--tungsten)' : 'var(--text-desk)',
+                      borderColor: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten)'
+                          : 'var(--border-desk-medium)'
+                        : 'var(--border-desk-subtle)',
+                      color: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten)'
+                          : 'var(--text-desk)'
+                        : 'var(--text-desk-muted)',
                       fontSize: 14,
                       fontWeight: isSelected ? 600 : 500,
                       cursor: 'pointer',
@@ -247,6 +259,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
 
               {series.movies?.map((m) => {
                 const isSelected = selectedType === 'movie' && selectedId === m.id;
+                const isWatching = m.status === 'WATCHING';
                 return (
                   <button
                     key={`tab-m-${m.id}`}
@@ -260,10 +273,22 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       gap: 8,
                       padding: '8px 14px',
                       borderRadius: 'var(--radius-md)',
-                      backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
+                      backgroundColor: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten-dim)'
+                          : 'var(--desk-surface-high)'
+                        : 'var(--desk-surface)',
                       border: '1px solid',
-                      borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                      color: isSelected ? 'var(--tungsten)' : 'var(--text-desk)',
+                      borderColor: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten)'
+                          : 'var(--border-desk-medium)'
+                        : 'var(--border-desk-subtle)',
+                      color: isSelected
+                        ? isWatching
+                          ? 'var(--tungsten)'
+                          : 'var(--text-desk)'
+                        : 'var(--text-desk-muted)',
                       fontSize: 14,
                       fontWeight: isSelected ? 600 : 500,
                       cursor: 'pointer',

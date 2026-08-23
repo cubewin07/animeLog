@@ -130,8 +130,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               </button>
               <button
                 onClick={() => onDelete(book.id)}
-                className="btn-icon"
-                style={{ color: '#c47676' }}
+                className="btn-icon danger"
                 title="Delete book"
                 aria-label={`Delete ${book.title}`}
               >

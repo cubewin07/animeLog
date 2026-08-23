@@ -96,32 +96,9 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
     }
   };
 
-  // Summary Metrics
-  const totalSeasons = seriesList.reduce((acc, s) => acc + s.seasons.length, 0);
-  const totalMovies = seriesList.reduce((acc, s) => acc + s.movies.length, 0);
-  const totalTvWatched = seriesList.reduce(
-    (acc, s) => acc + s.seasons.reduce((sAcc, sea) => sAcc + sea.progress, 0),
-    0
-  );
-  const totalTvKnown = seriesList.reduce(
-    (acc, s) =>
-      acc + s.seasons.reduce((sAcc, sea) => sAcc + (sea.total_episodes || sea.progress), 0),
-    0
-  );
-
-  const totalMemories = seriesList.reduce(
-    (acc, s) =>
-      acc +
-      s.seasons.filter((sea) => sea.notes && sea.notes.trim().length > 0).length +
-      s.movies.filter((m) => m.notes && m.notes.trim().length > 0).length +
-      s.seasons.reduce((epAcc, sea) => epAcc + (sea.episode_notes?.length || 0), 0),
-    0
-  );
-
   return (
     <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-      {/* Franchise Editorial Section Cards */}
+      {/* Franchise Section Cards */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {seriesList.map((series) => {
           const allReleasesCount = series.seasons.length + series.movies.length;
@@ -154,8 +131,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: 'rgba(99, 102, 241, 0.12)',
-                        color: 'var(--color-primary)',
+                        background: 'var(--still-well)',
+                        color: 'var(--graphite)',
                       }}
                     >
                       <Film size={18} opacity={0.6} />
@@ -164,7 +141,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#ffffff', letterSpacing: '-0.01em' }}>
+                      <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-desk)', letterSpacing: '-0.01em' }}>
                         {series.title}
                       </h3>
                       <span
@@ -172,9 +149,10 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                         style={{
                           fontSize: '10px',
                           padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: isAllCompleted ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.2)',
-                          color: isAllCompleted ? '#34d399' : 'var(--color-primary)',
+                          borderRadius: 'var(--radius-sm)',
+                          background: isAllCompleted ? 'var(--spine-dim)' : 'var(--desk-surface)',
+                          color: isAllCompleted ? 'var(--spine-text)' : 'var(--text-desk-muted)',
+                          border: '1px solid var(--border-desk-subtle)',
                           fontWeight: 700,
                         }}
                       >
@@ -202,13 +180,13 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                 {/* Right: Franchise Completion & Quick Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    {isAllCompleted && <CheckCircle2 size={14} color="#34d399" />}
+                    {isAllCompleted && <CheckCircle2 size={14} color="var(--spine-text)" />}
                     <span
                       className="mono"
                       style={{
                         fontSize: '12px',
                         fontWeight: 600,
-                        color: isAllCompleted ? '#34d399' : '#ffffff',
+                        color: isAllCompleted ? 'var(--spine-text)' : 'var(--text-desk)',
                       }}
                     >
                       {completedReleasesCount} / {allReleasesCount} completed
@@ -216,7 +194,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                   </div>
 
                   {series.seasons.length > 0 && (
-                    <span className="mono" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    <span className="mono" style={{ fontSize: '12px', color: 'var(--text-desk-muted)' }}>
                       {seriesTvWatched} / {seriesTvTotal} eps
                     </span>
                   )}
@@ -225,7 +203,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <button
                       className="btn btn-ghost"
-                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-subtle)' }}
+                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-desk-subtle)' }}
                       onClick={() => onAddSeason(series)}
                       title="Add TV Season"
                     >
@@ -234,7 +212,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                     </button>
                     <button
                       className="btn btn-ghost"
-                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-subtle)' }}
+                      style={{ padding: '4px 9px', fontSize: '11px', border: '1px solid var(--border-desk-subtle)' }}
                       onClick={() => onAddMovie(series)}
                       title="Add Film"
                     >
@@ -258,10 +236,10 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                       <Edit3 size={13} />
                     </button>
                     <button
-                      className="btn-icon"
+                      className="btn-icon danger"
                       onClick={() => onDeleteSeries(series.id)}
                       title="Delete Franchise"
-                      style={{ color: '#fb7185', padding: '5px 7px' }}
+                      style={{ padding: '5px 7px' }}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -310,8 +288,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: 'rgba(99, 102, 241, 0.12)',
-                                color: 'var(--color-primary)',
+                                background: 'var(--still-well)',
+                                color: 'var(--graphite)',
                               }}
                             >
                               <Tv size={14} opacity={0.7} />
@@ -320,11 +298,11 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                           <span className="type-badge-tv">
                             <Tv size={11} /> S{season.season_number}
                           </span>
-                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#ffffff' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-desk)' }}>
                             {season.title}
                           </span>
                           {season.studios && season.studios.length > 0 && (
-                            <span style={{ fontSize: '11px', color: 'var(--color-secondary)' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-desk-muted)' }}>
                               ({season.studios.map((s) => s.name).join(', ')})
                             </span>
                           )}
@@ -335,7 +313,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                           {getStatusBadge(season.status)}
                           {season.rating && (
                             <div className="rating-pill">
-                              <Star size={11} fill="#fbbf24" color="#fbbf24" />
+                              <Star size={11} fill="currentColor" color="var(--text-desk-muted)" />
                               <span>{season.rating}/10</span>
                             </div>
                           )}
@@ -345,13 +323,13 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-desk)' }}>
                                 {season.progress}{' '}
-                                <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>
+                                <span style={{ color: 'var(--text-desk-dim)', fontWeight: 400 }}>
                                   / {season.total_episodes ?? '??'} eps
                                 </span>
                               </span>
-                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? '#34d399' : 'var(--text-muted)' }}>
+                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? 'var(--spine-text)' : 'var(--text-desk-muted)' }}>
                                 ({progressPct}%)
                               </span>
                             </div>
@@ -374,7 +352,6 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             </button>
                             <button
                               className="stepper-btn"
-                              style={{ background: 'rgba(99, 102, 241, 0.2)', color: 'var(--color-primary)' }}
                               onClick={() => onSeasonProgressDelta(season.id, 1)}
                               disabled={season.total_episodes !== null && season.progress >= season.total_episodes}
                               title="Advance 1 episode"
@@ -391,8 +368,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             style={{
                               padding: '3px 8px',
                               fontSize: '11px',
-                              color: episodeNotesCount > 0 ? 'var(--color-primary)' : 'var(--text-muted)',
-                              background: episodeNotesCount > 0 ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
+                              color: episodeNotesCount > 0 ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+                              background: episodeNotesCount > 0 ? 'var(--desk-surface)' : 'transparent',
                             }}
                             onClick={() => onOpenEpisodeNotes(season)}
                             title="Standout Episode Memories"
@@ -406,8 +383,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             style={{
                               padding: '3px 8px',
                               fontSize: '11px',
-                              color: rewatchesCount > 0 ? 'var(--color-secondary)' : 'var(--text-muted)',
-                              background: rewatchesCount > 0 ? 'rgba(196, 193, 251, 0.12)' : 'transparent',
+                              color: rewatchesCount > 0 ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+                              background: rewatchesCount > 0 ? 'var(--desk-surface)' : 'transparent',
                             }}
                             onClick={() => onAddRewatchSeason(season)}
                             title="Log Rewatch Pass"
@@ -420,27 +397,26 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             <Edit3 size={13} />
                           </button>
                           <button
-                            className="btn-icon"
+                            className="btn-icon danger"
                             onClick={() => onDeleteSeason(season.id)}
                             title="Delete Season"
-                            style={{ color: '#fb7185' }}
                           >
                             <Trash2 size={13} />
                           </button>
                         </div>
                       </div>
 
-                      {/* Line 2: Editorial Reflection & Standout Memories (High Readability) */}
+                      {/* Line 2: Editorial Reflection */}
                       {season.notes && (
                         <div className="editorial-takeaway-card">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Quote size={13} color="var(--color-primary)" />
+                            <Quote size={13} color="var(--tungsten)" />
                             <span
                               style={{
                                 fontSize: '10px',
                                 fontFamily: 'var(--font-mono)',
                                 fontWeight: 700,
-                                color: 'var(--color-primary)',
+                                color: 'var(--ink-muted)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.04em',
                               }}
@@ -448,7 +424,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                               Season Takeaway
                             </span>
                           </div>
-                          <p style={{ fontSize: '13px', color: '#e2eaf6', fontStyle: 'italic', lineHeight: 1.55 }}>
+                          <p>
                             "{season.notes}"
                           </p>
                         </div>
@@ -461,23 +437,23 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             <div
                               key={ep.id}
                               style={{
-                                background: 'rgba(9, 22, 38, 0.85)',
+                                background: 'var(--desk-surface)',
                                 padding: '6px 10px',
                                 borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--border-subtle)',
+                                border: '1px solid var(--border-desk-subtle)',
                                 fontSize: '11px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '6px',
                               }}
                             >
-                              <span style={{ fontWeight: 700, color: '#ffffff' }}>
+                              <span style={{ fontWeight: 700, color: 'var(--text-desk)' }}>
                                 Ep {ep.episode_number}:
                               </span>
-                              <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                              <span style={{ color: 'var(--text-desk-muted)', fontStyle: 'italic' }}>
                                 "{ep.note}"
                               </span>
-                              {ep.rating && <span style={{ color: '#fbbf24', fontWeight: 600 }}>★{ep.rating}</span>}
+                              {ep.rating && <span style={{ color: 'var(--text-desk-muted)', fontWeight: 600 }}>★{ep.rating}</span>}
                             </div>
                           ))}
                         </div>
@@ -524,8 +500,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: 'rgba(56, 189, 248, 0.12)',
-                                color: 'var(--color-accent-cyan)',
+                                background: 'var(--still-well)',
+                                color: 'var(--graphite)',
                               }}
                             >
                               <Clapperboard size={14} opacity={0.7} />
@@ -534,11 +510,11 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                           <span className="type-badge-movie">
                             <Clapperboard size={11} /> FILM
                           </span>
-                          <span style={{ fontSize: '15px', fontWeight: 600, color: '#ffffff' }}>
+                          <span style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text-desk)' }}>
                             {movie.title}
                           </span>
                           {movie.studios && movie.studios.length > 0 && (
-                            <span style={{ fontSize: '11px', color: 'var(--color-secondary)' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--text-desk-muted)' }}>
                               ({movie.studios.map((s) => s.name).join(', ')})
                             </span>
                           )}
@@ -549,7 +525,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                           {getStatusBadge(movie.status)}
                           {movie.rating && (
                             <div className="rating-pill">
-                              <Star size={11} fill="#fbbf24" color="#fbbf24" />
+                              <Star size={11} fill="currentColor" color="var(--text-desk-muted)" />
                               <span>{movie.rating}/10</span>
                             </div>
                           )}
@@ -559,23 +535,20 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                              <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-desk)' }}>
                                 {movie.progress_minutes}{' '}
-                                <span style={{ color: 'var(--text-dim)', fontWeight: 400 }}>
+                                <span style={{ color: 'var(--text-desk-dim)', fontWeight: 400 }}>
                                   / {movie.total_minutes ?? '??'} min
                                 </span>
                               </span>
-                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? '#38bdf8' : 'var(--text-muted)' }}>
+                              <span className="mono" style={{ fontSize: '11px', color: isCompleted ? 'var(--spine-text)' : 'var(--text-desk-muted)' }}>
                                 ({progressPct}%)
                               </span>
                             </div>
                             <div className="progress-track" style={{ height: '4px' }}>
                               <div
                                 className={`progress-fill ${isCompleted ? 'completed' : ''}`}
-                                style={{
-                                  width: `${progressPct}%`,
-                                  background: isCompleted ? undefined : 'linear-gradient(90deg, #38bdf8, #818cf8)',
-                                }}
+                                style={{ width: `${progressPct}%` }}
                               />
                             </div>
                           </div>
@@ -591,7 +564,6 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             </button>
                             <button
                               className="stepper-btn"
-                              style={{ background: 'rgba(56, 189, 248, 0.2)', color: 'var(--color-accent-cyan)' }}
                               onClick={() => onMovieProgressDelta(movie.id, 10)}
                               disabled={movie.total_minutes !== null && movie.progress_minutes >= movie.total_minutes}
                               title="Advance 10 minutes"
@@ -608,8 +580,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             style={{
                               padding: '3px 8px',
                               fontSize: '11px',
-                              color: rewatchesCount > 0 ? 'var(--color-secondary)' : 'var(--text-muted)',
-                              background: rewatchesCount > 0 ? 'rgba(196, 193, 251, 0.12)' : 'transparent',
+                              color: rewatchesCount > 0 ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+                              background: rewatchesCount > 0 ? 'var(--desk-surface)' : 'transparent',
                             }}
                             onClick={() => onAddRewatchMovie(movie)}
                             title="Log Rewatch Pass"
@@ -622,10 +594,9 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                             <Edit3 size={13} />
                           </button>
                           <button
-                            className="btn-icon"
+                            className="btn-icon danger"
                             onClick={() => onDeleteMovie(movie.id)}
                             title="Delete Film"
-                            style={{ color: '#fb7185' }}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -636,13 +607,13 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                       {movie.notes && (
                         <div className="editorial-takeaway-card editorial-takeaway-movie">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Quote size={13} color="var(--color-accent-cyan)" />
+                            <Quote size={13} color="var(--spine)" />
                             <span
                               style={{
                                 fontSize: '10px',
                                 fontFamily: 'var(--font-mono)',
                                 fontWeight: 700,
-                                color: 'var(--color-accent-cyan)',
+                                color: 'var(--ink-muted)',
                                 textTransform: 'uppercase',
                                 letterSpacing: '0.04em',
                               }}
@@ -650,7 +621,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                               Film Reflection & Memory
                             </span>
                           </div>
-                          <p style={{ fontSize: '13px', color: '#e2eaf6', fontStyle: 'italic', lineHeight: 1.55 }}>
+                          <p>
                             "{movie.notes}"
                           </p>
                         </div>
@@ -665,8 +636,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                 <div
                   style={{
                     padding: '12px 20px',
-                    background: 'rgba(5, 15, 27, 0.5)',
-                    borderTop: '1px solid var(--border-subtle)',
+                    background: 'var(--desk-surface)',
+                    borderTop: '1px solid var(--border-desk-subtle)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '12px',
@@ -674,13 +645,13 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <Sparkle size={12} color="var(--color-accent-emerald)" />
+                    <Sparkle size={12} color="var(--graphite)" />
                     <span
                       style={{
                         fontSize: '11px',
                         fontFamily: 'var(--font-mono)',
                         fontWeight: 700,
-                        color: 'var(--color-accent-emerald)',
+                        color: 'var(--graphite)',
                         textTransform: 'uppercase',
                       }}
                     >
@@ -690,7 +661,7 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
 
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     {series.favorite_characters.map((c) => {
-                      const charImg = (c.images && c.images.length > 0) ? c.images[0].url : c.image_url;
+                      const charImg = (c.images && c.images.length > 0) ? (c.images[0] as any).url || (c.images[0] as any).image_url : c.image_url;
                       return (
                         <div key={c.id} className="character-badge" title={c.why || c.name}>
                           {charImg ? (
@@ -706,8 +677,8 @@ export const SeriesTableView: React.FC<SeriesTableViewProps> = ({
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                background: 'rgba(78, 222, 163, 0.15)',
-                                color: 'var(--color-accent-emerald)',
+                                background: 'var(--still-well)',
+                                color: 'var(--graphite)',
                               }}
                             >
                               <Sparkles size={10} />

@@ -169,8 +169,8 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--tungsten-dim)',
-                color: 'var(--tungsten)',
+                backgroundColor: 'var(--desk-surface)',
+                color: 'var(--text-desk)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -240,7 +240,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
 
           {/* Deepened Notes First (Prominent, 16px font) */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               How did your perspective change? (Deepened Lessons)
             </label>
             <textarea
@@ -418,8 +418,8 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--tungsten-dim)',
-                color: 'var(--tungsten)',
+                backgroundColor: 'var(--desk-surface)',
+                color: 'var(--text-desk)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -456,7 +456,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Character Name <span style={{ color: 'var(--tungsten)' }}>*</span>
+              Character Name <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <input
               type="text"
@@ -470,7 +470,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
           {/* Why Worth Remembering (Prominent, 16px font) */}
           <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
+            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               Why is this character worth remembering? (Lesson / Ideal)
             </label>
             <textarea

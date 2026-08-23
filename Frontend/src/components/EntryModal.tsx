@@ -355,8 +355,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                 width: 32,
                 height: 32,
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--tungsten-dim)',
-                color: 'var(--tungsten)',
+                backgroundColor: 'var(--desk-surface)',
+                color: 'var(--text-desk)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -425,16 +425,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {errorMsg && (
-            <div
-              style={{
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(122, 62, 56, 0.2)',
-                border: '1px solid var(--spine)',
-                color: '#e58279',
-                fontSize: 13,
-              }}
-            >
+            <div className="form-error">
               {errorMsg}
             </div>
           )}
@@ -443,7 +434,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           {(activeTab === 'add-season' || activeTab === 'add-movie') && (
             <div>
               <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                Target Franchise <span style={{ color: 'var(--tungsten)' }}>*</span>
+                Target Franchise <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <select
                 value={seriesId}
@@ -469,7 +460,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                 : activeTab === 'add-movie' || activeTab === 'edit-movie'
                 ? 'Film Title'
                 : 'Book Title'}{' '}
-              <span style={{ color: 'var(--tungsten)' }}>*</span>
+              <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <input
               type="text"
@@ -541,7 +532,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           {/* 2. NOTES & LESSONS FIRST (Prominent, 16px font, 6-8 rows) */}
           {activeTab !== 'edit-series' && (
             <div>
-              <label style={{ display: 'block', fontSize: 13, color: 'var(--tungsten)', marginBottom: 6, fontWeight: 600 }}>
+              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                 Memories, Insights & Lessons (Takeaway)
               </label>
               <textarea
@@ -727,9 +718,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                               borderRadius: 'var(--radius-sm)',
                               fontSize: 12,
                               border: '1px solid',
-                              borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                              backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
-                              color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                              borderColor: isSelected ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
+                              backgroundColor: isSelected ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                              color: isSelected ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                               cursor: 'pointer',
                             }}
                           >
@@ -766,9 +757,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                               borderRadius: 'var(--radius-sm)',
                               fontSize: 12,
                               border: '1px solid',
-                              borderColor: isSelected ? 'var(--tungsten)' : 'var(--border-desk-subtle)',
-                              backgroundColor: isSelected ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
-                              color: isSelected ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                              borderColor: isSelected ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
+                              backgroundColor: isSelected ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
+                              color: isSelected ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                               cursor: 'pointer',
                             }}
                           >
