@@ -1,7 +1,8 @@
 import React from 'react';
 import { Book } from '../types';
 import { ProgressStepper } from '../components/ProgressStepper';
-import { ArrowLeft, BookOpen, PenLine, Trash2, Calendar, Star } from 'lucide-react';
+import { TakeawaySlip } from '../components/TakeawaySlip';
+import { ArrowLeft, BookOpen, PenLine, Trash2 } from 'lucide-react';
 
 interface BookDetailViewProps {
   book: Book;
@@ -19,6 +20,16 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   onProgressDelta,
 }) => {
   const coverUrl = book.cover_image_url || (book.cover_image as any)?.image_url;
+
+  const getRatingBandClass = (score?: number | null) => {
+    if (!score) return 'rating-band-empty';
+    if (score >= 9) return 'rating-band-high';
+    if (score >= 7) return 'rating-band-mid';
+    if (score >= 5) return 'rating-band-normal';
+    return 'rating-band-low';
+  };
+
+  const statusLower = book.status.toLowerCase();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
@@ -46,7 +57,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       <div className="detail-split-layout">
         {/* Left Column: Cover + Quick Stats */}
         <aside className="detail-sidebar">
-          <div className="detail-poster-wrapper">
+          <div className={`detail-poster-wrapper poster-edge-${statusLower}`}>
             {coverUrl ? (
               <img
                 src={coverUrl}
@@ -58,7 +69,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               />
             ) : (
               <div className="detail-poster-placeholder">
-                <BookOpen size={48} />
+                <BookOpen size={48} color="var(--graphite)" />
                 <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>No Book Cover</span>
               </div>
             )}
@@ -66,17 +77,17 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
 
           {/* Quick Stats Box */}
           <div className="quick-stats-box">
-            {/* Score */}
+            {/* Score with Rating Band */}
             <div className="stats-score-row">
               <span className="stats-score-label">SCORE</span>
               <div className="stats-score-val">
                 {book.rating ? (
                   <>
-                    <span>★ {book.rating}</span>
+                    <span className={getRatingBandClass(book.rating)}>★ {book.rating}</span>
                     <span className="score-total">/10</span>
                   </>
                 ) : (
-                  <span style={{ fontSize: 14, color: 'var(--text-desk-muted)', fontWeight: 500 }}>
+                  <span className="rating-band-empty" style={{ fontSize: 14, fontWeight: 500 }}>
                     Unrated
                   </span>
                 )}
@@ -101,12 +112,13 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
 
               <div className="stats-meta-row">
                 <span className="meta-key">Status</span>
-                <span className={`status-indicator ${book.status.toLowerCase()}`}>
+                <span className={`status-indicator ${statusLower}`}>
                   {book.status}
                 </span>
               </div>
 
-              {book.status === 'READING' && (
+              {/* Progress Stepper only shown when READING */}
+              {book.status === 'READING' ? (
                 <div className="stats-meta-row" style={{ alignItems: 'center' }}>
                   <span className="meta-key">Progress</span>
                   <ProgressStepper
@@ -114,17 +126,18 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                     total={book.total_pages}
                     unit="p"
                     step={10}
+                    tone="reading"
                     onDelta={(d) => onProgressDelta(book.id, d)}
                     ariaLabelPrefix={`${book.title} pages`}
                   />
                 </div>
-              )}
-
-              {book.total_pages && book.status !== 'READING' && (
-                <div className="stats-meta-row">
-                  <span className="meta-key">Length</span>
-                  <span className="meta-val-mono">{book.total_pages} pages</span>
-                </div>
+              ) : (
+                book.total_pages && (
+                  <div className="stats-meta-row">
+                    <span className="meta-key">Length</span>
+                    <span className="meta-val-mono">{book.total_pages} pages</span>
+                  </div>
+                )
               )}
 
               {book.start_date && (
@@ -172,7 +185,9 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
         <main className="detail-main-content">
           <div>
             <div className="detail-eyebrow">
-              <span>ARCHIVE // BOOK JOURNAL</span>
+              <span className={`status-indicator ${statusLower}`} style={{ fontSize: 12 }}>
+                Book Journal · {book.status}
+              </span>
             </div>
 
             <h1 className="detail-main-title">{book.title}</h1>
@@ -202,8 +217,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             )}
           </div>
 
-          {/* Core Lesson & Editorial Pull Quote */}
-          <section>
+          {/* Core Takeaway Slip on Cream Paper */}
+          <section className="detail-section-takeaway">
             <div
               style={{
                 display: 'flex',
@@ -212,66 +227,21 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                 marginBottom: 12,
               }}
             >
-              <h2 className="section-title" style={{ color: 'var(--text-desk)', margin: 0 }}>
+              <h2 className="section-title" style={{ color: 'var(--text-desk)', margin: 0, fontSize: 20 }}>
                 Book Reflections & Lessons
               </h2>
-
-              <button
-                onClick={() => onEdit(book)}
-                className="btn btn-secondary"
-                style={{ padding: '4px 10px', fontSize: 12 }}
-              >
-                <PenLine size={12} />
-                <span>{book.notes ? 'Edit Lesson' : 'Write Lesson'}</span>
-              </button>
             </div>
 
-            {book.notes ? (
-              <div className="editorial-pull-quote">
-                <p className="editorial-pull-quote-text">“{book.notes}”</p>
-                <div className="editorial-pull-quote-footer">
-                  <span className="editorial-pull-quote-label">
-                    CORE TAKEAWAY // {book.status}
-                  </span>
-                  {book.rating && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--tungsten)' }}>
-                      Rating: {book.rating}/10
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div
-                className="desk-card"
-                style={{
-                  padding: '24px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: 15,
-                    color: 'var(--text-desk-muted)',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  No reading lesson captured yet. A title without notes is incomplete.
-                </span>
-                <button
-                  onClick={() => onEdit(book)}
-                  className="btn btn-primary"
-                  style={{ padding: '6px 14px', fontSize: 13 }}
-                >
-                  <PenLine size={13} />
-                  <span>Capture Takeaway</span>
-                </button>
-              </div>
-            )}
+            <TakeawaySlip
+              isDetail
+              status={book.status}
+              text={book.notes}
+              label="Book Takeaway"
+              rating={book.rating}
+              onWrite={() => onEdit(book)}
+              emptyText="No reading lesson captured yet. A title without notes is incomplete."
+              emptyCtaText="Capture Takeaway"
+            />
           </section>
         </main>
       </div>

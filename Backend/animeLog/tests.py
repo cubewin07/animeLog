@@ -208,7 +208,12 @@ class MediaModelTests(TestCase):
             notes="Book notes",
         )
 
-        char = FavoriteCharacter.objects.create(series=series, name="Himmel", why="Kindness")
+        char = FavoriteCharacter.objects.create(
+            series=series,
+            name="Himmel",
+            why="Kindness",
+            cover_image=img,
+        )
         char.images.add(img)
 
         # Verify initial linking
@@ -217,6 +222,7 @@ class MediaModelTests(TestCase):
         self.assertEqual(movie.cover_image, img)
         self.assertEqual(ep.cover_image, img)
         self.assertEqual(book.cover_image, img)
+        self.assertEqual(char.cover_image, img)
         self.assertEqual(list(char.images.all()), [img])
 
         # Delete image: entities and their journal notes must be preserved!
@@ -238,6 +244,7 @@ class MediaModelTests(TestCase):
         self.assertEqual(ep.note, "Ep 1 note")
         self.assertIsNone(book.cover_image)
         self.assertEqual(book.notes, "Book notes")
+        self.assertIsNone(char.cover_image)
         self.assertEqual(char.images.count(), 0)
         self.assertEqual(char.why, "Kindness")
 
@@ -307,6 +314,7 @@ class JournalAPIFixtureMixin:
             series=self.series,
             name="Himmel",
             why="Demonstrated how small acts of kindness leave an eternal footprint.",
+            cover_image=self.image_frieren,
         )
         self.character.images.add(self.image_frieren)
 
@@ -692,6 +700,50 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         }
         inv_res = self.client.post("/api/rewatches/", invalid_payload, format="json")
         self.assertEqual(inv_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_favorite_character_cover_image_crud_and_serialization(self):
+        image_fern = Image.objects.create(
+            file="anime_log/images/fern.jpg",
+            title="Fern Portrait",
+            folder=self.folder_covers,
+        )
+        # Create character with cover_image and gallery images
+        create_payload = {
+            "series": self.series.id,
+            "name": "Fern",
+            "why": "Unwavering loyalty and maturity beyond her years.",
+            "cover_image": self.image_frieren.id,
+            "images": [self.image_frieren.id, image_fern.id],
+        }
+        res = self.client.post("/api/characters/", create_payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["cover_image"], self.image_frieren.id)
+        self.assertEqual(res.data["cover_image_url"], self.image_frieren.url)
+        self.assertEqual(res.data["image_url"], self.image_frieren.url)
+        self.assertEqual(len(res.data["images"]), 2)
+        char_id = res.data["id"]
+
+        # Update cover_image to Fern's image
+        patch_res = self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"cover_image": image_fern.id},
+            format="json",
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data["cover_image"], image_fern.id)
+        self.assertEqual(patch_res.data["cover_image_url"], image_fern.url)
+        self.assertEqual(patch_res.data["image_url"], image_fern.url)
+
+        # Clear cover_image to null -> image_url falls back to first image in gallery
+        patch_null = self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"cover_image": None},
+            format="json",
+        )
+        self.assertEqual(patch_null.status_code, status.HTTP_200_OK)
+        self.assertIsNone(patch_null.data["cover_image"])
+        self.assertIsNone(patch_null.data["cover_image_url"])
+        self.assertIsNotNone(patch_null.data["image_url"])
 
     def test_delete_series_cascades_properly(self):
         series_id = self.series.id

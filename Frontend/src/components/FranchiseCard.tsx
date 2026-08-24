@@ -184,10 +184,18 @@ export const FranchiseCard: React.FC<FranchiseCardProps> = ({
         {/* Personal Star Rating Badge floating top left */}
         {formattedRating && (
           <div
-            className="anime-card-rating-badge"
+            className={`anime-card-rating-badge ${
+              parseFloat(formattedRating) >= 9
+                ? 'rating-band-high'
+                : parseFloat(formattedRating) >= 7
+                ? 'rating-band-mid'
+                : parseFloat(formattedRating) >= 5
+                ? 'rating-band-normal'
+                : 'rating-band-low'
+            }`}
             title={`Personal Rating: ${formattedRating} / 10`}
           >
-            <Star size={13} fill="var(--tungsten)" color="var(--tungsten)" />
+            <Star size={13} fill="currentColor" color="currentColor" />
             <span>{formattedRating}</span>
           </div>
         )}

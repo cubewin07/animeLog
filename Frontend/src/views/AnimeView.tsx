@@ -173,11 +173,12 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       <div className="filter-chip-row" role="tablist" aria-label="Filter by status">
         {filterTabs.map((tab) => {
           const isActive = selectedStatus === tab.id;
+          const statusClass = tab.id === 'ALL' ? '' : `active-${tab.id.toLowerCase()}`;
           return (
             <button
               key={tab.id}
               onClick={() => setSelectedStatus(tab.id)}
-              className={`filter-chip ${isActive ? 'active' : ''}`}
+              className={`filter-chip ${isActive ? `active ${statusClass}` : ''}`}
               role="tab"
               aria-selected={isActive}
             >

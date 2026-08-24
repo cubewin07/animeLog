@@ -460,6 +460,7 @@ export const characterApi = {
     series: number;
     name: string;
     why?: string | null;
+    cover_image?: number | null;
     images?: number[];
   }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/`, {
@@ -468,7 +469,7 @@ export const characterApi = {
     });
   },
 
-  async update(id: number, data: Partial<FavoriteCharacter> & { images?: number[] }): Promise<FavoriteCharacter> {
+  async update(id: number, data: Partial<FavoriteCharacter> & { cover_image?: number | null; images?: number[] }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),

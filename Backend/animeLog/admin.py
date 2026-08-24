@@ -157,10 +157,11 @@ class RewatchAdmin(admin.ModelAdmin):
 
 @admin.register(FavoriteCharacter)
 class FavoriteCharacterAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "series")
+    list_display = ("id", "name", "series", "cover_image")
     search_fields = ("name", "series__title", "why")
     list_filter = ("series",)
     filter_horizontal = ("images",)
+    raw_id_fields = ("cover_image",)
 
 
 @admin.register(Book)

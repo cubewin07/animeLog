@@ -1,6 +1,5 @@
 import React from 'react';
 import { Book } from '../types';
-import { TakeawaySlip } from './TakeawaySlip';
 import { ProgressStepper } from './ProgressStepper';
 import { BookOpen, PenLine, Trash2, ArrowRight } from 'lucide-react';
 
@@ -21,6 +20,15 @@ export const BookRow: React.FC<BookRowProps> = ({
 }) => {
   const coverUrl = book.cover_image_url || (book.cover_image as any)?.image_url;
 
+  const getRatingBandClass = (score: number) => {
+    if (score >= 9) return 'rating-band-high';
+    if (score >= 7) return 'rating-band-mid';
+    if (score >= 5) return 'rating-band-normal';
+    return 'rating-band-low';
+  };
+
+  const statusLower = book.status.toLowerCase();
+
   return (
     <article
       className="desk-card"
@@ -32,7 +40,7 @@ export const BookRow: React.FC<BookRowProps> = ({
         padding: 24,
       }}
     >
-      {/* Cover / Spine Still */}
+      {/* Cover / Spine Still with Status Edge */}
       <div
         onClick={() => onOpenDetail && onOpenDetail(book.id)}
         style={{ cursor: onOpenDetail ? 'pointer' : 'default' }}
@@ -42,14 +50,14 @@ export const BookRow: React.FC<BookRowProps> = ({
           <img
             src={coverUrl}
             alt={book.title}
-            className="still-poster-list"
+            className={`still-poster-list poster-edge-${statusLower}`}
             width={96}
             height={144}
             loading="lazy"
           />
         ) : (
           <div
-            className="still-poster-list"
+            className={`still-poster-list poster-edge-${statusLower}`}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -147,12 +155,12 @@ export const BookRow: React.FC<BookRowProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className={`status-indicator ${book.status.toLowerCase()}`}>
+            <span className={`status-indicator ${statusLower}`}>
               {book.status}
             </span>
             {book.rating && (
-              <div className="rating-mono">
-                <span>{book.rating}</span>
+              <div className={`rating-mono ${getRatingBandClass(book.rating)}`}>
+                <span>★ {book.rating}</span>
                 <span className="rating-mono-sub">/10</span>
               </div>
             )}
@@ -164,6 +172,7 @@ export const BookRow: React.FC<BookRowProps> = ({
               total={book.total_pages}
               unit="p"
               step={10}
+              tone="reading"
               onDelta={(d) => onProgressDelta(book.id, d)}
               ariaLabelPrefix={`${book.title} pages`}
             />
@@ -174,7 +183,9 @@ export const BookRow: React.FC<BookRowProps> = ({
         {book.total_pages && (
           <div className="progress-track">
             <div
-              className={`progress-fill ${book.status === 'COMPLETED' ? 'completed' : ''}`}
+              className={`progress-fill ${
+                book.status === 'COMPLETED' ? 'completed' : book.status === 'READING' ? 'reading' : ''
+              }`}
               style={{
                 width: `${Math.min(100, (book.progress / book.total_pages) * 100)}%`,
               }}

@@ -84,6 +84,8 @@ export interface FavoriteCharacter {
   series_title?: string;
   name: string;
   why: string | null;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
   images?: ImageAsset[];
   image_url?: string | null;
 }

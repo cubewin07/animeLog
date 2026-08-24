@@ -453,6 +453,13 @@ class FavoriteCharacter(models.Model):
     )
     name = models.CharField(max_length=100)
     why = models.TextField(null=True, blank=True)
+    cover_image = models.ForeignKey(
+        Image,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="favorite_characters_cover",
+    )
     images = models.ManyToManyField(
         Image,
         blank=True,

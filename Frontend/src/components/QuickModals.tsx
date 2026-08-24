@@ -558,7 +558,7 @@ interface CharacterModalProps {
   seriesList: AnimeSeries[];
   preselectedSeries?: AnimeSeries | null;
   editCharacter?: FavoriteCharacter | null;
-  onSave: (data: { series: number; name: string; why?: string | null; images?: number[] }, characterId?: number) => Promise<void>;
+  onSave: (data: { series: number; name: string; why?: string | null; cover_image?: number | null; images?: number[] }, characterId?: number) => Promise<void>;
 }
 
 export const CharacterModal: React.FC<CharacterModalProps> = ({
@@ -586,9 +586,10 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
       setSeriesId(editCharacter.series);
       setName(editCharacter.name);
       setWhy(editCharacter.why || '');
-      const firstImg = editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0] : null;
-      setImageId(firstImg ? firstImg.id : null);
-      setImageUrl(firstImg ? (firstImg as any).image_url || (firstImg as any).url : null);
+      const coverId = editCharacter.cover_image ?? (editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0].id : null);
+      const coverUrl = editCharacter.cover_image_url || editCharacter.image_url || (editCharacter.images && editCharacter.images.length > 0 ? (editCharacter.images[0] as any).image_url || (editCharacter.images[0] as any).url : null);
+      setImageId(coverId);
+      setImageUrl(coverUrl);
     } else {
       setSeriesId(preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1);
       setName('');
@@ -627,6 +628,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
           series: seriesId,
           name: name.trim(),
           why: why.trim() || null,
+          cover_image: imageId,
           images: imageId ? [imageId] : [],
         },
         editCharacter?.id

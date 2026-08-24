@@ -527,7 +527,7 @@ export const App: React.FC = () => {
 
   // --- Character Handlers ---
   const handleSaveCharacter = async (
-    data: { series: number; name: string; why?: string | null; images?: number[] },
+    data: { series: number; name: string; why?: string | null; cover_image?: number | null; images?: number[] },
     characterId?: number
   ) => {
     try {

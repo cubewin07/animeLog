@@ -143,8 +143,18 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {r.rating && (
-                <div className="rating-mono">
-                  <span>{r.rating}</span>
+                <div
+                  className={`rating-mono ${
+                    r.rating >= 9
+                      ? 'rating-band-high'
+                      : r.rating >= 7
+                      ? 'rating-band-mid'
+                      : r.rating >= 5
+                      ? 'rating-band-normal'
+                      : 'rating-band-low'
+                  }`}
+                >
+                  <span>★ {r.rating}</span>
                   <span className="rating-mono-sub">/10</span>
                 </div>
               )}

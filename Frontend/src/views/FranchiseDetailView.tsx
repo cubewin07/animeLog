@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AnimeMovie, AnimeSeason, AnimeSeries, FavoriteCharacter, Rewatch } from '../types';
 import { ProgressStepper } from '../components/ProgressStepper';
+import { TakeawaySlip } from '../components/TakeawaySlip';
 import {
   ArrowLeft,
   Tv,
@@ -10,9 +11,6 @@ import {
   Trash2,
   Sparkles,
   RotateCcw,
-  Calendar,
-  Star,
-  Quote,
   Layers,
 } from 'lucide-react';
 
@@ -59,6 +57,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   const defaultSeason = series.seasons?.find((s) => s.status === 'WATCHING') || series.seasons?.[0];
   const [selectedType, setSelectedType] = useState<'season' | 'movie'>('season');
   const [selectedId, setSelectedId] = useState<number>(defaultSeason?.id || series.movies?.[0]?.id || 0);
+  const [rewatchFilter, setRewatchFilter] = useState<'release' | 'all'>('release');
 
   const currentSeason = series.seasons?.find((s) => s.id === selectedId);
   const currentMovie = series.movies?.find((m) => m.id === selectedId);
@@ -68,6 +67,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
     selectedType === 'season'
       ? currentSeason || series.seasons?.[0]
       : currentMovie || series.movies?.[0];
+
+  const activeStatus = activeRelease?.status || 'PLAN_TO_WATCH';
 
   const coverUrl =
     (activeRelease as any)?.cover_image_url ||
@@ -105,6 +106,18 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
       passMap.set(r.id, i + 1);
     });
 
+  const displayedRewatches = rewatchFilter === 'all'
+    ? seriesRewatches
+    : seriesRewatches.filter((r) => {
+        if (selectedType === 'season') {
+          return (r.target_type === 'season' && r.target_id === activeRelease?.id) ||
+                 (r.season === activeRelease?.id);
+        } else {
+          return (r.target_type === 'movie' && r.target_id === activeRelease?.id) ||
+                 (r.movie === activeRelease?.id);
+        }
+      });
+
   const activeRating = activeRelease?.rating || series.rating;
   const studioNames = series.studios?.map((s) => s.name).join(', ') || 'Independent';
 
@@ -115,8 +128,22 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
 
   const eyebrowLabel =
     selectedType === 'season'
-      ? `ARCHIVE // TV ANIME · S${(activeRelease as AnimeSeason)?.season_number || 1}`
-      : `ARCHIVE // ANIME FILM`;
+      ? `TV Series · Season ${(activeRelease as AnimeSeason)?.season_number || 1}`
+      : `Anime Film`;
+
+  const getRatingBandClass = (score?: number | null) => {
+    if (!score) return 'rating-band-empty';
+    if (score >= 9) return 'rating-band-high';
+    if (score >= 7) return 'rating-band-mid';
+    if (score >= 5) return 'rating-band-normal';
+    return 'rating-band-low';
+  };
+
+  const getPassNodeColor = (passNumber: number, totalPasses: number) => {
+    if (passNumber === 1) return 'var(--graphite)';
+    if (passNumber === totalPasses && totalPasses > 1) return 'var(--ember)';
+    return 'var(--tungsten)';
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 1400, margin: '0 auto', width: '100%' }}>
@@ -146,8 +173,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             LEFT COLUMN (Poster Still + Release Switcher + Quick Stats)
             ========================================================= */}
         <aside className="detail-sidebar">
-          {/* Poster Still */}
-          <div className="detail-poster-wrapper">
+          {/* Poster Still with Status Edge */}
+          <div className={`detail-poster-wrapper poster-edge-${activeStatus.toLowerCase()}`}>
             {coverUrl ? (
               <img
                 src={coverUrl}
@@ -159,7 +186,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               />
             ) : (
               <div className="detail-poster-placeholder">
-                <Tv size={48} />
+                <Tv size={48} color="var(--graphite)" />
                 <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)' }}>No Poster Still</span>
               </div>
             )}
@@ -189,6 +216,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               {series.seasons?.map((s) => {
                 const isSelected = selectedType === 'season' && selectedId === s.id;
                 const isWatching = s.status === 'WATCHING';
+                const statusClass = `pill-${s.status.toLowerCase()}`;
                 return (
                   <button
                     key={`side-s-${s.id}`}
@@ -196,20 +224,32 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       setSelectedType('season');
                       setSelectedId(s.id);
                     }}
-                    className={`release-pill-btn ${isSelected ? 'active' : ''} ${isWatching ? 'watching' : ''}`}
+                    className={`release-pill-btn ${statusClass} ${isSelected ? `active active.${statusClass}` : ''}`}
                     aria-label={`Select Season ${s.season_number}: ${s.title}`}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <Tv size={14} style={{ flexShrink: 0 }} />
+                      <Tv
+                        size={14}
+                        style={{
+                          flexShrink: 0,
+                          color: isWatching ? 'var(--tungsten)' : 'var(--text-desk-muted)',
+                        }}
+                      />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         Season {s.season_number}: {s.title}
                       </span>
                     </div>
-                    {s.rating && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.9 }}>
-                        ★{s.rating}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {isWatching && <span className="watching-dot" title="Currently watching" />}
+                      {s.rating && (
+                        <span
+                          className={getRatingBandClass(s.rating)}
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700 }}
+                        >
+                          ★{s.rating}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -217,6 +257,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               {series.movies?.map((m) => {
                 const isSelected = selectedType === 'movie' && selectedId === m.id;
                 const isWatching = m.status === 'WATCHING';
+                const statusClass = `pill-${m.status.toLowerCase()}`;
                 return (
                   <button
                     key={`side-m-${m.id}`}
@@ -224,20 +265,26 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       setSelectedType('movie');
                       setSelectedId(m.id);
                     }}
-                    className={`release-pill-btn ${isSelected ? 'active' : ''} ${isWatching ? 'watching' : ''}`}
+                    className={`release-pill-btn ${statusClass} ${isSelected ? `active active.${statusClass}` : ''}`}
                     aria-label={`Select Movie: ${m.title}`}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                      <Film size={14} style={{ flexShrink: 0 }} />
+                      <Film size={14} style={{ flexShrink: 0, color: 'var(--night-text)' }} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         Film: {m.title}
                       </span>
                     </div>
-                    {m.rating && (
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.9 }}>
-                        ★{m.rating}
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {isWatching && <span className="watching-dot" title="Currently watching" />}
+                      {m.rating && (
+                        <span
+                          className={getRatingBandClass(m.rating)}
+                          style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700 }}
+                        >
+                          ★{m.rating}
+                        </span>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -266,17 +313,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
 
           {/* Quick Stats Box */}
           <div className="quick-stats-box">
-            {/* Score */}
+            {/* Score with Rating Band Coloring */}
             <div className="stats-score-row">
               <span className="stats-score-label">SCORE</span>
               <div className="stats-score-val">
                 {activeRating ? (
                   <>
-                    <span>★ {activeRating}</span>
+                    <span className={getRatingBandClass(activeRating)}>★ {activeRating}</span>
                     <span className="score-total">/10</span>
                   </>
                 ) : (
-                  <span style={{ fontSize: 14, color: 'var(--text-desk-muted)', fontWeight: 500 }}>
+                  <span className="rating-band-empty" style={{ fontSize: 14, fontWeight: 500 }}>
                     Unrated
                   </span>
                 )}
@@ -308,31 +355,43 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 </div>
               )}
 
-              {/* Stepper Progress */}
+              {/* Stepper Progress shown ONLY if WATCHING */}
               {selectedType === 'season' && activeRelease && (
                 <div className="stats-meta-row" style={{ alignItems: 'center' }}>
                   <span className="meta-key">Progress</span>
-                  <ProgressStepper
-                    current={(activeRelease as AnimeSeason).progress || 0}
-                    total={(activeRelease as AnimeSeason).total_episodes}
-                    unit="eps"
-                    onDelta={(d) => onSeasonProgressDelta(activeRelease.id, d)}
-                    ariaLabelPrefix={`${series.title} S${(activeRelease as AnimeSeason).season_number}`}
-                  />
+                  {activeRelease.status === 'WATCHING' ? (
+                    <ProgressStepper
+                      current={(activeRelease as AnimeSeason).progress || 0}
+                      total={(activeRelease as AnimeSeason).total_episodes}
+                      unit="eps"
+                      onDelta={(d) => onSeasonProgressDelta(activeRelease.id, d)}
+                      ariaLabelPrefix={`${series.title} S${(activeRelease as AnimeSeason).season_number}`}
+                    />
+                  ) : (
+                    <span className="meta-val-mono">
+                      {(activeRelease as AnimeSeason).total_episodes || (activeRelease as AnimeSeason).progress || 0} eps
+                    </span>
+                  )}
                 </div>
               )}
 
               {selectedType === 'movie' && activeRelease && (
                 <div className="stats-meta-row" style={{ alignItems: 'center' }}>
                   <span className="meta-key">Progress</span>
-                  <ProgressStepper
-                    current={(activeRelease as AnimeMovie).progress_minutes || 0}
-                    total={(activeRelease as AnimeMovie).total_minutes}
-                    unit="mins"
-                    step={10}
-                    onDelta={(d) => onMovieProgressDelta(activeRelease.id, d)}
-                    ariaLabelPrefix={`${(activeRelease as AnimeMovie).title}`}
-                  />
+                  {activeRelease.status === 'WATCHING' ? (
+                    <ProgressStepper
+                      current={(activeRelease as AnimeMovie).progress_minutes || 0}
+                      total={(activeRelease as AnimeMovie).total_minutes}
+                      unit="mins"
+                      step={10}
+                      onDelta={(d) => onMovieProgressDelta(activeRelease.id, d)}
+                      ariaLabelPrefix={`${(activeRelease as AnimeMovie).title}`}
+                    />
+                  ) : (
+                    <span className="meta-val-mono">
+                      {(activeRelease as AnimeMovie).total_minutes || (activeRelease as AnimeMovie).progress_minutes || 0} mins
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -346,56 +405,65 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
 
             <div className="stats-divider" />
 
-            {/* Action Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {activeRelease && (
+            {/* Action Bar: Edit release, Edit franchise (labelled), Delete (seal) */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {activeRelease && (
+                  <button
+                    onClick={() => {
+                      if (selectedType === 'season') {
+                        onEditSeason(activeRelease as AnimeSeason);
+                      } else {
+                        onEditMovie(activeRelease as AnimeMovie);
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, fontSize: 12, padding: '7px 10px', justifyContent: 'center' }}
+                    aria-label="Edit active release"
+                  >
+                    <PenLine size={13} />
+                    <span>Edit Release</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={() => {
-                    if (selectedType === 'season') {
-                      onEditSeason(activeRelease as AnimeSeason);
-                    } else {
-                      onEditMovie(activeRelease as AnimeMovie);
-                    }
-                  }}
-                  className="btn btn-secondary"
-                  style={{ flex: 1, fontSize: 12, padding: '7px 10px', justifyContent: 'center' }}
-                  aria-label="Edit active release"
+                  onClick={() => onDeleteSeries(series.id)}
+                  className="btn-icon danger"
+                  title="Delete Franchise"
+                  aria-label="Delete Franchise"
                 >
-                  <PenLine size={13} />
-                  <span>Edit Release</span>
+                  <Trash2 size={13} />
                 </button>
-              )}
+              </div>
 
               <button
                 onClick={() => onEditSeries(series)}
-                className="btn btn-secondary"
-                style={{ fontSize: 12, padding: '7px 10px' }}
-                title="Edit Franchise Metadata"
+                className="btn btn-ghost"
+                style={{
+                  fontSize: 12,
+                  padding: '6px 10px',
+                  justifyContent: 'center',
+                  border: '1px solid var(--border-desk-subtle)',
+                }}
                 aria-label="Edit Franchise Metadata"
               >
                 <PenLine size={13} />
-              </button>
-
-              <button
-                onClick={() => onDeleteSeries(series.id)}
-                className="btn-icon danger"
-                title="Delete Franchise"
-                aria-label="Delete Franchise"
-              >
-                <Trash2 size={13} />
+                <span>Edit Franchise Metadata</span>
               </button>
             </div>
           </div>
         </aside>
 
         {/* =========================================================
-            RIGHT COLUMN (Narrative Journal, Pull Quotes, Evolution)
+            RIGHT COLUMN (Takeaway Slip, Episode Notes, Rewatches, Characters)
             ========================================================= */}
         <main className="detail-main-content">
           {/* Header Title Block */}
           <div>
             <div className="detail-eyebrow">
-              <span>{eyebrowLabel}</span>
+              <span className={`status-indicator ${activeStatus.toLowerCase()}`} style={{ fontSize: 12 }}>
+                {eyebrowLabel}
+              </span>
             </div>
 
             <h1 className="detail-main-title">{series.title}</h1>
@@ -415,8 +483,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             </div>
           </div>
 
-          {/* Section 1: Main Takeaway & Editorial Pull Quote */}
-          <section>
+          {/* Section 1: Main Takeaway Slip (Cream paper surface) */}
+          <section className="detail-section-takeaway">
             <div
               style={{
                 display: 'flex',
@@ -425,85 +493,36 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 marginBottom: 12,
               }}
             >
-              <h2 className="section-title" style={{ color: 'var(--text-desk)', margin: 0 }}>
+              <h2 className="section-title" style={{ color: 'var(--text-desk)', margin: 0, fontSize: 20 }}>
                 {selectedType === 'season'
-                  ? `Season ${(activeRelease as AnimeSeason)?.season_number || 1} Takeaway & Lessons`
-                  : 'Film Reflection & Lessons'}
+                  ? `Season ${(activeRelease as AnimeSeason)?.season_number || 1} Takeaway`
+                  : 'Film Reflection'}
               </h2>
-
-              {activeRelease && (
-                <button
-                  onClick={() => {
-                    if (selectedType === 'season') {
-                      onEditSeason(activeRelease as AnimeSeason);
-                    } else {
-                      onEditMovie(activeRelease as AnimeMovie);
-                    }
-                  }}
-                  className="btn btn-secondary"
-                  style={{ padding: '4px 10px', fontSize: 12 }}
-                >
-                  <PenLine size={12} />
-                  <span>{activeRelease.notes ? 'Edit Lesson' : 'Write Lesson'}</span>
-                </button>
-              )}
             </div>
 
-            {activeRelease?.notes ? (
-              <div className="editorial-pull-quote">
-                <p className="editorial-pull-quote-text">“{activeRelease.notes}”</p>
-                <div className="editorial-pull-quote-footer">
-                  <span className="editorial-pull-quote-label">
-                    CORE LESSON // {activeRelease.status || 'RECORDED'}
-                  </span>
-                  {activeRelease.rating && (
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--tungsten)' }}>
-                      Rating: {activeRelease.rating}/10
-                    </span>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div
-                className="desk-card"
-                style={{
-                  padding: '24px 20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 16,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-serif)',
-                    fontSize: 15,
-                    color: 'var(--text-desk-muted)',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  No life lesson captured yet for this release. A title without notes is incomplete.
-                </span>
-                <button
-                  onClick={() => {
-                    if (selectedType === 'season') {
-                      onEditSeason(activeRelease as AnimeSeason);
-                    } else {
-                      onEditMovie(activeRelease as AnimeMovie);
-                    }
-                  }}
-                  className="btn btn-primary"
-                  style={{ padding: '6px 14px', fontSize: 13 }}
-                >
-                  <PenLine size={13} />
-                  <span>Capture Takeaway</span>
-                </button>
-              </div>
-            )}
+            <TakeawaySlip
+              isDetail
+              status={activeRelease?.status}
+              text={activeRelease?.notes}
+              label={
+                selectedType === 'season'
+                  ? `Season ${(activeRelease as AnimeSeason)?.season_number || 1} Takeaway`
+                  : 'Film Reflection'
+              }
+              rating={activeRelease?.rating}
+              onWrite={() => {
+                if (selectedType === 'season') {
+                  onEditSeason(activeRelease as AnimeSeason);
+                } else {
+                  onEditMovie(activeRelease as AnimeMovie);
+                }
+              }}
+              emptyText="No life lesson captured yet for this release. A title without notes is incomplete."
+              emptyCtaText="Capture Takeaway"
+            />
           </section>
 
-          {/* Section 2: Episode Memories (if TV Season) */}
+          {/* Section 2: Episode Memories (TV Season) */}
           {selectedType === 'season' && activeRelease && (
             <section>
               <div
@@ -515,7 +534,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 }}
               >
                 <div>
-                  <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2 }}>
+                  <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2, fontSize: 18 }}>
                     Episode Memories
                   </h2>
                   <p style={{ fontSize: 13, color: 'var(--text-desk-muted)' }}>
@@ -537,76 +556,29 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               (activeRelease as AnimeSeason).episode_notes.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {(activeRelease as AnimeSeason).episode_notes.map((ep) => (
-                    <div
+                    <TakeawaySlip
                       key={ep.id}
-                      className="desk-card"
-                      style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 12,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: 'var(--tungsten)',
-                          }}
-                        >
-                          Episode {ep.episode_number}
-                          {ep.episode_title ? `: ${ep.episode_title}` : ''}
-                        </span>
-
-                        {ep.rating && (
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 13,
-                              color: 'var(--text-desk)',
-                            }}
-                          >
-                            ★ {ep.rating}/10
-                          </span>
-                        )}
-                      </div>
-
-                      <p
-                        style={{
-                          fontFamily: 'var(--font-serif)',
-                          fontSize: 15.5,
-                          lineHeight: 1.6,
-                          color: 'var(--text-desk)',
-                          margin: 0,
-                        }}
-                      >
-                        {ep.note}
-                      </p>
-                    </div>
+                      compact
+                      status={activeRelease.status}
+                      label={`Episode ${ep.episode_number}${ep.episode_title ? `: ${ep.episode_title}` : ''}`}
+                      text={ep.note}
+                      rating={ep.rating}
+                      onWrite={() => onOpenEpisodeNotes(activeRelease as AnimeSeason)}
+                    />
                   ))}
                 </div>
               ) : (
-                <div
-                  className="desk-card"
-                  style={{
-                    padding: '24px 20px',
-                    textAlign: 'center',
-                    color: 'var(--text-desk-muted)',
-                  }}
-                >
-                  <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, margin: 0 }}>
-                    No episode memories logged yet for Season {(activeRelease as AnimeSeason).season_number}.
-                  </p>
-                </div>
+                <TakeawaySlip
+                  compact
+                  emptyText={`No episode memories logged yet for Season ${(activeRelease as AnimeSeason).season_number}.`}
+                  emptyCtaText="Log Episode Memory"
+                  onWrite={() => onOpenEpisodeNotes(activeRelease as AnimeSeason)}
+                />
               )}
             </section>
           )}
 
-          {/* Section 3: "Evolving Perspectives" Rewatch Timeline */}
+          {/* Section 3: Rewatches Timeline */}
           <section>
             <div
               style={{
@@ -614,18 +586,56 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 marginBottom: 16,
+                flexWrap: 'wrap',
+                gap: 12,
               }}
             >
               <div>
-                <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2 }}>
-                  Evolving Perspectives & Rewatches
+                <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2, fontSize: 18 }}>
+                  Rewatches
                 </h2>
                 <p style={{ fontSize: 13, color: 'var(--text-desk-muted)' }}>
-                  How lessons and insights deepened with subsequent viewings.
+                  How perspectives and insights deepened with subsequent passes.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Filter toggle: This release vs Whole franchise */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    background: 'var(--desk-surface)',
+                    borderRadius: 'var(--radius-pill)',
+                    padding: 2,
+                    border: '1px solid var(--border-desk-subtle)',
+                  }}
+                >
+                  <button
+                    onClick={() => setRewatchFilter('release')}
+                    className={`btn ${rewatchFilter === 'release' ? 'btn-secondary' : 'btn-ghost'}`}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      minHeight: 28,
+                      borderRadius: 'var(--radius-pill)',
+                    }}
+                  >
+                    This Release
+                  </button>
+                  <button
+                    onClick={() => setRewatchFilter('all')}
+                    className={`btn ${rewatchFilter === 'all' ? 'btn-secondary' : 'btn-ghost'}`}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      minHeight: 28,
+                      borderRadius: 'var(--radius-pill)',
+                    }}
+                  >
+                    Whole Franchise
+                  </button>
+                </div>
+
                 {selectedType === 'season' && activeRelease && (
                   <button
                     onClick={() => onAddRewatchSeason(activeRelease as AnimeSeason)}
@@ -633,7 +643,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
                     <RotateCcw size={13} />
-                    <span>Log Season Rewatch</span>
+                    <span>Log Rewatch</span>
                   </button>
                 )}
                 {selectedType === 'movie' && activeRelease && (
@@ -643,84 +653,72 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
                     <RotateCcw size={13} />
-                    <span>Log Movie Rewatch</span>
+                    <span>Log Rewatch</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {seriesRewatches.length > 0 ? (
+            {displayedRewatches.length > 0 ? (
               <div className="evolving-timeline">
-                {seriesRewatches.map((r, idx) => (
-                  <div key={r.id} className="timeline-row">
-                    {/* Left Pass Label + Date */}
-                    <div className="timeline-pass-col">
-                      <span className="timeline-pass-badge">Watch #{passMap.get(r.id) || idx + 1}</span>
-                      <span className="timeline-pass-date">{r.start_date || r.finish_date || 'Pass'}</span>
-                    </div>
+                {displayedRewatches.map((r, idx) => {
+                  const passNumber = passMap.get(r.id) || idx + 1;
+                  const nodeColor = getPassNodeColor(passNumber, passMap.size);
+                  return (
+                    <div key={r.id} className="timeline-row">
+                      {/* Left Pass Label + Date */}
+                      <div className="timeline-pass-col">
+                        <span
+                          className="timeline-pass-badge"
+                          style={{ color: nodeColor }}
+                        >
+                          Watch #{passNumber}
+                        </span>
+                        <span className="timeline-pass-date">{r.start_date || r.finish_date || 'Pass'}</span>
+                      </div>
 
-                    {/* Stem & Ring */}
-                    <div className="timeline-stem-col">
-                      <div className="timeline-node-ring" />
-                      <div className="timeline-stem-line" />
-                    </div>
+                      {/* Stem & Ring */}
+                      <div className="timeline-stem-col">
+                        <div
+                          className="timeline-node-ring"
+                          style={{ borderColor: nodeColor }}
+                        />
+                        <div className="timeline-stem-line" />
+                      </div>
 
-                    {/* Content Card */}
-                    <div className="timeline-content-col">
-                      <div className="timeline-card">
-                        <div className="timeline-card-header">
-                          <span className="timeline-card-title">
-                            <RotateCcw size={14} color="var(--tungsten)" />
-                            <span>{r.release_title || series.title}</span>
-                          </span>
-
-                          {r.rating && (
-                            <span
-                              style={{
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 13,
-                                color: 'var(--tungsten)',
-                                fontWeight: 600,
-                              }}
-                            >
-                              ★ {r.rating}/10
-                            </span>
-                          )}
-                        </div>
-
-                        {r.notes ? (
-                          <p className="timeline-card-text">"{r.notes}"</p>
-                        ) : (
-                          <p
-                            style={{
-                              fontFamily: 'var(--font-serif)',
-                              fontSize: 14,
-                              color: 'var(--text-desk-muted)',
-                              fontStyle: 'italic',
-                              margin: 0,
-                            }}
-                          >
-                            Rewatch logged without additional perspective notes.
-                          </p>
-                        )}
+                      {/* Content Card: On Paper Slip */}
+                      <div className="timeline-content-col">
+                        <TakeawaySlip
+                          compact
+                          status="COMPLETED"
+                          label={r.release_title || series.title}
+                          subTitle={r.start_date ? `Logged: ${r.start_date}` : undefined}
+                          text={r.notes}
+                          rating={r.rating}
+                          emptyText="Rewatch logged without additional perspective notes."
+                        />
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
-              <div
-                className="desk-card"
-                style={{
-                  padding: '24px 20px',
-                  textAlign: 'center',
-                  color: 'var(--text-desk-muted)',
+              <TakeawaySlip
+                compact
+                emptyText={
+                  rewatchFilter === 'release'
+                    ? 'No rewatch passes recorded for this release yet. Rewatching is how lessons deepen.'
+                    : 'No rewatch passes recorded for this franchise yet. Rewatching is how lessons deepen.'
+                }
+                emptyCtaText="Log a rewatch"
+                onWrite={() => {
+                  if (selectedType === 'season' && activeRelease) {
+                    onAddRewatchSeason(activeRelease as AnimeSeason);
+                  } else if (selectedType === 'movie' && activeRelease) {
+                    onAddRewatchMovie(activeRelease as AnimeMovie);
+                  }
                 }}
-              >
-                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, margin: 0 }}>
-                  No rewatch passes recorded yet. Rewatching is how lessons deepen.
-                </p>
-              </div>
+              />
             )}
           </section>
 
@@ -735,7 +733,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               }}
             >
               <div>
-                <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2 }}>
+                <h2 className="section-title" style={{ color: 'var(--text-desk)', marginBottom: 2, fontSize: 18 }}>
                   Memorable Characters
                 </h2>
                 <p style={{ fontSize: 13, color: 'var(--text-desk-muted)' }}>
@@ -757,43 +755,45 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
                   gap: 16,
                 }}
               >
                 {franchiseCharacters.map((char) => {
                   const charImg =
-                    char.images && char.images.length > 0
+                    char.cover_image_url ||
+                    char.image_url ||
+                    (char.images && char.images.length > 0
                       ? (char.images[0] as any).image_url || (char.images[0] as any).url
-                      : null;
+                      : null);
                   return (
                     <div
                       key={char.id}
                       className="desk-card"
-                      style={{ display: 'flex', gap: 14, padding: 16, alignItems: 'start' }}
+                      style={{ display: 'flex', gap: 16, padding: 18, alignItems: 'start' }}
                     >
                       {charImg ? (
                         <img
                           src={charImg}
                           alt={char.name}
                           style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: '50%',
+                            width: 80,
+                            height: 80,
+                            borderRadius: 'var(--radius-md)',
                             objectFit: 'cover',
                             flexShrink: 0,
                             border: '1.5px solid var(--border-desk-medium)',
                           }}
-                          width={48}
-                          height={48}
+                          width={80}
+                          height={80}
                           loading="lazy"
                         />
                       ) : (
                         <div
                           style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: '50%',
+                            width: 80,
+                            height: 80,
+                            borderRadius: 'var(--radius-md)',
                             backgroundColor: 'var(--desk-surface)',
                             display: 'flex',
                             alignItems: 'center',
@@ -802,25 +802,40 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                             flexShrink: 0,
                           }}
                         >
-                          <Sparkles size={18} />
+                          <Sparkles size={24} />
                         </div>
                       )}
 
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <h4 style={{ fontSize: 15, color: 'var(--text-desk)', marginBottom: 4 }}>
+                      <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <h4 style={{ fontSize: 16, color: 'var(--text-desk)', margin: 0, fontWeight: 600 }}>
                           {char.name}
                         </h4>
-                        {char.why && (
-                          <p
+                        {char.why ? (
+                          <div
+                            className="takeaway-slip-text"
                             style={{
-                              fontFamily: 'var(--font-serif)',
-                              fontSize: 14.5,
-                              color: 'var(--text-desk-muted)',
-                              lineHeight: 1.5,
-                              margin: 0,
+                              backgroundColor: 'var(--page)',
+                              color: 'var(--ink)',
+                              padding: '10px 14px',
+                              borderRadius: 'var(--radius-sm)',
+                              borderLeft: '3px solid var(--spine-text)',
+                              fontSize: 14,
+                              lineHeight: 1.55,
                             }}
                           >
                             {char.why}
+                          </div>
+                        ) : (
+                          <p
+                            style={{
+                              fontFamily: 'var(--font-serif)',
+                              fontSize: 13,
+                              color: 'var(--text-desk-muted)',
+                              fontStyle: 'italic',
+                              margin: 0,
+                            }}
+                          >
+                            No character reflection recorded yet.
                           </p>
                         )}
                       </div>
@@ -829,18 +844,12 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 })}
               </div>
             ) : (
-              <div
-                className="desk-card"
-                style={{
-                  padding: '24px 20px',
-                  textAlign: 'center',
-                  color: 'var(--text-desk-muted)',
-                }}
-              >
-                <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 15, margin: 0 }}>
-                  No favorite characters recorded yet from this franchise.
-                </p>
-              </div>
+              <TakeawaySlip
+                compact
+                emptyText="No favorite characters recorded yet from this franchise."
+                emptyCtaText="Add Character"
+                onWrite={() => onAddCharacter(series)}
+              />
             )}
           </section>
         </main>

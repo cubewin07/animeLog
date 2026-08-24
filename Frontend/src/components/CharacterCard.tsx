@@ -10,9 +10,11 @@ interface CharacterCardProps {
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onEdit, onDelete }) => {
   const charImg =
-    character.images && character.images.length > 0
+    character.cover_image_url ||
+    character.image_url ||
+    (character.images && character.images.length > 0
       ? (character.images[0] as any).image_url || (character.images[0] as any).url
-      : character.image_url;
+      : null);
 
   return (
     <div

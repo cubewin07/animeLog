@@ -156,6 +156,7 @@ class SeriesViewSet(viewsets.ModelViewSet):
             AnimeSeries.objects.select_related("cover_image")
             .prefetch_related(
                 "genres",
+                "favorite_characters__cover_image",
                 "favorite_characters__images",
                 "rewatches",
                 "seasons__studios",
@@ -395,7 +396,7 @@ class FavoriteCharacterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            FavoriteCharacter.objects.select_related("series")
+            FavoriteCharacter.objects.select_related("series", "cover_image")
             .prefetch_related("images")
             .all()
             .order_by("name")

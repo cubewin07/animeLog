@@ -278,6 +278,11 @@ class EpisodeNoteSerializer(serializers.ModelSerializer):
 
 class FavoriteCharacterSerializer(serializers.ModelSerializer):
     series_title = serializers.CharField(source="series.title", read_only=True)
+    cover_image = WritableNestedForeignKey(
+        queryset=Image.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     images = WritableNestedManyToManyField(
         queryset=Image.objects.all(),
         many=True,
@@ -292,6 +297,7 @@ class FavoriteCharacterSerializer(serializers.ModelSerializer):
             "series_title",
             "name",
             "why",
+            "cover_image",
             "images",
         ]
         read_only_fields = ["id", "series_title"]
@@ -299,8 +305,11 @@ class FavoriteCharacterSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["images"] = ImageSerializer(instance.images.all(), many=True).data
+        cover_img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
         first_image = instance.images.first()
-        data["image_url"] = first_image.url if first_image and first_image.file else None
+        first_img_url = first_image.url if first_image and first_image.file else None
+        data["cover_image_url"] = cover_img_url
+        data["image_url"] = cover_img_url or first_img_url
         return data
 
 

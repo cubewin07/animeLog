@@ -327,14 +327,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <img
                         src={coverUrl}
                         alt={season.title || series.title}
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-watching"
                         width={96}
                         height={144}
                         loading="lazy"
                       />
                     ) : (
                       <div
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-watching"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--graphite)' }}
                       >
                         <Tv size={32} />
@@ -453,14 +453,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <img
                         src={coverUrl}
                         alt={movie.title || series.title}
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-watching"
                         width={96}
                         height={144}
                         loading="lazy"
                       />
                     ) : (
                       <div
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-watching"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--graphite)' }}
                       >
                         <Film size={32} />
@@ -562,14 +562,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <img
                         src={coverUrl}
                         alt={book.title}
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-reading"
                         width={96}
                         height={144}
                         loading="lazy"
                       />
                     ) : (
                       <div
-                        className="still-poster-list"
+                        className="still-poster-list poster-edge-reading"
                         style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--graphite)' }}
                       >
                         <BookOpen size={32} />
@@ -615,11 +615,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           total={book.total_pages}
                           unit="p"
                           step={10}
+                          tone="reading"
                           onDelta={(delta) => onProgressBook(book.id, delta)}
                           ariaLabelPrefix={`${book.title} pages`}
                         />
                       </div>
                     </div>
+
+                    {/* Progress Bar (Visual aid with banker green fill) */}
+                    {book.total_pages && (
+                      <div className="progress-track" style={{ height: 4 }}>
+                        <div
+                          className="progress-fill reading"
+                          style={{
+                            width: `${Math.min(100, ((book.progress || 0) / book.total_pages) * 100)}%`,
+                          }}
+                        />
+                      </div>
+                    )}
 
                     {/* Clean reflection text directly on desk surface */}
                     {book.notes ? (

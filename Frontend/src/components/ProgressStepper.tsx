@@ -9,6 +9,7 @@ interface ProgressStepperProps {
   step?: number;
   disabled?: boolean;
   ariaLabelPrefix?: string;
+  tone?: 'watching' | 'reading';
 }
 
 export const ProgressStepper: React.FC<ProgressStepperProps> = ({
@@ -19,9 +20,11 @@ export const ProgressStepper: React.FC<ProgressStepperProps> = ({
   step = 1,
   disabled = false,
   ariaLabelPrefix = 'progress',
+  tone = 'watching',
 }) => {
   const isMax = total !== null && total !== undefined && current >= total;
   const isMin = current <= 0;
+  const toneClass = tone === 'reading' ? 'tone-reading' : '';
 
   return (
     <div className="stepper-group" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
@@ -31,7 +34,7 @@ export const ProgressStepper: React.FC<ProgressStepperProps> = ({
           onDelta(-step);
         }}
         disabled={disabled || isMin}
-        className="stepper-btn"
+        className={`stepper-btn ${toneClass}`}
         aria-label={`Decrease ${ariaLabelPrefix} by ${step} ${unit}`}
         title={`- ${step} ${unit}`}
       >
@@ -56,7 +59,7 @@ export const ProgressStepper: React.FC<ProgressStepperProps> = ({
           onDelta(step);
         }}
         disabled={disabled || isMax}
-        className="stepper-btn"
+        className={`stepper-btn ${toneClass}`}
         aria-label={`Increase ${ariaLabelPrefix} by ${step} ${unit}`}
         title={`+ ${step} ${unit}`}
       >

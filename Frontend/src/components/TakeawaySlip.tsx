@@ -11,6 +11,9 @@ interface TakeawaySlipProps {
   onWrite?: () => void;
   className?: string;
   isDetail?: boolean;
+  compact?: boolean;
+  emptyText?: string;
+  emptyCtaText?: string;
 }
 
 export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
@@ -23,15 +26,42 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
   onWrite,
   className = '',
   isDetail = false,
+  compact = false,
+  emptyText = 'No lesson captured yet. A title without notes is incomplete.',
+  emptyCtaText = 'Write the lesson',
 }) => {
   const hasText = text && text.trim().length > 0;
-  const isCompleted = status === 'COMPLETED';
+
+  const getStatusClass = () => {
+    if (!status) return 'slip-ballpoint';
+    const s = status.toLowerCase();
+    if (s === 'watching') return 'slip-watching';
+    if (s === 'reading') return 'slip-reading';
+    if (s === 'completed') return 'slip-completed';
+    if (s === 'plan_to_watch' || s === 'plan_to_read') return 'slip-plan';
+    if (s === 'on_hold') return 'slip-hold';
+    if (s === 'dropped') return 'slip-dropped';
+    return 'slip-ballpoint';
+  };
+
+  const getRatingBandClass = (score: number) => {
+    if (score >= 9) return 'rating-band-high';
+    if (score >= 7) return 'rating-band-mid';
+    if (score >= 5) return 'rating-band-normal';
+    return 'rating-band-low';
+  };
+
+  const paddingStyle = isDetail
+    ? '24px 28px'
+    : compact
+    ? '12px 16px'
+    : '16px 20px';
 
   return (
     <div
-      className={`takeaway-slip ${isCompleted ? 'slip-completed' : ''} ${!hasText ? 'slip-empty' : ''} ${className}`}
+      className={`takeaway-slip ${getStatusClass()} ${!hasText ? 'slip-empty' : ''} ${className}`}
       style={{
-        padding: isDetail ? '24px 28px' : '16px 20px',
+        padding: paddingStyle,
       }}
     >
       <div className="takeaway-slip-header">
@@ -41,7 +71,7 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
             <div
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: isDetail ? 22 : 17,
+                fontSize: isDetail ? 22 : compact ? 15 : 17,
                 fontWeight: 600,
                 color: 'var(--ink)',
                 lineHeight: 1.3,
@@ -67,17 +97,17 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {rating !== undefined && rating !== null && (
             <div
+              className={getRatingBandClass(rating)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
                 fontFamily: 'var(--font-mono)',
                 fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--ink)',
+                fontWeight: 700,
               }}
             >
-              <Star size={13} fill="currentColor" color="var(--ink)" />
+              <Star size={13} fill="currentColor" />
               <span>{rating}/10</span>
             </div>
           )}
@@ -108,7 +138,7 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
         <div
           className="takeaway-slip-text"
           style={{
-            fontSize: isDetail ? '19px' : 'var(--type-lesson)',
+            fontSize: isDetail ? '19px' : compact ? '14.5px' : 'var(--type-lesson)',
             lineHeight: isDetail ? 1.7 : 1.6,
           }}
         >
@@ -117,7 +147,7 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
       ) : (
         <div
           style={{
-            padding: '12px 0 6px 0',
+            padding: compact ? '6px 0 2px 0' : '12px 0 6px 0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -128,12 +158,12 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
           <span
             style={{
               fontFamily: 'var(--font-serif)',
-              fontSize: 15,
+              fontSize: compact ? 14 : 15,
               color: 'var(--ink-muted)',
               fontStyle: 'italic',
             }}
           >
-            No lesson captured yet. A title without notes is incomplete.
+            {emptyText}
           </span>
           {onWrite && (
             <button
@@ -147,10 +177,10 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
                 alignItems: 'center',
                 gap: 6,
               }}
-              aria-label="Write the lesson"
+              aria-label={emptyCtaText}
             >
               <PenLine size={13} />
-              <span>Write the lesson</span>
+              <span>{emptyCtaText}</span>
             </button>
           )}
         </div>
