@@ -90,6 +90,21 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
     return false;
   });
 
+  // Calculate true chronological pass number for each rewatch (oldest = Watch #1, next = Watch #2, etc.)
+  const passMap = new Map<number, number>();
+  [...seriesRewatches]
+    .sort((a, b) => {
+      const dateA = a.start_date || a.finish_date || '';
+      const dateB = b.start_date || b.finish_date || '';
+      if (dateA && dateB) return dateA.localeCompare(dateB);
+      if (dateA) return -1;
+      if (dateB) return 1;
+      return a.id - b.id;
+    })
+    .forEach((r, i) => {
+      passMap.set(r.id, i + 1);
+    });
+
   const activeRating = activeRelease?.rating || series.rating;
   const studioNames = series.studios?.map((s) => s.name).join(', ') || 'Independent';
 
@@ -640,7 +655,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   <div key={r.id} className="timeline-row">
                     {/* Left Pass Label + Date */}
                     <div className="timeline-pass-col">
-                      <span className="timeline-pass-badge">Watch #{idx + 1}</span>
+                      <span className="timeline-pass-badge">Watch #{passMap.get(r.id) || idx + 1}</span>
                       <span className="timeline-pass-date">{r.start_date || r.finish_date || 'Pass'}</span>
                     </div>
 
