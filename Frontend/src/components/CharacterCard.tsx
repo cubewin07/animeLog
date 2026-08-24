@@ -1,6 +1,6 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { Sparkles, Trash2, PenLine, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, Trash2, PenLine, Image as ImageIcon, BookOpen } from 'lucide-react';
 
 interface CharacterCardProps {
   character: FavoriteCharacter;
@@ -23,6 +23,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
       : null);
 
   const imagesCount = character.images ? character.images.length : 0;
+  const hasReflection = Boolean(character.why && character.why.trim().length > 0);
 
   return (
     <div
@@ -33,9 +34,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        padding: '28px 24px 22px 24px',
+        textAlign: 'center',
+        padding: '28px 20px 20px 20px',
         cursor: onClick ? 'pointer' : 'default',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+        transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease',
       }}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -46,7 +48,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         }
       }}
     >
-      {/* Top-Right Quick Actions */}
+      {/* Top-Right Floating Actions */}
       <div
         style={{
           position: 'absolute',
@@ -89,19 +91,20 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         )}
       </div>
 
-      {/* Enlarged Centered Circular Avatar (104x104px) */}
+      {/* Prominent Large Circular Avatar (168x168px) */}
       <div
         style={{
           position: 'relative',
-          width: 104,
-          height: 104,
+          width: 168,
+          height: 168,
           borderRadius: '50%',
           backgroundColor: 'var(--desk-surface)',
-          padding: 3,
-          boxShadow: '0 0 0 4px var(--desk-surface), var(--shadow-paper), 0 6px 18px rgba(0, 0, 0, 0.35)',
-          border: '2.5px solid var(--border-desk-medium)',
-          marginBottom: 16,
+          padding: 4,
+          boxShadow: '0 0 0 5px var(--desk-surface), var(--shadow-paper), 0 10px 32px rgba(0, 0, 0, 0.45)',
+          border: '3px solid var(--border-desk-medium)',
           flexShrink: 0,
+          overflow: 'hidden',
+          marginBottom: 18,
         }}
       >
         {charImg ? (
@@ -114,9 +117,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               borderRadius: '50%',
               objectFit: 'cover',
               display: 'block',
+              transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
-            width={104}
-            height={104}
+            width={168}
+            height={168}
             loading="lazy"
           />
         ) : (
@@ -131,12 +135,12 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               color: 'var(--graphite)',
             }}
           >
-            <Sparkles size={34} />
+            <Sparkles size={48} />
           </div>
         )}
       </div>
 
-      {/* Series Eyebrow Header */}
+      {/* Series Eyebrow */}
       {character.series_title && (
         <span
           style={{
@@ -146,108 +150,94 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             textTransform: 'uppercase',
             letterSpacing: '0.08em',
             color: 'var(--text-desk-muted)',
-            textAlign: 'center',
+            marginTop: 0,
             lineHeight: 1.3,
             display: 'block',
-            maxWidth: '90%',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
           }}
+          title={character.series_title}
         >
           {character.series_title}
         </span>
       )}
 
-      {/* Character Display Name */}
+      {/* Character Name */}
       <h3
         style={{
           fontFamily: 'var(--font-display)',
           fontSize: 24,
           fontWeight: 700,
           color: 'var(--text-desk)',
-          textAlign: 'center',
           marginTop: character.series_title ? 4 : 0,
           marginBottom: 0,
           lineHeight: 1.25,
+          letterSpacing: '-0.01em',
         }}
       >
         {character.name}
       </h3>
 
-      {/* Subtle Horizontal Rule Divider */}
+      {/* Subtle Metadata Pill Bar */}
       <div
         style={{
-          width: '100%',
-          height: 1,
-          backgroundColor: 'var(--border-desk-subtle)',
-          margin: '18px 0 16px 0',
-        }}
-      />
-
-      {/* Section Eyebrow: WHY THEY MATTERED TO ME */}
-      <div
-        style={{
-          width: '100%',
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 8,
+          justifyContent: 'center',
+          gap: 10,
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: '1px solid var(--border-desk-subtle)',
+          width: '100%',
         }}
       >
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: 'uppercase',
-            letterSpacing: '0.07em',
-            color: 'var(--ember-text, #F0B27A)',
-          }}
-        >
-          Why they mattered to me:
-        </span>
-
-        {imagesCount > 1 && (
+        {hasReflection ? (
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--ember-text, #F0B27A)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontWeight: 600,
+            }}
+            title="Character reflection recorded"
+          >
+            <BookOpen size={12} /> Reflection
+          </span>
+        ) : (
           <span
             style={{
               fontSize: 11,
               fontFamily: 'var(--font-mono)',
               color: 'var(--text-desk-muted)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 3,
+              fontStyle: 'italic',
             }}
-            title={`${imagesCount} stills in gallery`}
           >
-            <ImageIcon size={11} /> {imagesCount}
+            No reflection
           </span>
         )}
-      </div>
 
-      {/* Lesson / Memory Reflection Content */}
-      <div style={{ width: '100%', textAlign: 'left' }}>
-        {character.why ? (
-          <p
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 14.5,
-              color: 'var(--text-desk)',
-              lineHeight: 1.65,
-              margin: 0,
-            }}
-          >
-            {character.why}
-          </p>
-        ) : (
-          <p
-            style={{
-              fontFamily: 'var(--font-serif)',
-              fontSize: 13.5,
-              fontStyle: 'italic',
-              color: 'var(--text-desk-muted)',
-              margin: 0,
-            }}
-          >
-            No reflection recorded yet. Click to record why this character is memorable.
-          </p>
+        {imagesCount > 1 && (
+          <>
+            <span style={{ color: 'var(--border-desk-subtle)', fontSize: 10 }}>•</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-desk-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              title={`${imagesCount} stills in gallery`}
+            >
+              <ImageIcon size={12} /> {imagesCount} stills
+            </span>
+          </>
         )}
       </div>
     </div>

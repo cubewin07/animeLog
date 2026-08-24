@@ -765,8 +765,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                  gap: 18,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                  gap: 20,
                 }}
               >
                 {franchiseCharacters.map((char) => (

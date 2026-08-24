@@ -178,8 +178,8 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: 20,
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: 22,
             }}
           >
             {filtered.map((character) => (
