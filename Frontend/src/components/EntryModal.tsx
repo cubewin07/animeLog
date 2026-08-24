@@ -10,6 +10,12 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 import { ImageUploadField } from './ImageUploadField';
+import { CustomSelect, SelectOption } from './CustomSelect';
+import { CustomDatePicker } from './CustomDatePicker';
+import { CustomNumberInput } from './CustomNumberInput';
+import { CustomRatingInput } from './CustomRatingInput';
+import { CustomProgressField } from './CustomProgressField';
+import { SeasonNumberPicker } from './SeasonNumberPicker';
 
 export type EntryModalMode =
   | 'new-franchise'
@@ -444,17 +450,13 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                 Target Franchise <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
-              <select
+              <CustomSelect
                 value={seriesId}
-                onChange={(e) => setSeriesId(Number(e.target.value))}
-                className="form-select"
-              >
-                {seriesList.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSeriesId(Number(val))}
+                options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
+                placeholder="Select a franchise..."
+                searchable
+              />
             </div>
           )}
 
@@ -556,13 +558,9 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
                 Season Number
               </label>
-              <input
-                type="number"
-                min="1"
-                required
+              <SeasonNumberPicker
                 value={seasonNumber}
-                onChange={(e) => setSeasonNumber(Number(e.target.value))}
-                className="form-input mono"
+                onChange={(val) => setSeasonNumber(val)}
               />
             </div>
           )}
@@ -590,75 +588,62 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* 3. STATUS, RATING, PROGRESS */}
+          {/* 3. STATUS & RATING */}
           {activeTab !== 'edit-series' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 14 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                  Status
-                </label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="form-select">
-                  {activeTab === 'book' || activeTab === 'edit-book' ? (
-                    <>
-                      <option value="READING">Reading</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="PLAN_TO_READ">Plan to Read</option>
-                      <option value="ON_HOLD">On Hold</option>
-                      <option value="DROPPED">Dropped</option>
-                    </>
-                  ) : (
-                    <>
-                      <option value="WATCHING">Watching</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="PLAN_TO_WATCH">Plan to Watch</option>
-                      <option value="ON_HOLD">On Hold</option>
-                      <option value="DROPPED">Dropped</option>
-                    </>
-                  )}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                  Rating (1–10)
-                </label>
-                <select
-                  value={rating || ''}
-                  onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
-                  className="form-select mono"
-                >
-                  <option value="">No rating</option>
-                  {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
-                    <option key={n} value={n}>
-                      ★ {n} / 10
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                  Progress {activeTab === 'book' || activeTab === 'edit-book' ? '(Pages)' : activeTab === 'add-movie' || activeTab === 'edit-movie' ? '(Minutes)' : '(Episodes)'}
-                </label>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    placeholder="Done"
-                    value={progress}
-                    onChange={(e) => setProgress(Math.max(0, Number(e.target.value)))}
-                    className="form-input mono"
-                  />
-                  <span style={{ color: 'var(--text-desk-dim)' }}>/</span>
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="Total"
-                    value={totalCount}
-                    onChange={(e) => setTotalCount(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="form-input mono"
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                    Status
+                  </label>
+                  <CustomSelect
+                    value={status}
+                    onChange={(val) => setStatus(val)}
+                    options={
+                      activeTab === 'book' || activeTab === 'edit-book'
+                        ? [
+                            { value: 'READING', label: 'Reading', badge: 'READING', badgeColor: 'var(--tungsten)' },
+                            { value: 'COMPLETED', label: 'Completed', badge: 'COMPLETED', badgeColor: 'var(--spine-text)' },
+                            { value: 'PLAN_TO_READ', label: 'Plan to Read', badge: 'PLAN', badgeColor: 'var(--graphite)' },
+                            { value: 'ON_HOLD', label: 'On Hold', badge: 'HOLD', badgeColor: '#A88868' },
+                            { value: 'DROPPED', label: 'Dropped', badge: 'DROPPED', badgeColor: 'var(--spine-text)' },
+                          ]
+                        : [
+                            { value: 'WATCHING', label: 'Watching', badge: 'WATCHING', badgeColor: 'var(--tungsten)' },
+                            { value: 'COMPLETED', label: 'Completed', badge: 'COMPLETED', badgeColor: 'var(--spine-text)' },
+                            { value: 'PLAN_TO_WATCH', label: 'Plan to Watch', badge: 'PLAN', badgeColor: 'var(--graphite)' },
+                            { value: 'ON_HOLD', label: 'On Hold', badge: 'HOLD', badgeColor: '#A88868' },
+                            { value: 'DROPPED', label: 'Dropped', badge: 'DROPPED', badgeColor: 'var(--spine-text)' },
+                          ]
+                    }
                   />
                 </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                    Rating (1–10)
+                  </label>
+                  <CustomRatingInput
+                    value={rating}
+                    onChange={(val) => setRating(val)}
+                    placeholder="–"
+                  />
+                </div>
+              </div>
+
+              {/* Progress Card */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  {activeTab === 'book' || activeTab === 'edit-book' ? 'Reading Progress' : activeTab === 'add-movie' || activeTab === 'edit-movie' ? 'Watch Progress' : 'Episode Progress'}
+                </label>
+                <CustomProgressField
+                  current={progress}
+                  total={totalCount}
+                  onCurrentChange={(val) => setProgress(val)}
+                  onTotalChange={(val) => setTotalCount(val)}
+                  unitLabel={activeTab === 'book' || activeTab === 'edit-book' ? 'Pages' : activeTab === 'add-movie' || activeTab === 'edit-movie' ? 'Minutes' : 'Episodes'}
+                  unitShort={activeTab === 'book' || activeTab === 'edit-book' ? 'p' : activeTab === 'add-movie' || activeTab === 'edit-movie' ? 'min' : 'eps'}
+                />
               </div>
             </div>
           )}
@@ -710,22 +695,20 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                       <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
                         Start Date
                       </label>
-                      <input
-                        type="date"
+                      <CustomDatePicker
                         value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="form-input"
+                        onChange={(d) => setStartDate(d)}
+                        placeholder="Start date..."
                       />
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
                         Finish Date
                       </label>
-                      <input
-                        type="date"
+                      <CustomDatePicker
                         value={finishDate}
-                        onChange={(e) => setFinishDate(e.target.value)}
-                        className="form-input"
+                        onChange={(d) => setFinishDate(d)}
+                        placeholder="Finish date..."
                       />
                     </div>
                   </div>

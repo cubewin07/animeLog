@@ -5,6 +5,9 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 import { ImageUploadField } from './ImageUploadField';
+import { CustomSelect } from './CustomSelect';
+import { CustomNumberInput } from './CustomNumberInput';
+import { CustomRatingInput } from './CustomRatingInput';
 
 interface EpisodeNoteModalProps {
   isOpen: boolean;
@@ -245,18 +248,15 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
           )}
 
           {/* Episode Number & Title */}
-          <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr auto', gap: 12, alignItems: 'end' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 125px', gap: 12, alignItems: 'end' }}>
             <div>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                 Episode #
               </label>
-              <input
-                type="number"
-                min="1"
-                required
+              <CustomNumberInput
+                min={1}
                 value={episodeNumber}
-                onChange={(e) => setEpisodeNumber(Number(e.target.value))}
-                className="form-input mono"
+                onChange={(val) => setEpisodeNumber(val === '' ? 1 : Number(val))}
               />
             </div>
 
@@ -275,21 +275,13 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
 
             <div>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                Rating
+                Rating (1–10)
               </label>
-              <select
-                value={rating || ''}
-                onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
-                className="form-select mono"
-                style={{ width: '95px' }}
-              >
-                <option value="">None</option>
-                {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    ★ {n}
-                  </option>
-                ))}
-              </select>
+              <CustomRatingInput
+                value={rating}
+                onChange={(val) => setRating(val)}
+                placeholder="–"
+              />
             </div>
           </div>
 

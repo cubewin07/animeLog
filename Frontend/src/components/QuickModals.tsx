@@ -13,6 +13,10 @@ import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 import { ImageUploadField } from './ImageUploadField';
+import { CustomSelect, SelectItem } from './CustomSelect';
+import { CustomDatePicker } from './CustomDatePicker';
+import { CustomNumberInput } from './CustomNumberInput';
+import { CustomRatingInput } from './CustomRatingInput';
 
 interface RewatchModalProps {
   isOpen: boolean;
@@ -366,17 +370,13 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                     Select Franchise
                   </label>
-                  <select
+                  <CustomSelect
                     value={selectedSeriesId || ''}
-                    onChange={(e) => setSelectedSeriesId(Number(e.target.value))}
-                    className="form-select"
-                  >
-                    {seriesList.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.title}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setSelectedSeriesId(Number(val))}
+                    options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
+                    placeholder="Select a franchise..."
+                    searchable
+                  />
                 </div>
               )}
 
@@ -385,26 +385,22 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                     Select TV Season
                   </label>
-                  <select
+                  <CustomSelect
                     value={selectedSeasonId || ''}
-                    onChange={(e) => setSelectedSeasonId(Number(e.target.value))}
-                    className="form-select"
+                    onChange={(val) => setSelectedSeasonId(Number(val))}
+                    options={seriesList
+                      .filter((s) => (s.seasons?.length ?? 0) > 0)
+                      .map((s) => ({
+                        group: s.title,
+                        options: (s.seasons || []).map((sea) => ({
+                          value: sea.id,
+                          label: `Season ${sea.season_number}: ${sea.title}`,
+                        })),
+                      }))}
+                    placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select TV season...'}
                     disabled={allSeasons.length === 0}
-                  >
-                    {seriesList.map((s) => {
-                      const seasons = s.seasons || [];
-                      if (seasons.length === 0) return null;
-                      return (
-                        <optgroup key={s.id} label={s.title}>
-                          {seasons.map((sea) => (
-                            <option key={sea.id} value={sea.id}>
-                              Season {sea.season_number}: {sea.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    })}
-                  </select>
+                    searchable
+                  />
                 </div>
               )}
 
@@ -413,26 +409,22 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                     Select Film
                   </label>
-                  <select
+                  <CustomSelect
                     value={selectedMovieId || ''}
-                    onChange={(e) => setSelectedMovieId(Number(e.target.value))}
-                    className="form-select"
+                    onChange={(val) => setSelectedMovieId(Number(val))}
+                    options={seriesList
+                      .filter((s) => (s.movies?.length ?? 0) > 0)
+                      .map((s) => ({
+                        group: s.title,
+                        options: (s.movies || []).map((m) => ({
+                          value: m.id,
+                          label: `Film: ${m.title}`,
+                        })),
+                      }))}
+                    placeholder={allMovies.length === 0 ? 'No films available' : 'Select film...'}
                     disabled={allMovies.length === 0}
-                  >
-                    {seriesList.map((s) => {
-                      const movies = s.movies || [];
-                      if (movies.length === 0) return null;
-                      return (
-                        <optgroup key={s.id} label={s.title}>
-                          {movies.map((m) => (
-                            <option key={m.id} value={m.id}>
-                              Film: {m.title}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    })}
-                  </select>
+                    searchable
+                  />
                 </div>
               )}
 
@@ -442,26 +434,22 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                     <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                       Select Season
                     </label>
-                    <select
+                    <CustomSelect
                       value={selectedSeasonId || ''}
-                      onChange={(e) => setSelectedSeasonId(Number(e.target.value))}
-                      className="form-select"
+                      onChange={(val) => setSelectedSeasonId(Number(val))}
+                      options={seriesList
+                        .filter((s) => (s.seasons?.length ?? 0) > 0)
+                        .map((s) => ({
+                          group: s.title,
+                          options: (s.seasons || []).map((sea) => ({
+                            value: sea.id,
+                            label: `Season ${sea.season_number}: ${sea.title}`,
+                          })),
+                        }))}
+                      placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select season...'}
                       disabled={allSeasons.length === 0}
-                    >
-                      {seriesList.map((s) => {
-                        const seasons = s.seasons || [];
-                        if (seasons.length === 0) return null;
-                        return (
-                          <optgroup key={s.id} label={s.title}>
-                            {seasons.map((sea) => (
-                              <option key={sea.id} value={sea.id}>
-                                Season {sea.season_number}: {sea.title}
-                              </option>
-                            ))}
-                          </optgroup>
-                        );
-                      })}
-                    </select>
+                      searchable
+                    />
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
@@ -469,15 +457,12 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                       <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
                         Episode #
                       </label>
-                      <input
-                        type="number"
+                      <CustomNumberInput
                         min={1}
                         max={activeSeason?.totalEpisodes || undefined}
                         value={episodeNumber}
-                        onChange={(e) => setEpisodeNumber(e.target.value ? Number(e.target.value) : '')}
-                        className="form-input mono"
+                        onChange={(val) => setEpisodeNumber(val === '' ? '' : Number(val))}
                         placeholder="1"
-                        required
                       />
                     </div>
                     <div>
@@ -524,41 +509,33 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
                 Start Date
               </label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="form-input"
+                onChange={(d) => setStartDate(d)}
+                placeholder="Start date..."
               />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
                 Finish Date
               </label>
-              <input
-                type="date"
+              <CustomDatePicker
                 value={finishDate}
-                onChange={(e) => setFinishDate(e.target.value)}
-                className="form-input"
+                onChange={(d) => setFinishDate(d)}
+                placeholder="Finish date..."
               />
             </div>
           </div>
 
           <div>
             <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
-              Rewatch Rating
+              Rewatch Rating (1–10)
             </label>
-            <select
-              value={rating || ''}
-              onChange={(e) => setRating(e.target.value ? Number(e.target.value) : null)}
-              className="form-select mono"
-            >
-              {[10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((n) => (
-                <option key={n} value={n}>
-                  ★ {n} / 10
-                </option>
-              ))}
-            </select>
+            <CustomRatingInput
+              value={rating}
+              onChange={(val) => setRating(val)}
+              placeholder="–"
+            />
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 8 }}>
@@ -701,17 +678,13 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               Associated Franchise
             </label>
-            <select
+            <CustomSelect
               value={seriesId}
-              onChange={(e) => setSeriesId(Number(e.target.value))}
-              className="form-select"
-            >
-              {seriesList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.title}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSeriesId(Number(val))}
+              options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
+              placeholder="Select franchise..."
+              searchable
+            />
           </div>
 
           <div>

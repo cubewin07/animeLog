@@ -550,6 +550,1144 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.6;
 }
 
+/* ==========================================================================
+   Bespoke Custom Form Components (Still & Spine System)
+   ========================================================================== */
+
+/* Keyframe Animations for Popovers */
+@keyframes popoverSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 1. Custom Select / Dropdown */
+.custom-select-container {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+.custom-select-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.custom-select-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-desk);
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-select-trigger:hover:not(:disabled) {
+  border-color: var(--tungsten);
+  background-color: rgba(22, 18, 14, 0.95);
+}
+
+.custom-select-trigger:focus-visible,
+.custom-select-container.is-open .custom-select-trigger {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-select-container.error .custom-select-trigger {
+  border-color: var(--danger);
+}
+
+.custom-select-trigger.mono {
+  font-family: var(--font-mono);
+}
+
+.custom-select-value {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.custom-select-placeholder {
+  color: var(--text-desk-dim);
+  font-size: 14px;
+}
+
+.custom-select-selected-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.custom-select-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--tungsten);
+  flex-shrink: 0;
+}
+
+.custom-select-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.custom-select-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.custom-select-clear-btn {
+  color: var(--text-desk-dim);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: inline-flex;
+  transition: color 0.15s ease;
+}
+
+.custom-select-clear-btn:hover {
+  color: var(--text-desk);
+}
+
+.custom-select-chevron {
+  color: var(--text-desk-muted);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.custom-select-chevron.rotate-180 {
+  transform: rotate(180deg);
+  color: var(--tungsten);
+}
+
+.custom-select-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 1200;
+  background-color: #1F1913;
+  border: 1px solid rgba(201, 149, 74, 0.28);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  animation: popoverSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.custom-select-search-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-desk-subtle);
+  background: rgba(16, 14, 11, 0.6);
+}
+
+.custom-select-search-icon {
+  color: var(--text-desk-dim);
+  flex-shrink: 0;
+}
+
+.custom-select-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-desk);
+  font-size: 13px;
+  font-family: var(--font-body);
+  outline: none;
+}
+
+.custom-select-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-desk-dim);
+  cursor: pointer;
+  display: inline-flex;
+  padding: 2px;
+}
+
+.custom-select-search-clear:hover {
+  color: var(--text-desk);
+}
+
+.custom-select-options-list {
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--desk-surface-highest) transparent;
+}
+
+.custom-select-group {
+  margin-bottom: 6px;
+}
+
+.custom-select-group-header {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tungsten);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px dashed var(--border-desk-subtle);
+  margin-bottom: 3px;
+  font-family: var(--font-mono);
+}
+
+.custom-select-option {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--text-desk);
+  font-size: 14px;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.custom-select-option:hover,
+.custom-select-option.focused {
+  background-color: var(--desk-surface-high);
+  color: var(--page);
+}
+
+.custom-select-option.selected {
+  background-color: var(--tungsten-dim);
+  color: var(--tungsten);
+  font-weight: 600;
+}
+
+.custom-select-option.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.custom-select-option.mono {
+  font-family: var(--font-mono);
+}
+
+.custom-select-option-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.custom-select-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.custom-select-option-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.custom-select-sublabel {
+  font-size: 12px;
+  color: var(--text-desk-dim);
+}
+
+.custom-select-check-icon {
+  color: var(--tungsten);
+  flex-shrink: 0;
+}
+
+.custom-select-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-desk-dim);
+  font-style: italic;
+}
+
+/* 2. Custom Date Picker */
+.custom-datepicker-container {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+.custom-datepicker-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.custom-datepicker-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  color: var(--text-desk);
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-datepicker-trigger:hover:not(:disabled) {
+  border-color: var(--tungsten);
+  background-color: rgba(22, 18, 14, 0.95);
+}
+
+.custom-datepicker-trigger:focus-visible,
+.custom-datepicker-container.is-open .custom-datepicker-trigger {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-datepicker-trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.custom-datepicker-icon {
+  color: var(--tungsten);
+  flex-shrink: 0;
+}
+
+.custom-datepicker-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-desk);
+}
+
+.custom-datepicker-value.is-placeholder {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-desk-dim);
+}
+
+.custom-datepicker-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.custom-datepicker-clear-btn {
+  color: var(--text-desk-dim);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: inline-flex;
+  transition: color 0.15s ease;
+}
+
+.custom-datepicker-clear-btn:hover {
+  color: var(--text-desk);
+}
+
+.custom-datepicker-chevron {
+  color: var(--text-desk-muted);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.custom-datepicker-chevron.rotate-180 {
+  transform: rotate(180deg);
+  color: var(--tungsten);
+}
+
+.custom-datepicker-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 1200;
+  width: 290px;
+  background-color: #1F1913;
+  border: 1px solid rgba(201, 149, 74, 0.28);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 2px 8px rgba(0, 0, 0, 0.4);
+  padding: 14px;
+  animation: popoverSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.custom-datepicker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.custom-datepicker-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  color: var(--text-desk-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-datepicker-nav-btn:hover {
+  background-color: var(--desk-surface-high);
+  color: var(--page);
+  border-color: var(--border-desk-medium);
+}
+
+.custom-datepicker-title-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.custom-datepicker-month-btn,
+.custom-datepicker-year-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--page);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 3px 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-datepicker-month-btn:hover,
+.custom-datepicker-year-btn:hover {
+  background: var(--desk-surface);
+  border-color: var(--border-desk-subtle);
+  color: var(--tungsten);
+}
+
+.custom-datepicker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  margin-bottom: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-desk-dim);
+}
+
+.custom-datepicker-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.custom-datepicker-day-cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-desk);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.custom-datepicker-day-cell:hover:not(:disabled) {
+  background-color: var(--desk-surface-high);
+  color: var(--page);
+}
+
+.custom-datepicker-day-cell.today {
+  border-color: var(--tungsten);
+  color: var(--tungsten);
+  font-weight: 600;
+}
+
+.custom-datepicker-day-cell.selected {
+  background-color: var(--tungsten) !important;
+  color: var(--ink) !important;
+  font-weight: 700 !important;
+  border-color: var(--tungsten) !important;
+  box-shadow: 0 2px 8px var(--tungsten-dim);
+}
+
+.custom-datepicker-day-cell.other-month {
+  color: var(--text-desk-dim);
+  opacity: 0.45;
+}
+
+.custom-datepicker-day-cell.disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.custom-datepicker-grid-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 8px 0;
+  max-height: 190px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--desk-surface-highest) transparent;
+}
+
+.custom-datepicker-grid-selector.years-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.custom-datepicker-selector-cell {
+  padding: 8px 4px;
+  text-align: center;
+  border-radius: var(--radius-sm);
+  background: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  color: var(--text-desk);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-datepicker-selector-cell:hover {
+  background: var(--desk-surface-high);
+  color: var(--page);
+  border-color: var(--border-desk-medium);
+}
+
+.custom-datepicker-selector-cell.selected {
+  background: var(--tungsten);
+  color: var(--ink);
+  font-weight: 700;
+  border-color: var(--tungsten);
+}
+
+.custom-datepicker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-desk-subtle);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.custom-datepicker-footer-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  color: var(--text-desk);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.custom-datepicker-footer-btn:hover {
+  background: var(--desk-surface-high);
+  color: var(--page);
+}
+
+.custom-datepicker-footer-btn.primary {
+  background: var(--tungsten);
+  color: var(--ink);
+  border-color: var(--tungsten);
+}
+
+.custom-datepicker-footer-btn.primary:hover {
+  background: var(--tungsten-hover);
+}
+
+.custom-datepicker-footer-btn.text-muted {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-desk-muted);
+}
+
+.custom-datepicker-footer-btn.text-muted:hover {
+  color: var(--danger);
+  background: var(--danger-dim);
+}
+
+/* 3. Custom Number Input */
+.custom-number-container {
+  display: flex;
+  align-items: center;
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-number-container:focus-within {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-number-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.custom-number-btn {
+  width: 32px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--desk-surface);
+  border: none;
+  color: var(--text-desk-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.custom-number-btn.decrement {
+  border-right: 1px solid var(--border-desk-subtle);
+}
+
+.custom-number-btn.increment {
+  border-left: 1px solid var(--border-desk-subtle);
+}
+
+.custom-number-btn:hover:not(:disabled) {
+  background-color: var(--tungsten-dim);
+  color: var(--tungsten);
+}
+
+.custom-number-btn:active:not(:disabled) {
+  background-color: var(--tungsten);
+  color: var(--ink);
+}
+
+.custom-number-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.custom-number-input {
+  flex: 1;
+  width: 100%;
+  min-width: 40px;
+  background: transparent;
+  border: none;
+  color: var(--text-desk);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  outline: none;
+  padding: 8px 4px;
+}
+
+.custom-number-prefix,
+.custom-number-suffix {
+  padding: 0 8px;
+  font-size: 13px;
+  color: var(--text-desk-dim);
+  font-weight: 500;
+}
+
+/* 4. Custom Rating Input (Direct validated typing) */
+.custom-rating-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  padding: 0 10px;
+  height: 42px;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.custom-rating-container:hover:not(.disabled) {
+  border-color: var(--tungsten);
+  background-color: rgba(22, 18, 14, 0.95);
+}
+
+.custom-rating-container.is-focused {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-rating-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.custom-rating-star-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.custom-rating-input {
+  flex: 1;
+  min-width: 28px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-desk);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  outline: none;
+  padding: 0;
+  text-align: left;
+}
+
+.custom-rating-suffix {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-desk-dim);
+  font-weight: 500;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.custom-rating-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-desk-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.custom-rating-clear-btn:hover {
+  color: var(--text-desk);
+}
+
+/* 5. Custom Progress Field (Crystal Clear Dual Inputs + Live Bar) */
+.custom-progress-field-card {
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.custom-progress-field-card.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.custom-progress-inputs-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.custom-progress-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.custom-progress-sublabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-desk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.custom-progress-col-divider {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-desk-dim);
+  padding-bottom: 10px;
+  user-select: none;
+}
+
+.custom-progress-stepper-box {
+  display: flex;
+  align-items: center;
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  height: 40px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-progress-stepper-box:focus-within {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-progress-step-btn {
+  width: 34px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  color: var(--text-desk-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.custom-progress-step-btn:hover:not(:disabled) {
+  background-color: var(--tungsten-dim);
+  color: var(--tungsten);
+}
+
+.custom-progress-step-btn:active:not(:disabled) {
+  background-color: var(--tungsten);
+  color: var(--ink);
+}
+
+.custom-progress-step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.custom-progress-num-input {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--page);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  padding: 0;
+}
+
+.custom-progress-total-box {
+  display: flex;
+  align-items: center;
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  height: 40px;
+  padding: 0 10px;
+  gap: 6px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.custom-progress-total-box:focus-within {
+  border-color: var(--tungsten);
+  box-shadow: 0 0 0 2px var(--tungsten-dim);
+}
+
+.custom-progress-total-input {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-desk);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  padding: 0;
+}
+
+.custom-progress-total-input::placeholder {
+  color: var(--text-desk-dim);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.custom-progress-unit-tag {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-desk-dim);
+  text-transform: uppercase;
+}
+
+.custom-progress-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px dashed var(--border-desk-subtle);
+  padding-top: 8px;
+}
+
+.custom-progress-bar-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-progress-bar-track {
+  height: 6px;
+  background-color: var(--desk-surface-high);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+}
+
+.custom-progress-bar-fill {
+  height: 100%;
+  background-color: var(--tungsten);
+  border-radius: var(--radius-pill);
+  transition: width 0.25s ease;
+}
+
+.custom-progress-bar-fill.completed {
+  background-color: var(--spine-text);
+}
+
+.custom-progress-bar-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-desk-dim);
+}
+
+.custom-progress-shortcuts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.custom-progress-chip {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-desk-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.custom-progress-chip:hover:not(:disabled) {
+  background-color: var(--desk-surface-high);
+  color: var(--page);
+  border-color: var(--border-desk-medium);
+  transform: translateY(-0.5px);
+}
+
+.custom-progress-chip:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.custom-progress-chip.complete-chip {
+  color: var(--tungsten);
+  border-color: var(--tungsten-dim);
+}
+
+.custom-progress-chip.complete-chip:hover:not(:disabled) {
+  background-color: var(--tungsten);
+  color: var(--ink);
+}
+
+/* 6. Season Number Picker (Tactile & Fun) */
+.season-picker-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.season-picker-chips {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.season-chip {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-desk-muted);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+  user-select: none;
+}
+
+.season-chip:hover:not(:disabled) {
+  background-color: var(--desk-surface-high);
+  color: var(--page);
+  border-color: var(--border-desk-medium);
+  transform: translateY(-1px);
+}
+
+.season-chip.is-active {
+  background-color: var(--tungsten);
+  color: var(--ink);
+  border-color: var(--tungsten);
+  font-weight: 700;
+  box-shadow: 0 2px 10px var(--tungsten-dim);
+  transform: translateY(-1px);
+}
+
+.season-chip-prefix {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.season-picker-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--still-well);
+  border: 1px solid var(--border-desk-medium);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+  gap: 8px;
+}
+
+.season-stepper-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-desk-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.season-stepper-btn:hover:not(:disabled) {
+  background-color: var(--tungsten-dim);
+  color: var(--tungsten);
+  border-color: var(--tungsten);
+}
+
+.season-stepper-btn:active:not(:disabled) {
+  background-color: var(--tungsten);
+  color: var(--ink);
+}
+
+.season-stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.season-stepper-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.season-stepper-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--desk-surface-high);
+  border: 1px solid var(--border-desk-subtle);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.season-stepper-label {
+  font-size: 12px;
+  color: var(--text-desk-muted);
+  font-weight: 500;
+}
+
+.season-stepper-input {
+  width: 28px;
+  background: transparent;
+  border: none;
+  color: var(--tungsten);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+}
+
+.season-roman-tag {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-desk-dim);
+  padding: 2px 6px;
+  background: var(--desk-surface);
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.5px;
+}
+
 /* Tags */
 .genre-tag {
   display: inline-block;
