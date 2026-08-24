@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { ActiveTab } from '../types';
 import {
   BookOpen,
@@ -10,6 +10,7 @@ import {
   Search,
   BookMarked,
   Image as ImageIcon,
+  X,
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -28,13 +29,84 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenNewModal,
 }) => {
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'dashboard', label: 'Desk', icon: <LayoutDashboard size={15} /> },
-    { id: 'anime', label: 'Anime', icon: <Film size={15} /> },
-    { id: 'books', label: 'Books', icon: <BookOpen size={15} /> },
-    { id: 'characters', label: 'Characters', icon: <Sparkles size={15} /> },
-    { id: 'rewatches', label: 'Rewatches', icon: <RotateCcw size={15} /> },
-    { id: 'media', label: 'Media', icon: <ImageIcon size={15} /> },
+    { id: 'dashboard', label: 'Desk', icon: <LayoutDashboard size={14} /> },
+    { id: 'anime', label: 'Anime', icon: <Film size={14} /> },
+    { id: 'books', label: 'Books', icon: <BookOpen size={14} /> },
+    { id: 'characters', label: 'Characters', icon: <Sparkles size={14} /> },
+    { id: 'rewatches', label: 'Rewatches', icon: <RotateCcw size={14} /> },
+    { id: 'media', label: 'Media', icon: <ImageIcon size={14} /> },
   ];
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    left: number;
+    width: number;
+    opacity: number;
+  }>({
+    left: 0,
+    width: 0,
+    opacity: 0,
+  });
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Update sliding indicator position
+  const updateIndicator = useCallback(() => {
+    const activeEl = tabRefs.current[activeTab];
+    const trackEl = trackRef.current;
+    if (activeEl && trackEl) {
+      setIndicatorStyle({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+        opacity: 1,
+      });
+
+      // Ensure active tab is visible when track is scrollable
+      if (trackEl.scrollWidth > trackEl.clientWidth) {
+        const scrollLeft =
+          activeEl.offsetLeft - trackEl.clientWidth / 2 + activeEl.offsetWidth / 2;
+        trackEl.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    updateIndicator();
+    // Update after any fonts or layout settle
+    const frameId = requestAnimationFrame(updateIndicator);
+    const handleResize = () => updateIndicator();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [activeTab, updateIndicator]);
+
+  // Global keyboard shortcut for quick search ('/' or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+
+      if (!isInput) {
+        if (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        searchInputRef.current?.blur();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <header className="journal-nav-bar">
@@ -43,75 +115,59 @@ export const Navigation: React.FC<NavigationProps> = ({
       </a>
 
       <div className="journal-nav-inner">
-        {/* Brand & Tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 28, flexWrap: 'wrap' }}>
+        {/* Brand & Pill Track */}
+        <div className="journal-nav-left">
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
+            className="journal-brand-mark"
             onClick={() => onTabChange('dashboard')}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') onTabChange('dashboard');
             }}
-            aria-label="Go to Desk Dashboard"
+            aria-label="AnimeLog Journal — Return to Desk"
           >
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--desk-surface)',
-                color: 'var(--text-desk)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <BookMarked size={18} />
+            <div className="journal-brand-icon">
+              <BookMarked size={16} />
             </div>
-            <div>
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 20,
-                  fontWeight: 600,
-                  color: 'var(--text-desk)',
-                  letterSpacing: '-0.01em',
-                }}
-              >
-                AnimeLog
-              </span>
+            <div className="journal-brand-text">
+              <span className="journal-brand-title">AnimeLog</span>
+              <span className="journal-brand-badge">Journal</span>
             </div>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="journal-nav-links" aria-label="Journal Navigation">
+          {/* Navigation Segmented Pill Track */}
+          <nav
+            className="journal-nav-track"
+            ref={trackRef}
+            aria-label="Journal Sections"
+          >
+            {/* Smooth Sliding Active Pill Background */}
+            <div
+              className="journal-nav-indicator"
+              style={{
+                transform: `translateX(${indicatorStyle.left}px)`,
+                width: `${indicatorStyle.width}px`,
+                opacity: indicatorStyle.opacity,
+              }}
+              aria-hidden="true"
+            />
+
             {tabs.map((tab) => {
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
-                  onClick={() => onTabChange(tab.id)}
-                  className={`journal-nav-link ${isActive ? 'active' : ''}`}
-                  aria-current={isActive ? 'page' : undefined}
-                  style={{
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
+                  ref={(el) => {
+                    tabRefs.current[tab.id] = el;
                   }}
+                  onClick={() => onTabChange(tab.id)}
+                  className={`journal-nav-tab ${isActive ? 'active' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  type="button"
                 >
-                  <span style={{ opacity: isActive ? 1 : 0.75 }}>
-                    {tab.icon}
-                  </span>
-                  <span>{tab.label}</span>
+                  <span className="journal-tab-icon">{tab.icon}</span>
+                  <span className="journal-tab-label">{tab.label}</span>
                 </button>
               );
             })}
@@ -119,51 +175,44 @@ export const Navigation: React.FC<NavigationProps> = ({
         </div>
 
         {/* Search & New Entry Action */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flex: '1 1 280px',
-            maxWidth: 420,
-            justifyContent: 'flex-end',
-          }}
-        >
-          <div style={{ position: 'relative', width: '100%', maxWidth: 240 }}>
-            <Search
-              size={15}
-              style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-desk-dim)',
-                pointerEvents: 'none',
-              }}
-            />
+        <div className="journal-nav-right">
+          <div className={`journal-search-capsule ${isSearchFocused ? 'focused' : ''}`}>
+            <Search size={14} className="journal-search-icon" aria-hidden="true" />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search journal..."
-              aria-label="Search journal"
+              aria-label="Search journal entries"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="form-input"
-              style={{
-                paddingLeft: 32,
-                paddingTop: 6,
-                paddingBottom: 6,
-                fontSize: 14,
-                borderRadius: 'var(--radius-pill)',
-                backgroundColor: 'var(--desk)',
-              }}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              className="journal-search-input"
             />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  searchInputRef.current?.focus();
+                }}
+                className="journal-search-clear"
+                aria-label="Clear search"
+              >
+                <X size={13} />
+              </button>
+            ) : (
+              <kbd className="journal-search-shortcut" title="Press '/' to search">
+                /
+              </kbd>
+            )}
           </div>
 
           <button
             onClick={onOpenNewModal}
-            className="btn btn-primary"
-            style={{ whiteSpace: 'nowrap', padding: '6px 14px', fontSize: 14 }}
-            aria-label="Log new entry"
+            className="journal-action-btn"
+            aria-label="Log new journal entry"
+            type="button"
           >
             <Plus size={15} />
             <span>Write Entry</span>
@@ -173,3 +222,4 @@ export const Navigation: React.FC<NavigationProps> = ({
     </header>
   );
 };
+
