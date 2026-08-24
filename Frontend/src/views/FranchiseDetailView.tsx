@@ -32,8 +32,10 @@ interface FranchiseDetailViewProps {
   onDeleteMovie: (id: number) => void;
   onMovieProgressDelta: (id: number, delta: number) => void;
   onOpenEpisodeNotes: (season: AnimeSeason) => void;
+  onAddRewatchSeries?: (series: AnimeSeries) => void;
   onAddRewatchSeason: (season: AnimeSeason) => void;
   onAddRewatchMovie: (movie: AnimeMovie) => void;
+  onAddRewatchEpisode?: (season: AnimeSeason, episodeNumber: number) => void;
   onAddCharacter: (series: AnimeSeries) => void;
   onEditCharacter?: (character: FavoriteCharacter) => void;
   onDeleteCharacter?: (id: number) => void;
@@ -55,8 +57,10 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   onDeleteMovie,
   onMovieProgressDelta,
   onOpenEpisodeNotes,
+  onAddRewatchSeries,
   onAddRewatchSeason,
   onAddRewatchMovie,
+  onAddRewatchEpisode,
   onAddCharacter,
   onEditCharacter,
   onDeleteCharacter,
@@ -121,14 +125,15 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
     : seriesRewatches.filter((r) => {
         if (selectedType === 'season') {
           return (r.target_type === 'season' && r.target_id === activeRelease?.id) ||
-                 (r.season === activeRelease?.id);
+                 (r.season === activeRelease?.id) ||
+                 (r.target_type === 'episode' && (activeRelease as AnimeSeason)?.episode_notes?.some(ep => ep.id === r.target_id));
         } else {
           return (r.target_type === 'movie' && r.target_id === activeRelease?.id) ||
                  (r.movie === activeRelease?.id);
         }
       });
 
-  const activeRating = activeRelease?.rating || series.rating;
+  const activeRating = activeRelease?.rating;
   const studioNames = series.studios?.map((s) => s.name).join(', ') || 'Independent';
 
   const formatLabel =
@@ -566,15 +571,36 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               (activeRelease as AnimeSeason).episode_notes.length > 0 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {(activeRelease as AnimeSeason).episode_notes.map((ep) => (
-                    <TakeawaySlip
-                      key={ep.id}
-                      compact
-                      status={activeRelease.status}
-                      label={`Episode ${ep.episode_number}${ep.episode_title ? `: ${ep.episode_title}` : ''}`}
-                      text={ep.note}
-                      rating={ep.rating}
-                      onWrite={() => onOpenEpisodeNotes(activeRelease as AnimeSeason)}
-                    />
+                    <div key={ep.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <TakeawaySlip
+                        compact
+                        status={activeRelease.status}
+                        label={`Episode ${ep.episode_number}${ep.episode_title ? `: ${ep.episode_title}` : ''}`}
+                        text={ep.note}
+                        rating={ep.rating}
+                        onWrite={() => onOpenEpisodeNotes(activeRelease as AnimeSeason)}
+                      />
+                      {onAddRewatchEpisode && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: 4 }}>
+                          <button
+                            onClick={() => onAddRewatchEpisode(activeRelease as AnimeSeason, ep.episode_number)}
+                            className="btn btn-ghost"
+                            style={{
+                              padding: '2px 8px',
+                              fontSize: 12,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              color: 'var(--text-desk-dim)',
+                            }}
+                            title={`Log rewatch pass for Episode ${ep.episode_number}`}
+                          >
+                            <RotateCcw size={11} />
+                            <span>Rewatch Ep {ep.episode_number}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -609,7 +635,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {/* Filter toggle: This release vs Whole franchise */}
                 <div
                   style={{
@@ -646,6 +672,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   </button>
                 </div>
 
+                {rewatchFilter === 'all' && onAddRewatchSeries && (
+                  <button
+                    onClick={() => onAddRewatchSeries(series)}
+                    className="btn btn-secondary"
+                    style={{ padding: '6px 12px', fontSize: 13 }}
+                  >
+                    <Layers size={13} />
+                    <span>Log Franchise Rewatch</span>
+                  </button>
+                )}
+
                 {selectedType === 'season' && activeRelease && (
                   <button
                     onClick={() => onAddRewatchSeason(activeRelease as AnimeSeason)}
@@ -653,7 +690,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
                     <RotateCcw size={13} />
-                    <span>Log Rewatch</span>
+                    <span>Log Season Rewatch</span>
                   </button>
                 )}
                 {selectedType === 'movie' && activeRelease && (
@@ -663,7 +700,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     style={{ padding: '6px 12px', fontSize: 13 }}
                   >
                     <RotateCcw size={13} />
-                    <span>Log Rewatch</span>
+                    <span>Log Film Rewatch</span>
                   </button>
                 )}
               </div>
@@ -722,7 +759,9 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 }
                 emptyCtaText="Log a rewatch"
                 onWrite={() => {
-                  if (selectedType === 'season' && activeRelease) {
+                  if (rewatchFilter === 'all' && onAddRewatchSeries) {
+                    onAddRewatchSeries(series);
+                  } else if (selectedType === 'season' && activeRelease) {
                     onAddRewatchSeason(activeRelease as AnimeSeason);
                   } else if (selectedType === 'movie' && activeRelease) {
                     onAddRewatchMovie(activeRelease as AnimeMovie);

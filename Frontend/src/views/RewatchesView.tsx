@@ -1,5 +1,5 @@
-import React from 'react';
-import { AnimeSeries, Rewatch } from '../types';
+import React, { useState } from 'react';
+import { AnimeSeries, Rewatch, RewatchTargetType } from '../types';
 import { RewatchTimeline } from '../components/RewatchTimeline';
 import { Plus } from 'lucide-react';
 
@@ -10,6 +10,7 @@ interface RewatchesViewProps {
   onEdit?: (rewatch: Rewatch) => void;
   onDelete: (id: number) => void;
   onOpenRewatchModal: () => void;
+  onNavigateSeries?: (seriesId: number) => void;
 }
 
 export const RewatchesView: React.FC<RewatchesViewProps> = ({
@@ -18,14 +19,46 @@ export const RewatchesView: React.FC<RewatchesViewProps> = ({
   onEdit,
   onDelete,
   onOpenRewatchModal,
+  onNavigateSeries,
 }) => {
+  const [selectedTypeFilter, setSelectedTypeFilter] = useState<'ALL' | RewatchTargetType>('ALL');
   const q = searchQuery.toLowerCase().trim();
+
+  const typeTabs: { id: 'ALL' | RewatchTargetType; label: string; count: number }[] = [
+    { id: 'ALL', label: 'All Passes', count: rewatches.length },
+    {
+      id: 'season',
+      label: 'Seasons',
+      count: rewatches.filter((r) => (r.target_type || (r.movie ? 'movie' : 'season')) === 'season').length,
+    },
+    {
+      id: 'movie',
+      label: 'Films',
+      count: rewatches.filter((r) => (r.target_type || (r.movie ? 'movie' : 'season')) === 'movie').length,
+    },
+    {
+      id: 'episode',
+      label: 'Episodes',
+      count: rewatches.filter((r) => (r.target_type || (r.movie ? 'movie' : 'season')) === 'episode').length,
+    },
+    {
+      id: 'series',
+      label: 'Franchises',
+      count: rewatches.filter((r) => (r.target_type || (r.movie ? 'movie' : 'season')) === 'series').length,
+    },
+  ];
+
   const filtered = rewatches.filter((r) => {
-    return (
+    const tType = r.target_type || (r.movie ? 'movie' : 'season');
+    const matchesType = selectedTypeFilter === 'ALL' || tType === selectedTypeFilter;
+
+    const matchesSearch =
       q === '' ||
       (r.release_title && r.release_title.toLowerCase().includes(q)) ||
-      (r.notes && r.notes.toLowerCase().includes(q))
-    );
+      (r.series_title && r.series_title.toLowerCase().includes(q)) ||
+      (r.notes && r.notes.toLowerCase().includes(q));
+
+    return matchesType && matchesSearch;
   });
 
   return (
@@ -55,7 +88,31 @@ export const RewatchesView: React.FC<RewatchesViewProps> = ({
         </button>
       </div>
 
-      <RewatchTimeline rewatches={filtered} onEdit={onEdit} onDelete={onDelete} />
+      {/* Target Type Filter Chips */}
+      <div className="filter-chip-row" role="tablist" aria-label="Filter rewatches by target type">
+        {typeTabs.map((tab) => {
+          const isActive = selectedTypeFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setSelectedTypeFilter(tab.id)}
+              className={`filter-chip ${isActive ? 'active' : ''}`}
+              role="tab"
+              aria-selected={isActive}
+            >
+              <span>{tab.label}</span>
+              <span className="chip-count">{tab.count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <RewatchTimeline
+        rewatches={filtered}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onNavigateSeries={onNavigateSeries}
+      />
     </div>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film, Layers, PlayCircle } from 'lucide-react';
+import { TakeawaySlip } from './TakeawaySlip';
+import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film, Layers, PlayCircle, ArrowUpRight } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -9,16 +10,22 @@ interface RewatchTimelineProps {
   rewatches: Rewatch[];
   onEdit?: (rewatch: Rewatch) => void;
   onDelete: (id: number) => void;
+  onNavigateSeries?: (seriesId: number) => void;
 }
 
-export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onEdit, onDelete }) => {
+export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({
+  rewatches,
+  onEdit,
+  onDelete,
+  onNavigateSeries,
+}) => {
   const listRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
       if (prefersReducedMotion() || !listRef.current) return;
 
-      const items = listRef.current.querySelectorAll('.desk-card');
+      const items = listRef.current.querySelectorAll('.rewatch-timeline-item');
       if (items.length > 0) {
         gsap.fromTo(
           items,
@@ -51,7 +58,16 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
         <h3 style={{ fontSize: 18, color: 'var(--text-desk)', marginBottom: 6 }}>
           No Rewatches Logged Yet
         </h3>
-        <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-desk-muted)', fontStyle: 'italic', maxWidth: 480, margin: '0 auto' }}>
+        <p
+          style={{
+            fontFamily: 'var(--font-serif)',
+            fontSize: 16,
+            color: 'var(--text-desk-muted)',
+            fontStyle: 'italic',
+            maxWidth: 480,
+            margin: '0 auto',
+          }}
+        >
           Rewatching is how lessons deepen. Log your second or third passes through franchises, seasons, films, or pivotal episodes to record how your perspective evolved over time.
         </p>
       </div>
@@ -60,17 +76,17 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
 
   const getTargetIcon = (r: Rewatch) => {
     const tType = r.target_type || (r.movie ? 'movie' : 'season');
-    if (tType === 'series') return <Layers size={15} color="var(--graphite)" />;
-    if (tType === 'movie') return <Film size={15} color="var(--graphite)" />;
-    if (tType === 'episode') return <PlayCircle size={15} color="var(--graphite)" />;
-    return <Tv size={15} color="var(--graphite)" />;
+    if (tType === 'series') return <Layers size={15} color="var(--tungsten)" />;
+    if (tType === 'movie') return <Film size={15} color="var(--night-text)" />;
+    if (tType === 'episode') return <PlayCircle size={15} color="var(--ember)" />;
+    return <Tv size={15} color="var(--tungsten)" />;
   };
 
   const getTargetBadge = (r: Rewatch) => {
     const tType = r.target_type || (r.movie ? 'movie' : 'season');
     if (tType === 'series') return 'Franchise Pass';
     if (tType === 'movie') return 'Film Pass';
-    if (tType === 'episode') return r.episode_number ? `Episode ${r.episode_number} Pass` : 'Episode Pass';
+    if (tType === 'episode') return r.episode_number ? `Ep ${r.episode_number} Pass` : 'Episode Pass';
     return 'TV Season Pass';
   };
 
@@ -87,117 +103,127 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
 
   return (
     <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      {rewatches.map((r) => (
-        <div
-          key={r.id}
-          className="desk-card"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 14,
-            padding: 20,
-          }}
-        >
-          {/* Header Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                {getTargetIcon(r)}
-                <h3 style={{ fontSize: 18, color: 'var(--text-desk)', fontWeight: 600 }}>
-                  {getDisplayHeading(r)}
-                </h3>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-desk-muted)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    backgroundColor: 'var(--desk)',
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    border: '1px solid var(--border-desk-subtle)',
-                  }}
-                >
-                  {getTargetBadge(r)}
-                </span>
-              </div>
+      {rewatches.map((r) => {
+        const seriesId = r.series_id || (r.target_type === 'series' ? r.target_id : null);
+        const heading = getDisplayHeading(r);
+        const dateString =
+          r.start_date && r.finish_date
+            ? `${r.start_date} → ${r.finish_date}`
+            : r.start_date || r.finish_date || undefined;
 
-              {(r.start_date || r.finish_date) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 13,
-                    color: 'var(--text-desk-muted)',
-                  }}
-                >
-                  <Calendar size={13} />
-                  <span>
-                    {r.start_date || 'Started'} → {r.finish_date || 'Finished'}
+        return (
+          <div
+            key={r.id}
+            className="rewatch-timeline-item"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            {/* Top Info Bar on Desk */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+                padding: '0 4px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {getTargetIcon(r)}
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-desk-muted)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      backgroundColor: 'var(--desk-surface)',
+                      padding: '2px 7px',
+                      borderRadius: 4,
+                      border: '1px solid var(--border-desk-subtle)',
+                    }}
+                  >
+                    {getTargetBadge(r)}
                   </span>
                 </div>
-              )}
-            </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {r.rating && (
-                <div
-                  className={`rating-mono ${
-                    r.rating >= 9
-                      ? 'rating-band-high'
-                      : r.rating >= 7
-                      ? 'rating-band-mid'
-                      : r.rating >= 5
-                      ? 'rating-band-normal'
-                      : 'rating-band-low'
-                  }`}
-                >
-                  <span>★ {r.rating}</span>
-                  <span className="rating-mono-sub">/10</span>
-                </div>
-              )}
-              {onEdit && (
+                {seriesId && onNavigateSeries && (
+                  <button
+                    onClick={() => onNavigateSeries(seriesId)}
+                    className="btn btn-ghost"
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: 12,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      color: 'var(--tungsten)',
+                    }}
+                    title="View Franchise Details"
+                  >
+                    <span>View Franchise</span>
+                    <ArrowUpRight size={12} />
+                  </button>
+                )}
+
+                {dateString && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: 12,
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--text-desk-dim)',
+                    }}
+                  >
+                    <Calendar size={12} />
+                    <span>{dateString}</span>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {onEdit && (
+                  <button
+                    className="btn-icon"
+                    onClick={() => onEdit(r)}
+                    title="Edit rewatch reflection"
+                    aria-label={`Edit rewatch reflection for ${heading}`}
+                  >
+                    <PenLine size={13} />
+                  </button>
+                )}
                 <button
-                  className="btn-icon"
-                  onClick={() => onEdit(r)}
-                  title="Edit rewatch reflection"
-                  aria-label="Edit rewatch reflection"
+                  className="btn-icon danger"
+                  onClick={() => onDelete(r.id)}
+                  title="Delete rewatch entry"
+                  aria-label={`Delete rewatch entry for ${heading}`}
                 >
-                  <PenLine size={14} />
+                  <Trash2 size={13} />
                 </button>
-              )}
-              <button
-                className="btn-icon danger"
-                onClick={() => onDelete(r.id)}
-                title="Delete rewatch entry"
-                aria-label="Delete rewatch entry"
-              >
-                <Trash2 size={14} />
-              </button>
+              </div>
             </div>
-          </div>
 
-          {/* Deepened Takeaway Note on Desk Card */}
-          {r.notes && (
-            <div style={{ paddingTop: 10, borderTop: '1px solid var(--border-desk-subtle)' }}>
-              <p
-                style={{
-                  fontFamily: 'var(--font-serif)',
-                  fontSize: 15,
-                  fontStyle: 'italic',
-                  color: 'var(--text-desk)',
-                  lineHeight: 1.6,
-                  margin: 0,
-                }}
-              >
-                "{r.notes}"
-              </p>
-            </div>
-          )}
-        </div>
-      ))}
+            {/* Authentic Takeaway Slip sitting on the desk */}
+            <TakeawaySlip
+              status="COMPLETED"
+              title={heading}
+              label={getTargetBadge(r)}
+              subTitle={dateString ? `Logged: ${dateString}` : undefined}
+              text={r.notes}
+              rating={r.rating}
+              emptyText="Rewatch logged without perspective notes."
+              onWrite={onEdit ? () => onEdit(r) : undefined}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 };

@@ -58,8 +58,10 @@ const FranchiseDetailRouteWrapper: React.FC<{
   onDeleteMovie: (id: number) => void;
   onMovieProgressDelta: (id: number, delta: number) => void;
   onOpenEpisodeNotes: (season: AnimeSeason) => void;
+  onAddRewatchSeries?: (series: AnimeSeries) => void;
   onAddRewatchSeason: (season: AnimeSeason) => void;
   onAddRewatchMovie: (movie: AnimeMovie) => void;
+  onAddRewatchEpisode?: (season: AnimeSeason, episodeNumber: number) => void;
   onAddCharacter: (series: AnimeSeries) => void;
   onEditCharacter?: (character: FavoriteCharacter) => void;
   onDeleteCharacter?: (id: number) => void;
@@ -855,8 +857,10 @@ export const App: React.FC = () => {
                   onDeleteMovie={handleDeleteMovie}
                   onMovieProgressDelta={handleMovieProgressDelta}
                   onOpenEpisodeNotes={openEpisodeNotesModal}
+                  onAddRewatchSeries={openAddRewatchSeries}
                   onAddRewatchSeason={openAddRewatchSeason}
                   onAddRewatchMovie={openAddRewatchMovie}
+                  onAddRewatchEpisode={openAddRewatchEpisode}
                   onAddCharacter={openAddCharacterModal}
                   onEditCharacter={openEditCharacterModal}
                   onDeleteCharacter={handleDeleteCharacter}
@@ -922,6 +926,7 @@ export const App: React.FC = () => {
                     setEditRewatchTarget(null);
                     setRewatchModalOpen(true);
                   }}
+                  onNavigateSeries={(seriesId) => navigate(`/anime/${seriesId}`)}
                 />
               }
             />
