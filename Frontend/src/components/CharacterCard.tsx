@@ -1,14 +1,20 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { Sparkles, Trash2, Film, PenLine } from 'lucide-react';
+import { Sparkles, Trash2, PenLine, Image as ImageIcon } from 'lucide-react';
 
 interface CharacterCardProps {
   character: FavoriteCharacter;
+  onClick?: (character: FavoriteCharacter) => void;
   onEdit?: (character: FavoriteCharacter) => void;
-  onDelete: (id: number) => void;
+  onDelete?: (id: number) => void;
 }
 
-export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onEdit, onDelete }) => {
+export const CharacterCard: React.FC<CharacterCardProps> = ({
+  character,
+  onClick,
+  onEdit,
+  onDelete,
+}) => {
   const charImg =
     character.cover_image_url ||
     character.image_url ||
@@ -16,113 +22,235 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onEdit,
       ? (character.images[0] as any).image_url || (character.images[0] as any).url
       : null);
 
+  const imagesCount = character.images ? character.images.length : 0;
+
   return (
     <div
-      className="desk-card"
+      className="desk-card character-card"
+      onClick={() => onClick?.(character)}
       style={{
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        padding: 20,
+        alignItems: 'center',
+        padding: '28px 24px 22px 24px',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
+      }}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick(character);
+        }
       }}
     >
-      {/* Top row: Avatar + Name + Series + Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-          {charImg ? (
-            <img
-              src={charImg}
-              alt={character.name}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 'var(--radius-md)',
-                objectFit: 'cover',
-                border: '1px solid var(--border-desk-medium)',
-                boxShadow: 'var(--shadow-paper)',
-                flexShrink: 0,
-              }}
-              width={56}
-              height={56}
-              loading="lazy"
-            />
-          ) : (
-            <div
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--desk-surface)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--graphite)',
-                flexShrink: 0,
-              }}
-            >
-              <Sparkles size={24} />
-            </div>
-          )}
-
-          <div style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: 18, color: 'var(--text-desk)', lineHeight: 1.3, marginBottom: 2 }}>
-              {character.name}
-            </h3>
-            {character.series_title && (
-              <span
-                style={{
-                  fontSize: 13,
-                  color: 'var(--text-desk-muted)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <Film size={12} /> {character.series_title}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {onEdit && (
-            <button
-              className="btn-icon"
-              onClick={() => onEdit(character)}
-              title="Edit character reflection"
-              aria-label={`Edit ${character.name}`}
-            >
-              <PenLine size={14} />
-            </button>
-          )}
+      {/* Top-Right Quick Actions */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          zIndex: 2,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {onEdit && (
           <button
+            type="button"
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(character);
+            }}
+            title={`Edit reflection for ${character.name}`}
+            aria-label={`Edit ${character.name}`}
+          >
+            <PenLine size={14} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
             className="btn-icon danger"
-            onClick={() => onDelete(character.id)}
-            title="Remove character"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(character.id);
+            }}
+            title={`Remove ${character.name}`}
             aria-label={`Delete ${character.name}`}
           >
             <Trash2 size={14} />
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Why Worth Remembering */}
-      {character.why && (
-        <div style={{ paddingTop: 10, borderTop: '1px solid var(--border-desk-subtle)' }}>
+      {/* Enlarged Centered Circular Avatar (104x104px) */}
+      <div
+        style={{
+          position: 'relative',
+          width: 104,
+          height: 104,
+          borderRadius: '50%',
+          backgroundColor: 'var(--desk-surface)',
+          padding: 3,
+          boxShadow: '0 0 0 4px var(--desk-surface), var(--shadow-paper), 0 6px 18px rgba(0, 0, 0, 0.35)',
+          border: '2.5px solid var(--border-desk-medium)',
+          marginBottom: 16,
+          flexShrink: 0,
+        }}
+      >
+        {charImg ? (
+          <img
+            src={charImg}
+            alt={character.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+            width={104}
+            height={104}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--graphite)',
+            }}
+          >
+            <Sparkles size={34} />
+          </div>
+        )}
+      </div>
+
+      {/* Series Eyebrow Header */}
+      {character.series_title && (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--text-desk-muted)',
+            textAlign: 'center',
+            lineHeight: 1.3,
+            display: 'block',
+            maxWidth: '90%',
+          }}
+        >
+          {character.series_title}
+        </span>
+      )}
+
+      {/* Character Display Name */}
+      <h3
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 24,
+          fontWeight: 700,
+          color: 'var(--text-desk)',
+          textAlign: 'center',
+          marginTop: character.series_title ? 4 : 0,
+          marginBottom: 0,
+          lineHeight: 1.25,
+        }}
+      >
+        {character.name}
+      </h3>
+
+      {/* Subtle Horizontal Rule Divider */}
+      <div
+        style={{
+          width: '100%',
+          height: 1,
+          backgroundColor: 'var(--border-desk-subtle)',
+          margin: '18px 0 16px 0',
+        }}
+      />
+
+      {/* Section Eyebrow: WHY THEY MATTERED TO ME */}
+      <div
+        style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 8,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.07em',
+            color: 'var(--ember-text, #F0B27A)',
+          }}
+        >
+          Why they mattered to me:
+        </span>
+
+        {imagesCount > 1 && (
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-desk-muted)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 3,
+            }}
+            title={`${imagesCount} stills in gallery`}
+          >
+            <ImageIcon size={11} /> {imagesCount}
+          </span>
+        )}
+      </div>
+
+      {/* Lesson / Memory Reflection Content */}
+      <div style={{ width: '100%', textAlign: 'left' }}>
+        {character.why ? (
           <p
             style={{
               fontFamily: 'var(--font-serif)',
-              fontSize: 15,
-              fontStyle: 'italic',
+              fontSize: 14.5,
               color: 'var(--text-desk)',
-              lineHeight: 1.6,
+              lineHeight: 1.65,
               margin: 0,
             }}
           >
-            "{character.why}"
+            {character.why}
           </p>
-        </div>
-      )}
+        ) : (
+          <p
+            style={{
+              fontFamily: 'var(--font-serif)',
+              fontSize: 13.5,
+              fontStyle: 'italic',
+              color: 'var(--text-desk-muted)',
+              margin: 0,
+            }}
+          >
+            No reflection recorded yet. Click to record why this character is memorable.
+          </p>
+        )}
+      </div>
     </div>
   );
 };
+

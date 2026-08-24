@@ -61,6 +61,9 @@ const FranchiseDetailRouteWrapper: React.FC<{
   onAddRewatchSeason: (season: AnimeSeason) => void;
   onAddRewatchMovie: (movie: AnimeMovie) => void;
   onAddCharacter: (series: AnimeSeries) => void;
+  onEditCharacter?: (character: FavoriteCharacter) => void;
+  onDeleteCharacter?: (id: number) => void;
+  onRefresh?: () => Promise<void>;
 }> = (props) => {
   const { seriesId } = useParams<{ seriesId: string }>();
   const idNum = Number(seriesId);
@@ -855,6 +858,9 @@ export const App: React.FC = () => {
                   onAddRewatchSeason={openAddRewatchSeason}
                   onAddRewatchMovie={openAddRewatchMovie}
                   onAddCharacter={openAddCharacterModal}
+                  onEditCharacter={openEditCharacterModal}
+                  onDeleteCharacter={handleDeleteCharacter}
+                  onRefresh={refreshAll}
                 />
               }
             />
@@ -896,6 +902,7 @@ export const App: React.FC = () => {
                   onEdit={openEditCharacterModal}
                   onDelete={handleDeleteCharacter}
                   onOpenAddModal={() => openAddCharacterModal()}
+                  onRefresh={refreshAll}
                 />
               }
             />

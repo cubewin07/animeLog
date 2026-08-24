@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { AnimeMovie, AnimeSeason, AnimeSeries, FavoriteCharacter, Rewatch } from '../types';
+import { AnimeMovie, AnimeSeason, AnimeSeries, FavoriteCharacter, ImageAsset, Rewatch } from '../types';
 import { ProgressStepper } from '../components/ProgressStepper';
 import { TakeawaySlip } from '../components/TakeawaySlip';
+import { CharacterCard } from '../components/CharacterCard';
+import { CharacterDetailModal } from '../components/CharacterDetailModal';
+import { characterApi } from '../api/client';
 import {
   ArrowLeft,
   Tv,
@@ -32,6 +35,9 @@ interface FranchiseDetailViewProps {
   onAddRewatchSeason: (season: AnimeSeason) => void;
   onAddRewatchMovie: (movie: AnimeMovie) => void;
   onAddCharacter: (series: AnimeSeries) => void;
+  onEditCharacter?: (character: FavoriteCharacter) => void;
+  onDeleteCharacter?: (id: number) => void;
+  onRefresh?: () => Promise<void>;
 }
 
 export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
@@ -52,12 +58,16 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   onAddRewatchSeason,
   onAddRewatchMovie,
   onAddCharacter,
+  onEditCharacter,
+  onDeleteCharacter,
+  onRefresh,
 }) => {
   // Select active season/movie by default (prefer WATCHING or first available)
   const defaultSeason = series.seasons?.find((s) => s.status === 'WATCHING') || series.seasons?.[0];
   const [selectedType, setSelectedType] = useState<'season' | 'movie'>('season');
   const [selectedId, setSelectedId] = useState<number>(defaultSeason?.id || series.movies?.[0]?.id || 0);
   const [rewatchFilter, setRewatchFilter] = useState<'release' | 'all'>('release');
+  const [selectedCharacterForDetail, setSelectedCharacterForDetail] = useState<FavoriteCharacter | null>(null);
 
   const currentSeason = series.seasons?.find((s) => s.id === selectedId);
   const currentMovie = series.movies?.find((m) => m.id === selectedId);
@@ -755,93 +765,19 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: 16,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                  gap: 18,
                 }}
               >
-                {franchiseCharacters.map((char) => {
-                  const charImg =
-                    char.cover_image_url ||
-                    char.image_url ||
-                    (char.images && char.images.length > 0
-                      ? (char.images[0] as any).image_url || (char.images[0] as any).url
-                      : null);
-                  return (
-                    <div
-                      key={char.id}
-                      className="desk-card"
-                      style={{ display: 'flex', gap: 16, padding: 18, alignItems: 'start' }}
-                    >
-                      {charImg ? (
-                        <img
-                          src={charImg}
-                          alt={char.name}
-                          style={{
-                            width: 80,
-                            height: 80,
-                            borderRadius: 'var(--radius-md)',
-                            objectFit: 'cover',
-                            flexShrink: 0,
-                            border: '1.5px solid var(--border-desk-medium)',
-                          }}
-                          width={80}
-                          height={80}
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 80,
-                            height: 80,
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: 'var(--desk-surface)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--graphite)',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Sparkles size={24} />
-                        </div>
-                      )}
-
-                      <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        <h4 style={{ fontSize: 16, color: 'var(--text-desk)', margin: 0, fontWeight: 600 }}>
-                          {char.name}
-                        </h4>
-                        {char.why ? (
-                          <div
-                            className="takeaway-slip-text"
-                            style={{
-                              backgroundColor: 'var(--page)',
-                              color: 'var(--ink)',
-                              padding: '10px 14px',
-                              borderRadius: 'var(--radius-sm)',
-                              borderLeft: '3px solid var(--spine-text)',
-                              fontSize: 14,
-                              lineHeight: 1.55,
-                            }}
-                          >
-                            {char.why}
-                          </div>
-                        ) : (
-                          <p
-                            style={{
-                              fontFamily: 'var(--font-serif)',
-                              fontSize: 13,
-                              color: 'var(--text-desk-muted)',
-                              fontStyle: 'italic',
-                              margin: 0,
-                            }}
-                          >
-                            No character reflection recorded yet.
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                {franchiseCharacters.map((char) => (
+                  <CharacterCard
+                    key={char.id}
+                    character={char}
+                    onClick={(c) => setSelectedCharacterForDetail(c)}
+                    onEdit={onEditCharacter}
+                    onDelete={onDeleteCharacter}
+                  />
+                ))}
               </div>
             ) : (
               <TakeawaySlip
@@ -854,6 +790,68 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
           </section>
         </main>
       </div>
+
+      {/* Character Detail Modal */}
+      {selectedCharacterForDetail && (
+        <CharacterDetailModal
+          isOpen={Boolean(selectedCharacterForDetail)}
+          onClose={() => setSelectedCharacterForDetail(null)}
+          character={selectedCharacterForDetail}
+          onEdit={onEditCharacter}
+          onSetCoverImage={async (charId, imageId) => {
+            try {
+              const char = franchiseCharacters.find((c) => c.id === charId);
+              const existingImageIds = (char?.images || []).map((img) => img.id);
+              const updatedImages = existingImageIds.includes(imageId)
+                ? existingImageIds
+                : [...existingImageIds, imageId];
+
+              const updated = await characterApi.update(charId, {
+                cover_image: imageId,
+                images: updatedImages,
+              });
+              setSelectedCharacterForDetail(updated);
+              if (onRefresh) await onRefresh();
+            } catch (err) {
+              console.error('Failed to set cover image:', err);
+            }
+          }}
+          onAddImage={async (charId, image) => {
+            try {
+              const char = franchiseCharacters.find((c) => c.id === charId);
+              const existingImageIds = (char?.images || []).map((img) => img.id);
+              if (existingImageIds.includes(image.id)) return;
+
+              const updatedImages = [...existingImageIds, image.id];
+              const updated = await characterApi.update(charId, {
+                images: updatedImages,
+              });
+              setSelectedCharacterForDetail(updated);
+              if (onRefresh) await onRefresh();
+            } catch (err) {
+              console.error('Failed to attach image to character:', err);
+            }
+          }}
+          onRemoveImage={async (charId, imageId) => {
+            try {
+              const char = franchiseCharacters.find((c) => c.id === charId);
+              const existingImageIds = (char?.images || []).map((img) => img.id);
+              const updatedImages = existingImageIds.filter((id) => id !== imageId);
+              const newCoverImage =
+                char?.cover_image === imageId ? updatedImages[0] || null : char?.cover_image;
+
+              const updated = await characterApi.update(charId, {
+                cover_image: newCoverImage,
+                images: updatedImages,
+              });
+              setSelectedCharacterForDetail(updated);
+              if (onRefresh) await onRefresh();
+            } catch (err) {
+              console.error('Failed to remove image from character:', err);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

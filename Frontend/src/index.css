@@ -316,6 +316,22 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: var(--shadow-desk);
 }
 
+.character-card {
+  position: relative;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+}
+
+.character-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--border-desk-medium);
+  box-shadow: var(--shadow-paper), 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.character-card:focus-visible {
+  outline: 2px solid var(--tungsten);
+  outline-offset: 2px;
+}
+
 .desk-panel {
   background-color: var(--desk-surface);
   border: 1px solid var(--border-desk-subtle);

@@ -1,10 +1,12 @@
-import React, { useRef } from 'react';
-import { FavoriteCharacter } from '../types';
+import React, { useState, useRef } from 'react';
+import { FavoriteCharacter, ImageAsset } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
-import { Plus, Sparkles, BookMarked } from 'lucide-react';
+import { CharacterDetailModal } from '../components/CharacterDetailModal';
+import { Plus, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
+import { characterApi } from '../api/client';
 
 interface CharactersViewProps {
   characters: FavoriteCharacter[];
@@ -12,6 +14,7 @@ interface CharactersViewProps {
   onEdit?: (character: FavoriteCharacter) => void;
   onDelete: (id: number) => void;
   onOpenAddModal: () => void;
+  onRefresh?: () => Promise<void>;
 }
 
 export const CharactersView: React.FC<CharactersViewProps> = ({
@@ -20,8 +23,15 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   onEdit,
   onDelete,
   onOpenAddModal,
+  onRefresh,
 }) => {
+  const [selectedCharacter, setSelectedCharacter] = useState<FavoriteCharacter | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Sync selectedCharacter with updated characters list if open
+  const activeChar = selectedCharacter
+    ? characters.find((c) => c.id === selectedCharacter.id) || selectedCharacter
+    : null;
 
   const filtered = characters.filter((c) => {
     const q = searchQuery.toLowerCase().trim();
@@ -54,6 +64,61 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
     },
     { scope: contentRef, dependencies: [filtered.length, searchQuery] }
   );
+
+  const handleSetCoverImage = async (characterId: number, imageId: number) => {
+    try {
+      const char = characters.find((c) => c.id === characterId);
+      const existingImageIds = (char?.images || []).map((img) => img.id);
+      const updatedImages = existingImageIds.includes(imageId)
+        ? existingImageIds
+        : [...existingImageIds, imageId];
+
+      const updated = await characterApi.update(characterId, {
+        cover_image: imageId,
+        images: updatedImages,
+      });
+      setSelectedCharacter(updated);
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      console.error('Failed to set cover image:', err);
+    }
+  };
+
+  const handleAddImage = async (characterId: number, image: ImageAsset) => {
+    try {
+      const char = characters.find((c) => c.id === characterId);
+      const existingImageIds = (char?.images || []).map((img) => img.id);
+      if (existingImageIds.includes(image.id)) return;
+
+      const updatedImages = [...existingImageIds, image.id];
+      const updated = await characterApi.update(characterId, {
+        images: updatedImages,
+      });
+      setSelectedCharacter(updated);
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      console.error('Failed to attach image to character:', err);
+    }
+  };
+
+  const handleRemoveImage = async (characterId: number, imageId: number) => {
+    try {
+      const char = characters.find((c) => c.id === characterId);
+      const existingImageIds = (char?.images || []).map((img) => img.id);
+      const updatedImages = existingImageIds.filter((id) => id !== imageId);
+      const newCoverImage =
+        char?.cover_image === imageId ? updatedImages[0] || null : char?.cover_image;
+
+      const updated = await characterApi.update(characterId, {
+        cover_image: newCoverImage,
+        images: updatedImages,
+      });
+      setSelectedCharacter(updated);
+      if (onRefresh) await onRefresh();
+    } catch (err) {
+      console.error('Failed to remove image from character:', err);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -113,7 +178,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
               gap: 20,
             }}
           >
@@ -121,6 +186,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
               <CharacterCard
                 key={character.id}
                 character={character}
+                onClick={(char) => setSelectedCharacter(char)}
                 onEdit={onEdit}
                 onDelete={onDelete}
               />
@@ -128,6 +194,20 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Character Detail & Stills Modal */}
+      {activeChar && (
+        <CharacterDetailModal
+          isOpen={Boolean(activeChar)}
+          onClose={() => setSelectedCharacter(null)}
+          character={activeChar}
+          onEdit={onEdit}
+          onSetCoverImage={handleSetCoverImage}
+          onAddImage={handleAddImage}
+          onRemoveImage={handleRemoveImage}
+        />
+      )}
     </div>
   );
 };
+
