@@ -10,6 +10,7 @@ import {
   ImageAsset,
   JournalStats,
   Rewatch,
+  RewatchTargetType,
   Studio,
 } from '../types';
 
@@ -386,13 +387,27 @@ export const bookApi = {
 };
 
 export const rewatchApi = {
-  async list(params?: { series?: number; season?: number; movie?: number }): Promise<Rewatch[]> {
+  async list(params?: {
+    series?: number;
+    season?: number;
+    movie?: number;
+    episode?: number;
+    target_type?: string;
+    target_id?: number;
+    search?: string;
+  }): Promise<Rewatch[]> {
     return fetchJson<Rewatch[]>(`${API_BASE}/rewatches/${withQuery(params)}`);
   },
 
   async create(data: {
+    target_type?: RewatchTargetType;
+    target_id?: number;
+    episode_number?: number | null;
+    episode_title?: string | null;
     season?: number | null;
     movie?: number | null;
+    series?: number | null;
+    episode?: number | null;
     start_date?: string | null;
     finish_date?: string | null;
     rating?: number | null;
@@ -407,8 +422,14 @@ export const rewatchApi = {
   async update(
     id: number,
     data: Partial<{
+      target_type?: RewatchTargetType;
+      target_id?: number;
+      episode_number?: number | null;
+      episode_title?: string | null;
       season?: number | null;
       movie?: number | null;
+      series?: number | null;
+      episode?: number | null;
       start_date?: string | null;
       finish_date?: string | null;
       rating?: number | null;

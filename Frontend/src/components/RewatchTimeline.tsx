@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film } from 'lucide-react';
+import { RotateCcw, Calendar, Trash2, PenLine, Tv, Film, Layers, PlayCircle } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -52,11 +52,38 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
           No Rewatches Logged Yet
         </h3>
         <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-desk-muted)', fontStyle: 'italic', maxWidth: 480, margin: '0 auto' }}>
-          Rewatching is how lessons deepen. Log your second or third passes through anime seasons or movies to record how your perspective evolved over time.
+          Rewatching is how lessons deepen. Log your second or third passes through franchises, seasons, films, or pivotal episodes to record how your perspective evolved over time.
         </p>
       </div>
     );
   }
+
+  const getTargetIcon = (r: Rewatch) => {
+    const tType = r.target_type || (r.movie ? 'movie' : 'season');
+    if (tType === 'series') return <Layers size={15} color="var(--graphite)" />;
+    if (tType === 'movie') return <Film size={15} color="var(--graphite)" />;
+    if (tType === 'episode') return <PlayCircle size={15} color="var(--graphite)" />;
+    return <Tv size={15} color="var(--graphite)" />;
+  };
+
+  const getTargetBadge = (r: Rewatch) => {
+    const tType = r.target_type || (r.movie ? 'movie' : 'season');
+    if (tType === 'series') return 'Franchise Pass';
+    if (tType === 'movie') return 'Film Pass';
+    if (tType === 'episode') return r.episode_number ? `Episode ${r.episode_number} Pass` : 'Episode Pass';
+    return 'TV Season Pass';
+  };
+
+  const getDisplayHeading = (r: Rewatch) => {
+    const tType = r.target_type || (r.movie ? 'movie' : 'season');
+    if (tType === 'series') {
+      return r.series_title || r.release_title || 'Franchise Rewatch';
+    }
+    if (r.series_title && r.release_title && r.series_title !== r.release_title) {
+      return `${r.series_title} — ${r.release_title}`;
+    }
+    return r.release_title || r.series_title || 'Rewatch Target';
+  };
 
   return (
     <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -74,10 +101,10 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
           {/* Header Row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                {r.movie ? <Film size={15} color="var(--graphite)" /> : <Tv size={15} color="var(--graphite)" />}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+                {getTargetIcon(r)}
                 <h3 style={{ fontSize: 18, color: 'var(--text-desk)', fontWeight: 600 }}>
-                  {r.release_title || 'Rewatch Target'}
+                  {getDisplayHeading(r)}
                 </h3>
                 <span
                   style={{
@@ -85,9 +112,14 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onE
                     fontFamily: 'var(--font-mono)',
                     color: 'var(--text-desk-muted)',
                     textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    backgroundColor: 'var(--desk)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    border: '1px solid var(--border-desk-subtle)',
                   }}
                 >
-                  {r.movie ? 'Film Pass' : 'TV Season Pass'}
+                  {getTargetBadge(r)}
                 </span>
               </div>
 

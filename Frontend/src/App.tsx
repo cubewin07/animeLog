@@ -6,10 +6,12 @@ import {
   AnimeSeason,
   AnimeSeries,
   Book,
+  EpisodeNote,
   FavoriteCharacter,
   Genre,
   JournalStats,
   Rewatch,
+  RewatchTargetType,
   Studio,
 } from './types';
 import {
@@ -193,8 +195,10 @@ export const App: React.FC = () => {
   const [targetSeasonForNotes, setTargetSeasonForNotes] = useState<AnimeSeason | null>(null);
 
   const [rewatchModalOpen, setRewatchModalOpen] = useState(false);
+  const [rewatchTargetSeries, setRewatchTargetSeries] = useState<AnimeSeries | null>(null);
   const [rewatchTargetSeason, setRewatchTargetSeason] = useState<AnimeSeason | null>(null);
   const [rewatchTargetMovie, setRewatchTargetMovie] = useState<AnimeMovie | null>(null);
+  const [rewatchTargetEpisodeNumber, setRewatchTargetEpisodeNumber] = useState<number | null>(null);
   const [editRewatchTarget, setEditRewatchTarget] = useState<Rewatch | null>(null);
 
   const [characterModalOpen, setCharacterModalOpen] = useState(false);
@@ -471,8 +475,10 @@ export const App: React.FC = () => {
   // --- Rewatch Handlers ---
   const handleSaveRewatch = async (
     data: {
-      season?: number | null;
-      movie?: number | null;
+      target_type: RewatchTargetType;
+      target_id: number;
+      episode_number?: number | null;
+      episode_title?: string | null;
       start_date?: string | null;
       finish_date?: string | null;
       rating?: number | null;
@@ -483,10 +489,10 @@ export const App: React.FC = () => {
     try {
       if (rewatchId) {
         const updated = await rewatchApi.update(rewatchId, data);
-        addToast(`Updated rewatch reflection for "${updated.release_title}"`);
+        addToast(`Updated rewatch reflection for "${updated.release_title || 'entry'}"`);
       } else {
         const created = await rewatchApi.create(data);
-        addToast(`Recorded rewatch pass for "${created.release_title}"`);
+        addToast(`Recorded rewatch pass for "${created.release_title || 'entry'}"`);
       }
       await refreshAll();
     } catch (err) {
@@ -658,23 +664,47 @@ export const App: React.FC = () => {
     setEpisodeNoteModalOpen(true);
   };
 
+  const openAddRewatchSeries = (series: AnimeSeries) => {
+    setRewatchTargetSeries(series);
+    setRewatchTargetSeason(null);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
+  };
+
   const openAddRewatchSeason = (season: AnimeSeason) => {
+    setRewatchTargetSeries(null);
     setRewatchTargetSeason(season);
     setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
     setEditRewatchTarget(null);
     setRewatchModalOpen(true);
   };
 
   const openAddRewatchMovie = (movie: AnimeMovie) => {
+    setRewatchTargetSeries(null);
     setRewatchTargetSeason(null);
     setRewatchTargetMovie(movie);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
+  };
+
+  const openAddRewatchEpisode = (season: AnimeSeason, episodeNumber?: number) => {
+    setRewatchTargetSeries(null);
+    setRewatchTargetSeason(season);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(episodeNumber || 1);
     setEditRewatchTarget(null);
     setRewatchModalOpen(true);
   };
 
   const openEditRewatchModal = (rewatch: Rewatch) => {
+    setRewatchTargetSeries(null);
     setRewatchTargetSeason(null);
     setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
     setEditRewatchTarget(rewatch);
     setRewatchModalOpen(true);
   };
@@ -917,8 +947,10 @@ export const App: React.FC = () => {
       <RewatchModal
         isOpen={rewatchModalOpen}
         onClose={() => setRewatchModalOpen(false)}
+        targetSeries={rewatchTargetSeries}
         targetSeason={rewatchTargetSeason}
         targetMovie={rewatchTargetMovie}
+        targetEpisodeNumber={rewatchTargetEpisodeNumber}
         editRewatch={editRewatchTarget}
         seriesList={seriesList}
         onSave={handleSaveRewatch}

@@ -114,9 +114,7 @@ class Command(BaseCommand):
             },
         )
 
-        Rewatch.objects.get_or_create(
-            season=frieren_s1,
-            movie=None,
+        frieren_s1.rewatches.get_or_create(
             defaults={
                 "start_date": date(2026, 4, 1),
                 "finish_date": date(2026, 4, 12),
@@ -256,9 +254,7 @@ class Command(BaseCommand):
         )
         ds_movie.studios.set([studios["ufotable"]])
 
-        Rewatch.objects.get_or_create(
-            season=None,
-            movie=ds_movie,
+        ds_movie.rewatches.get_or_create(
             defaults={
                 "start_date": date(2025, 1, 15),
                 "finish_date": date(2025, 1, 15),
@@ -308,9 +304,7 @@ class Command(BaseCommand):
         )
         sg_s1.studios.set([studios["White Fox"]])
 
-        Rewatch.objects.get_or_create(
-            season=sg_s1,
-            movie=None,
+        sg_s1.rewatches.get_or_create(
             defaults={
                 "start_date": date(2026, 2, 10),
                 "finish_date": date(2026, 2, 18),

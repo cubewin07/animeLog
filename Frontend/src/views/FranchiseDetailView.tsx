@@ -78,12 +78,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   // Franchise characters
   const franchiseCharacters = series.favorite_characters || [];
 
-  // Rewatches for this series
-  const seriesRewatches = allRewatches.filter(
-    (r) =>
-      series.seasons?.some((s) => s.id === r.season) ||
-      series.movies?.some((m) => m.id === r.movie)
-  );
+  // Rewatches for this series (franchise passes, seasons, movies, episodes)
+  const seriesRewatches = allRewatches.filter((r) => {
+    if (r.target_type === 'series' && r.target_id === series.id) return true;
+    if (r.series_id === series.id) return true;
+    if (r.target_type === 'season' && series.seasons?.some((s) => s.id === r.target_id)) return true;
+    if (r.target_type === 'movie' && series.movies?.some((m) => m.id === r.target_id)) return true;
+    if (r.target_type === 'episode' && series.seasons?.some((s) => s.episode_notes?.some((ep) => ep.id === r.target_id))) return true;
+    if (r.season && series.seasons?.some((s) => s.id === r.season)) return true;
+    if (r.movie && series.movies?.some((m) => m.id === r.movie)) return true;
+    return false;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -657,12 +662,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     marginBottom: 8,
+                    flexWrap: 'wrap',
+                    gap: 8,
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <RotateCcw size={14} color="var(--tungsten)" />
-                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-desk)' }}>
-                      Rewatched {r.start_date || 'Pass'}
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--text-desk)', fontWeight: 600 }}>
+                      {r.release_title || 'Rewatch'}
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-desk-muted)' }}>
+                      • {r.start_date || 'Pass'}
                     </span>
                   </div>
                   {r.rating && (
@@ -678,9 +688,10 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       fontSize: 16,
                       lineHeight: 1.6,
                       color: 'var(--text-desk)',
+                      margin: 0,
                     }}
                   >
-                    {r.notes}
+                    "{r.notes}"
                   </p>
                 )}
               </div>

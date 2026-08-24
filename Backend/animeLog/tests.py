@@ -102,31 +102,37 @@ class ModelConstraintTests(TestCase):
             note.full_clean()
         self.assertIn("episode_number", ctx.exception.message_dict)
 
-    def test_rewatch_requires_exactly_one_target(self):
+    def test_rewatch_polymorphic_targets(self):
         season = AnimeSeason.objects.create(series=self.series, season_number=1, title="S1")
         movie = AnimeMovie.objects.create(series=self.series, title="Film")
 
-        # Neither target
-        neither = Rewatch(notes="No target")
-        with self.assertRaises(ValidationError):
-            neither.full_clean()
-
-        # Both targets
-        both = Rewatch(season=season, movie=movie, notes="Both targets")
-        with self.assertRaises(ValidationError):
-            both.full_clean()
-
-        # Season only -> valid
-        season_rewatch = Rewatch(season=season, notes="Season valid")
+        # Season rewatch
+        season_rewatch = Rewatch(content_object=season, notes="Season valid")
         season_rewatch.full_clean()
         season_rewatch.save()
         self.assertEqual(season_rewatch.release_title, "S1")
+        self.assertEqual(season_rewatch.target_type, "season")
 
-        # Movie only -> valid
-        movie_rewatch = Rewatch(movie=movie, notes="Movie valid")
+        # Movie rewatch
+        movie_rewatch = Rewatch(content_object=movie, notes="Movie valid")
         movie_rewatch.full_clean()
         movie_rewatch.save()
         self.assertEqual(movie_rewatch.release_title, "Film")
+        self.assertEqual(movie_rewatch.target_type, "movie")
+
+        # Series rewatch
+        series_rewatch = Rewatch(content_object=self.series, notes="Series valid")
+        series_rewatch.full_clean()
+        series_rewatch.save()
+        self.assertEqual(series_rewatch.release_title, self.series.title)
+        self.assertEqual(series_rewatch.target_type, "series")
+
+        # Episode rewatch
+        ep_rewatch = Rewatch(content_object=season, episode_number=5, episode_title="The Battle", notes="Episode valid")
+        ep_rewatch.full_clean()
+        ep_rewatch.save()
+        self.assertEqual(ep_rewatch.release_title, "S1 — Ep 5: The Battle")
+        self.assertEqual(ep_rewatch.target_type, "episode")
 
     def test_genre_name_is_unique(self):
         with self.assertRaises(IntegrityError):
@@ -292,7 +298,7 @@ class JournalAPIFixtureMixin:
         )
 
         self.rewatch = Rewatch.objects.create(
-            season=self.season,
+            content_object=self.season,
             rating=10,
             notes="Second viewing deepened the emotional resonance.",
         )
@@ -620,30 +626,69 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
     def test_create_rewatch_for_season_and_movie(self):
         # Season rewatch
         season_payload = {
-            "season": self.season.id,
+            "target_type": "season",
+            "target_id": self.season.id,
             "rating": 10,
             "notes": "Third time viewing.",
         }
         s_res = self.client.post("/api/rewatches/", season_payload, format="json")
         self.assertEqual(s_res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(s_res.data["release_title"], "Season 1")
+        self.assertEqual(s_res.data["target_type"], "season")
 
         # Movie rewatch
         movie = AnimeMovie.objects.create(series=self.series, title="Mugen Train")
         movie_payload = {
-            "movie": movie.id,
+            "target_type": "movie",
+            "target_id": movie.id,
             "rating": 10,
             "notes": "Movie rewatch pass.",
         }
         m_res = self.client.post("/api/rewatches/", movie_payload, format="json")
         self.assertEqual(m_res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(m_res.data["release_title"], "Mugen Train")
+        self.assertEqual(m_res.data["target_type"], "movie")
 
-        # Reject both targets
+        # Series rewatch
+        series_payload = {
+            "target_type": "series",
+            "target_id": self.series.id,
+            "rating": 10,
+            "notes": "Series rewatch pass.",
+        }
+        series_res = self.client.post("/api/rewatches/", series_payload, format="json")
+        self.assertEqual(series_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(series_res.data["target_type"], "series")
+
+        # Episode rewatch
+        ep_payload = {
+            "target_type": "episode",
+            "target_id": self.season.id,
+            "episode_number": 8,
+            "episode_title": "Draht",
+            "rating": 10,
+            "notes": "Episode rewatch pass.",
+        }
+        ep_res = self.client.post("/api/rewatches/", ep_payload, format="json")
+        self.assertEqual(ep_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(ep_res.data["target_type"], "episode")
+        self.assertEqual(ep_res.data["episode_number"], 8)
+        self.assertIn("Ep 8", ep_res.data["release_title"])
+
+        # Legacy payload with "season": id
+        legacy_res = self.client.post(
+            "/api/rewatches/",
+            {"season": self.season.id, "rating": 9, "notes": "Legacy pass"},
+            format="json",
+        )
+        self.assertEqual(legacy_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(legacy_res.data["target_type"], "season")
+
+        # Invalid target type
         invalid_payload = {
-            "season": self.season.id,
-            "movie": movie.id,
-            "notes": "Invalid dual target",
+            "target_type": "invalid",
+            "target_id": self.season.id,
+            "notes": "Invalid type",
         }
         inv_res = self.client.post("/api/rewatches/", invalid_payload, format="json")
         self.assertEqual(inv_res.status_code, status.HTTP_400_BAD_REQUEST)
@@ -726,8 +771,8 @@ class QueryOptimizationTests(JournalAPIFixtureMixin, APITestCase):
             EpisodeNote.objects.create(
                 season=season, episode_number=1, note=f"Ep note {index}", cover_image=self.image_frieren
             )
-            Rewatch.objects.create(season=season, notes=f"Rewatch S {index}")
-            Rewatch.objects.create(movie=movie, notes=f"Rewatch M {index}")
+            Rewatch.objects.create(content_object=season, notes=f"Rewatch S {index}")
+            Rewatch.objects.create(content_object=movie, notes=f"Rewatch M {index}")
             char = FavoriteCharacter.objects.create(
                 series=series, name=f"Hero {index}", why=f"Why {index}"
             )

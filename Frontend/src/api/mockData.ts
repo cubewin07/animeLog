@@ -94,8 +94,11 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rewatches: [
           {
             id: 1,
+            target_type: 'season',
+            target_id: 1,
             season: 1,
             movie: null,
+            series_title: "Frieren: Beyond Journey's End",
             release_title: 'Season 1',
             start_date: '2026-04-01',
             finish_date: '2026-04-12',
@@ -281,8 +284,11 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rewatches: [
           {
             id: 2,
+            target_type: 'movie',
+            target_id: 1,
             season: null,
             movie: 1,
+            series_title: 'Demon Slayer: Kimetsu no Yaiba',
             release_title: 'Mugen Train',
             start_date: '2025-01-15',
             finish_date: '2025-01-15',
@@ -326,8 +332,11 @@ export const INITIAL_SERIES: AnimeSeries[] = [
         rewatches: [
           {
             id: 3,
+            target_type: 'season',
+            target_id: 8,
             season: 8,
             movie: null,
+            series_title: 'Steins;Gate',
             release_title: 'Season 1',
             start_date: '2026-02-10',
             finish_date: '2026-02-18',

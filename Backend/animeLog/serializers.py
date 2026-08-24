@@ -1,4 +1,5 @@
 from datetime import date
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from rest_framework import serializers
 
@@ -91,6 +92,120 @@ class StudioSerializer(serializers.ModelSerializer):
         fields = ["id", "name"]
 
 
+class RewatchSerializer(serializers.ModelSerializer):
+    target_type = serializers.CharField(required=False)
+    target_id = serializers.IntegerField(required=False)
+    release_title = serializers.CharField(read_only=True)
+    series_title = serializers.CharField(read_only=True)
+
+    # Legacy / convenience write fields
+    series = serializers.IntegerField(required=False, write_only=True)
+    season = serializers.IntegerField(required=False, write_only=True)
+    movie = serializers.IntegerField(required=False, write_only=True)
+    episode = serializers.IntegerField(required=False, write_only=True)
+
+    class Meta:
+        model = Rewatch
+        fields = [
+            "id",
+            "target_type",
+            "target_id",
+            "release_title",
+            "series_title",
+            "episode_number",
+            "episode_title",
+            "series",
+            "season",
+            "movie",
+            "episode",
+            "start_date",
+            "finish_date",
+            "rating",
+            "notes",
+        ]
+        read_only_fields = ["id", "release_title", "series_title"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        target_t = instance.target_type
+        data["target_type"] = target_t
+        data["target_id"] = instance.object_id
+        data["release_title"] = instance.release_title
+        data["series_title"] = instance.series_title
+        data["episode_number"] = instance.episode_number
+        data["episode_title"] = instance.episode_title
+
+        # Convenience references
+        data["season_id"] = instance.object_id if target_t in ("season", "episode") else None
+        data["movie_id"] = instance.object_id if target_t == "movie" else None
+        
+        series_id = None
+        if target_t == "series":
+            series_id = instance.object_id
+        elif instance.content_object:
+            if hasattr(instance.content_object, "series_id"):
+                series_id = instance.content_object.series_id
+        data["series_id"] = series_id
+        return data
+
+    def validate(self, attrs):
+        target_type = attrs.pop("target_type", None)
+        target_id = attrs.pop("target_id", None)
+        series_id = attrs.pop("series", None)
+        season_id = attrs.pop("season", None)
+        movie_id = attrs.pop("movie", None)
+        episode_id = attrs.pop("episode", None)
+
+        if not target_type and target_id is None:
+            if series_id is not None:
+                target_type = "series"
+                target_id = series_id
+            elif episode_id is not None:
+                target_type = "episode"
+                target_id = season_id if season_id is not None else episode_id
+            elif season_id is not None:
+                target_type = "season"
+                target_id = season_id
+            elif movie_id is not None:
+                target_type = "movie"
+                target_id = movie_id
+
+        if not target_type and self.instance:
+            target_type = self.instance.target_type
+            target_id = self.instance.object_id
+
+        if not target_type or target_id is None:
+            raise serializers.ValidationError(
+                "A rewatch must target a valid series, season, movie, or episode."
+            )
+
+        target_map = {
+            "series": AnimeSeries,
+            "season": AnimeSeason,
+            "movie": AnimeMovie,
+            "episode": AnimeSeason,
+        }
+
+        normalized_type = str(target_type).lower().strip()
+        if normalized_type not in target_map:
+            raise serializers.ValidationError(
+                {"target_type": f"Invalid target type '{target_type}'. Must be one of: series, season, movie, episode."}
+            )
+
+        model_cls = target_map[normalized_type]
+        try:
+            target_obj = model_cls.objects.get(pk=target_id)
+        except model_cls.DoesNotExist:
+            raise serializers.ValidationError(
+                {"target_id": f"{model_cls._meta.verbose_name} with ID {target_id} does not exist."}
+            )
+
+        content_type = ContentType.objects.get_for_model(model_cls)
+        attrs["content_type"] = content_type
+        attrs["object_id"] = target_id
+        return attrs
+
+
 class EpisodeNoteSerializer(serializers.ModelSerializer):
     season_title = serializers.CharField(source="season.title", read_only=True)
     cover_image = WritableNestedForeignKey(
@@ -157,35 +272,8 @@ class EpisodeNoteSerializer(serializers.ModelSerializer):
         img_url = instance.cover_image.url if instance.cover_image and instance.cover_image.file else None
         data["cover_image_url"] = img_url
         data["image_url"] = img_url
+        data["rewatches"] = RewatchSerializer(instance.rewatches.all(), many=True).data
         return data
-
-
-class RewatchSerializer(serializers.ModelSerializer):
-    release_title = serializers.CharField(read_only=True)
-
-    class Meta:
-        model = Rewatch
-        fields = [
-            "id",
-            "season",
-            "movie",
-            "release_title",
-            "start_date",
-            "finish_date",
-            "rating",
-            "notes",
-        ]
-        read_only_fields = ["id", "release_title"]
-
-    def validate(self, attrs):
-        season = attrs.get("season") if "season" in attrs else getattr(self.instance, "season", None)
-        movie = attrs.get("movie") if "movie" in attrs else getattr(self.instance, "movie", None)
-
-        if (season is None and movie is None) or (season is not None and movie is not None):
-            raise serializers.ValidationError(
-                "A rewatch must target exactly one season or movie."
-            )
-        return attrs
 
 
 class FavoriteCharacterSerializer(serializers.ModelSerializer):
@@ -487,6 +575,7 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
     seasons = AnimeSeasonSerializer(many=True, read_only=True)
     movies = AnimeMovieSerializer(many=True, read_only=True)
     favorite_characters = FavoriteCharacterSerializer(many=True, read_only=True)
+    rewatches = RewatchSerializer(many=True, read_only=True)
     initial_season = InitialSeasonPayloadSerializer(write_only=True, required=False)
 
     class Meta:
@@ -501,6 +590,7 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
             "seasons",
             "movies",
             "favorite_characters",
+            "rewatches",
             "initial_season",
         ]
         read_only_fields = [
@@ -510,6 +600,7 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
             "seasons",
             "movies",
             "favorite_characters",
+            "rewatches",
         ]
 
     def create(self, validated_data):
@@ -543,6 +634,9 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
         ).data
         data["favorite_characters"] = FavoriteCharacterSerializer(
             instance.favorite_characters.all(), many=True
+        ).data
+        data["rewatches"] = RewatchSerializer(
+            instance.rewatches.all(), many=True
         ).data
 
         # Derived de-duplicated studios

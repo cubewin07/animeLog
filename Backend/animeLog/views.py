@@ -1,4 +1,5 @@
 from datetime import date
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Length, Trim
@@ -156,9 +157,11 @@ class SeriesViewSet(viewsets.ModelViewSet):
             .prefetch_related(
                 "genres",
                 "favorite_characters__images",
+                "rewatches",
                 "seasons__studios",
                 "seasons__cover_image",
                 "seasons__episode_notes__cover_image",
+                "seasons__episode_notes__rewatches",
                 "seasons__rewatches",
                 "movies__studios",
                 "movies__cover_image",
@@ -203,6 +206,7 @@ class SeasonViewSet(viewsets.ModelViewSet):
             .prefetch_related(
                 "studios",
                 "episode_notes__cover_image",
+                "episode_notes__rewatches",
                 "rewatches",
             )
             .all()
@@ -293,6 +297,7 @@ class EpisodeNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             EpisodeNote.objects.select_related("season", "season__series", "cover_image")
+            .prefetch_related("rewatches")
             .all()
             .order_by("episode_number", "id")
         )
@@ -316,25 +321,71 @@ class RewatchViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            Rewatch.objects.select_related("season", "movie", "season__series", "movie__series")
+            Rewatch.objects.select_related("content_type")
+            .prefetch_related("content_object")
             .all()
             .order_by("-start_date", "-id")
         )
 
+        target_type_param = self.request.query_params.get("target_type")
+        target_id_param = self.request.query_params.get("target_id")
+        if target_type_param:
+            t_norm = target_type_param.lower().strip()
+            if t_norm == "episode":
+                queryset = queryset.filter(episode_number__isnull=False)
+            elif t_norm == "season":
+                queryset = queryset.filter(content_type__model="animeseason", episode_number__isnull=True)
+            elif t_norm == "movie":
+                queryset = queryset.filter(content_type__model="animemovie")
+            elif t_norm == "series":
+                queryset = queryset.filter(content_type__model="animeseries")
+
+        if target_id_param and target_id_param.isdigit():
+            queryset = queryset.filter(object_id=int(target_id_param))
+
         season_param = self.request.query_params.get("season")
         if season_param and season_param.isdigit():
-            queryset = queryset.filter(season_id=int(season_param))
+            queryset = queryset.filter(
+                content_type__model="animeseason", object_id=int(season_param)
+            )
 
         movie_param = self.request.query_params.get("movie")
         if movie_param and movie_param.isdigit():
-            queryset = queryset.filter(movie_id=int(movie_param))
+            queryset = queryset.filter(
+                content_type__model="animemovie", object_id=int(movie_param)
+            )
+
+        episode_param = self.request.query_params.get("episode")
+        if episode_param and episode_param.isdigit():
+            queryset = queryset.filter(
+                content_type__model="animeseason", episode_number=int(episode_param)
+            )
 
         series_param = self.request.query_params.get("series")
         if series_param and series_param.isdigit():
             s_id = int(series_param)
-            queryset = queryset.filter(
-                Q(season__series_id=s_id) | Q(movie__series_id=s_id)
+            season_ids = list(
+                AnimeSeason.objects.filter(series_id=s_id).values_list("id", flat=True)
             )
+            movie_ids = list(
+                AnimeMovie.objects.filter(series_id=s_id).values_list("id", flat=True)
+            )
+
+            series_ct = ContentType.objects.get_for_model(AnimeSeries)
+            season_ct = ContentType.objects.get_for_model(AnimeSeason)
+            movie_ct = ContentType.objects.get_for_model(AnimeMovie)
+
+            q = Q(content_type=series_ct, object_id=s_id)
+            if season_ids:
+                q |= Q(content_type=season_ct, object_id__in=season_ids)
+            if movie_ids:
+                q |= Q(content_type=movie_ct, object_id__in=movie_ids)
+
+            queryset = queryset.filter(q)
+
+        search_param = self.request.query_params.get("search")
+        if search_param:
+            queryset = queryset.filter(notes__icontains=search_param)
 
         return queryset
 

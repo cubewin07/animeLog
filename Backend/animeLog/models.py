@@ -1,3 +1,5 @@
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -108,6 +110,7 @@ class AnimeSeries(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     genres = models.ManyToManyField(Genre, blank=True, related_name="anime_series")
+    rewatches = GenericRelation("Rewatch", related_query_name="anime_series")
 
     class Meta:
         verbose_name = "Anime Series"
@@ -156,6 +159,7 @@ class AnimeSeason(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     studios = models.ManyToManyField(Studio, blank=True, related_name="anime_seasons")
+    rewatches = GenericRelation("Rewatch", related_query_name="anime_season")
 
     class Meta:
         verbose_name = "Anime Season"
@@ -245,6 +249,7 @@ class AnimeMovie(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     studios = models.ManyToManyField(Studio, blank=True, related_name="anime_movies")
+    rewatches = GenericRelation("Rewatch", related_query_name="anime_movie")
 
     class Meta:
         verbose_name = "Anime Movie"
@@ -310,6 +315,7 @@ class EpisodeNote(models.Model):
         help_text="Episode rating score (1-10)",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    rewatches = GenericRelation("Rewatch", related_query_name="episode_note")
 
     class Meta:
         verbose_name = "Episode Note"
@@ -348,20 +354,30 @@ class EpisodeNote(models.Model):
 
 
 class Rewatch(models.Model):
-    season = models.ForeignKey(
-        AnimeSeason,
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        limit_choices_to=models.Q(
+            app_label="animeLog",
+            model__in=["animeseries", "animeseason", "animemovie"],
+        ),
+    )
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey("content_type", "object_id")
+
+    episode_number = models.PositiveIntegerField(
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
-        related_name="rewatches",
+        validators=[MinValueValidator(1)],
+        help_text="Optional episode number when rewatching a specific episode of a season",
     )
-    movie = models.ForeignKey(
-        AnimeMovie,
+    episode_title = models.CharField(
+        max_length=255,
         null=True,
         blank=True,
-        on_delete=models.CASCADE,
-        related_name="rewatches",
+        help_text="Optional episode title or note for this episode rewatch pass",
     )
+
     start_date = models.DateField(null=True, blank=True)
     finish_date = models.DateField(null=True, blank=True)
     rating = models.PositiveSmallIntegerField(
@@ -376,31 +392,51 @@ class Rewatch(models.Model):
         verbose_name = "Rewatch"
         verbose_name_plural = "Rewatches"
         ordering = ["-start_date", "-id"]
-        constraints = [
-            models.CheckConstraint(
-                condition=(
-                    models.Q(season__isnull=False, movie__isnull=True)
-                    | models.Q(season__isnull=True, movie__isnull=False)
-                ),
-                name="rewatch_exactly_one_target",
-            )
+        indexes = [
+            models.Index(fields=["content_type", "object_id"]),
         ]
 
-    def clean(self):
-        super().clean()
-        if (self.season is None and self.movie is None) or (
-            self.season is not None and self.movie is not None
-        ):
-            raise ValidationError(
-                "A rewatch must target exactly one season or movie."
-            )
+    @property
+    def target_type(self) -> str:
+        if self.episode_number is not None:
+            return "episode"
+        if self.content_type:
+            model_name = self.content_type.model.lower()
+            if model_name == "animeseries":
+                return "series"
+            if model_name == "animeseason":
+                return "season"
+            if model_name == "animemovie":
+                return "movie"
+        return ""
 
     @property
-    def release_title(self):
-        if self.season:
-            return self.season.title
-        if self.movie:
-            return self.movie.title
+    def release_title(self) -> str:
+        obj = self.content_object
+        if not obj:
+            return ""
+        if self.episode_number is not None and isinstance(obj, AnimeSeason):
+            ep_str = f"Ep {self.episode_number}"
+            if self.episode_title:
+                ep_str += f": {self.episode_title}"
+            return f"{obj.title} — {ep_str}"
+        if isinstance(obj, AnimeSeries):
+            return obj.title
+        if isinstance(obj, AnimeSeason):
+            return obj.title
+        if isinstance(obj, AnimeMovie):
+            return obj.title
+        return str(obj)
+
+    @property
+    def series_title(self) -> str:
+        obj = self.content_object
+        if not obj:
+            return ""
+        if isinstance(obj, AnimeSeries):
+            return obj.title
+        if isinstance(obj, (AnimeSeason, AnimeMovie)):
+            return obj.series.title if obj.series else ""
         return ""
 
     def __str__(self):
