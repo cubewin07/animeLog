@@ -101,6 +101,8 @@ class AnimeStatus(models.TextChoices):
 
 class AnimeSeries(models.Model):
     title = models.CharField(max_length=255)
+    japanese_title = models.CharField(max_length=255, blank=True, null=True)
+    romaji_title = models.CharField(max_length=255, blank=True, null=True)
     cover_image = models.ForeignKey(
         Image,
         on_delete=models.SET_NULL,

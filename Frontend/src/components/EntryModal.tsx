@@ -33,7 +33,7 @@ interface EntryModalProps {
   seriesList: AnimeSeries[];
   genres: Genre[];
   studios: Studio[];
-  onSaveSeries: (data: { title: string; cover_image?: number | null; genres: number[]; initial_season?: any }, id?: number) => Promise<void>;
+  onSaveSeries: (data: { title: string; japanese_title?: string | null; romaji_title?: string | null; cover_image?: number | null; genres: number[]; initial_season?: any }, id?: number) => Promise<void>;
   onSaveSeason: (data: any, id?: number) => Promise<void>;
   onSaveMovie: (data: any, id?: number) => Promise<void>;
   onSaveBook: (data: any, id?: number) => Promise<void>;
@@ -58,6 +58,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   // Form states
   const [seriesId, setSeriesId] = useState<number>(1);
   const [title, setTitle] = useState('');
+  const [japaneseTitle, setJapaneseTitle] = useState('');
+  const [romajiTitle, setRomajiTitle] = useState('');
   const [seasonTitle, setSeasonTitle] = useState('Season 1');
   const [seasonNumber, setSeasonNumber] = useState<number>(1);
   const [coverImageId, setCoverImageId] = useState<number | null>(null);
@@ -92,6 +94,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
       if (type === 'series') {
         setTitle(data.title || '');
+        setJapaneseTitle(data.japanese_title || '');
+        setRomajiTitle(data.romaji_title || '');
         setSelectedGenreIds(data.genres ? data.genres.map((g: Genre) => g.id) : []);
       } else if (type === 'season') {
         setSeriesId(data.series);
@@ -183,6 +187,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         }
         await onSaveSeries({
           title: title.trim(),
+          japanese_title: japaneseTitle.trim() || null,
+          romaji_title: romajiTitle.trim() || null,
           cover_image: coverImageId,
           genres: selectedGenreIds,
           initial_season: {
@@ -264,6 +270,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         await onSaveSeries(
           {
             title: title.trim(),
+            japanese_title: japaneseTitle.trim() || null,
+            romaji_title: romajiTitle.trim() || null,
             cover_image: coverImageId,
             genres: selectedGenreIds,
           },
@@ -479,6 +487,36 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               className="form-input"
             />
           </div>
+
+          {/* Romaji & Japanese Native Titles for Franchises */}
+          {(activeTab === 'new-franchise' || activeTab === 'edit-series') && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Romaji Name <span style={{ fontSize: 11, color: 'var(--text-desk-dim)', fontWeight: 400 }}>(e.g. Kimetsu no Yaiba)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kimetsu no Yaiba"
+                  value={romajiTitle}
+                  onChange={(e) => setRomajiTitle(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+                  Japanese Native <span style={{ fontSize: 11, color: 'var(--text-desk-dim)', fontWeight: 400 }}>(e.g. 鬼滅の刃)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 鬼滅の刃, 葬送のフリーレン"
+                  value={japaneseTitle}
+                  onChange={(e) => setJapaneseTitle(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Author if Book */}
           {(activeTab === 'book' || activeTab === 'edit-book') && (

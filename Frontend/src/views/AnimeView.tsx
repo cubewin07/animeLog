@@ -1,8 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { AnimeMovie, AnimeSeason, AnimeSeries } from '../types';
-import { FranchiseRow } from '../components/FranchiseRow';
-import { SeriesTableView } from '../components/SeriesTableView';
-import { Plus, BookMarked, LayoutList, Table as TableIcon } from 'lucide-react';
+import { FranchiseCard } from '../components/FranchiseCard';
+import { Plus, BookMarked } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
@@ -13,18 +12,18 @@ interface AnimeViewProps {
   onOpenDetail?: (seriesId: number) => void;
   onEditSeries: (series: AnimeSeries) => void;
   onDeleteSeries: (id: number) => void;
-  onAddSeason: (series: AnimeSeries) => void;
-  onAddMovie: (series: AnimeSeries) => void;
-  onEditSeason: (season: AnimeSeason) => void;
-  onDeleteSeason: (id: number) => void;
-  onSeasonProgressDelta: (id: number, delta: number) => void;
-  onEditMovie: (movie: AnimeMovie) => void;
-  onDeleteMovie: (id: number) => void;
-  onMovieProgressDelta: (id: number, delta: number) => void;
-  onOpenEpisodeNotes: (season: AnimeSeason) => void;
-  onAddRewatchSeason: (season: AnimeSeason) => void;
-  onAddRewatchMovie: (movie: AnimeMovie) => void;
-  onAddCharacter: (series: AnimeSeries) => void;
+  onAddSeason?: (series: AnimeSeries) => void;
+  onAddMovie?: (series: AnimeSeries) => void;
+  onEditSeason?: (season: AnimeSeason) => void;
+  onDeleteSeason?: (id: number) => void;
+  onSeasonProgressDelta?: (id: number, delta: number) => void;
+  onEditMovie?: (movie: AnimeMovie) => void;
+  onDeleteMovie?: (id: number) => void;
+  onMovieProgressDelta?: (id: number, delta: number) => void;
+  onOpenEpisodeNotes?: (season: AnimeSeason) => void;
+  onAddRewatchSeason?: (season: AnimeSeason) => void;
+  onAddRewatchMovie?: (movie: AnimeMovie) => void;
+  onAddCharacter?: (series: AnimeSeries) => void;
   onOpenNewFranchiseModal: () => void;
 }
 
@@ -34,22 +33,9 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   onOpenDetail,
   onEditSeries,
   onDeleteSeries,
-  onAddSeason,
-  onAddMovie,
-  onEditSeason,
-  onDeleteSeason,
-  onSeasonProgressDelta,
-  onEditMovie,
-  onDeleteMovie,
-  onMovieProgressDelta,
-  onOpenEpisodeNotes,
-  onAddRewatchSeason,
-  onAddRewatchMovie,
-  onAddCharacter,
   onOpenNewFranchiseModal,
 }) => {
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [viewMode, setViewMode] = useState<'journal' | 'table'>('journal');
   const containerRef = useRef<HTMLDivElement>(null);
   const contentAreaRef = useRef<HTMLDivElement>(null);
 
@@ -138,15 +124,15 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   useGSAP(
     () => {
       if (prefersReducedMotion() || !contentAreaRef.current) return;
-      const rows = contentAreaRef.current.querySelectorAll('.desk-card');
-      if (rows.length > 0) {
+      const cards = contentAreaRef.current.querySelectorAll('.anime-card, .desk-card');
+      if (cards.length > 0) {
         gsap.fromTo(
-          rows,
-          { opacity: 0, y: 12 },
+          cards,
+          { opacity: 0, y: 14 },
           {
             opacity: 1,
             y: 0,
-            duration: 0.3,
+            duration: 0.35,
             stagger: 0.04,
             ease: EASING.smooth,
             clearProps: 'transform,opacity',
@@ -154,7 +140,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         );
       }
     },
-    { scope: contentAreaRef, dependencies: [selectedStatus, viewMode, filtered.length, searchQuery] }
+    { scope: contentAreaRef, dependencies: [selectedStatus, filtered.length, searchQuery] }
   );
 
   return (
@@ -174,70 +160,14 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
             Anime Journal
           </h2>
           <p style={{ fontSize: 15, color: 'var(--text-desk-muted)' }}>
-            Franchise records, season reflections, film takeaways, and episode memories.
+            Franchise gallery, season logs, and watch progress at a glance.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* View Mode Switcher */}
-          <div
-            style={{
-              display: 'flex',
-              backgroundColor: 'var(--desk-surface)',
-              padding: 3,
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-desk-subtle)',
-            }}
-          >
-            <button
-              onClick={() => setViewMode('journal')}
-              className="btn-icon"
-              style={{
-                backgroundColor: viewMode === 'journal' ? 'var(--desk-raised)' : 'transparent',
-                color: viewMode === 'journal' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                gap: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                width: 'auto',
-                height: 'auto',
-              }}
-              title="Journal view"
-              aria-label="Switch to journal view"
-            >
-              <LayoutList size={14} />
-              <span>Journal</span>
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className="btn-icon"
-              style={{
-                backgroundColor: viewMode === 'table' ? 'var(--desk-raised)' : 'transparent',
-                color: viewMode === 'table' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-                border: 'none',
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                gap: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                width: 'auto',
-                height: 'auto',
-              }}
-              title="Compact table view"
-              aria-label="Switch to compact table view"
-            >
-              <TableIcon size={14} />
-              <span>Compact</span>
-            </button>
-          </div>
-
-          <button onClick={onOpenNewFranchiseModal} className="btn btn-primary">
-            <Plus size={15} />
-            <span>Log Franchise</span>
-          </button>
-        </div>
+        <button onClick={onOpenNewFranchiseModal} className="btn btn-primary">
+          <Plus size={15} />
+          <span>Log Franchise</span>
+        </button>
       </div>
 
       <div className="filter-chip-row" role="tablist" aria-label="Filter by status">
@@ -258,7 +188,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         })}
       </div>
 
-      {/* Content Area: Journal List vs Table */}
+      {/* Content Area: Gallery Grid */}
       <div ref={contentAreaRef}>
         {filtered.length === 0 ? (
           <div
@@ -286,42 +216,16 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               </button>
             )}
           </div>
-        ) : viewMode === 'journal' ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        ) : (
+          <div className="anime-grid">
             {filtered.map((series) => (
-              <FranchiseRow
+              <FranchiseCard
                 key={series.id}
                 series={series}
                 onOpenDetail={onOpenDetail}
-                onEditSeries={onEditSeries}
-                onDeleteSeries={onDeleteSeries}
-                onAddSeason={onAddSeason}
-                onAddMovie={onAddMovie}
-                onEditSeason={onEditSeason}
-                onEditMovie={onEditMovie}
-                onSeasonProgressDelta={onSeasonProgressDelta}
-                onMovieProgressDelta={onMovieProgressDelta}
               />
             ))}
           </div>
-        ) : (
-          <SeriesTableView
-            seriesList={filtered}
-            onEditSeries={onEditSeries}
-            onDeleteSeries={onDeleteSeries}
-            onAddSeason={onAddSeason}
-            onAddMovie={onAddMovie}
-            onEditSeason={onEditSeason}
-            onDeleteSeason={onDeleteSeason}
-            onSeasonProgressDelta={onSeasonProgressDelta}
-            onEditMovie={onEditMovie}
-            onDeleteMovie={onDeleteMovie}
-            onMovieProgressDelta={onMovieProgressDelta}
-            onOpenEpisodeNotes={onOpenEpisodeNotes}
-            onAddRewatchSeason={onAddRewatchSeason}
-            onAddRewatchMovie={onAddRewatchMovie}
-            onAddCharacter={onAddCharacter}
-          />
         )}
       </div>
     </div>

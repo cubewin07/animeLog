@@ -304,7 +304,14 @@ export const App: React.FC = () => {
 
   // --- Series Handlers ---
   const handleSaveSeries = async (
-    data: { title: string; cover_image?: number | null; genres: number[]; initial_season?: any },
+    data: {
+      title: string;
+      japanese_title?: string | null;
+      romaji_title?: string | null;
+      cover_image?: number | null;
+      genres: number[];
+      initial_season?: any;
+    },
     id?: number
   ) => {
     try {

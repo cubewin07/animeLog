@@ -32,6 +32,8 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 1,
     title: "Frieren: Beyond Journey's End",
+    japanese_title: '葬送のフリーレン',
+    romaji_title: 'Sousou no Frieren',
     image_url: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80',
     created_at: '2025-10-15T12:00:00Z',
     genres: [
@@ -124,6 +126,8 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 2,
     title: 'Attack on Titan',
+    japanese_title: '進撃の巨人',
+    romaji_title: 'Shingeki no Kyojin',
     image_url: 'https://images.unsplash.com/photo-1563089145-599997674d42?w=600&auto=format&fit=crop&q=80',
     created_at: '2023-01-10T08:00:00Z',
     genres: [
@@ -221,6 +225,8 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 3,
     title: 'Demon Slayer: Kimetsu no Yaiba',
+    japanese_title: '鬼滅の刃',
+    romaji_title: 'Kimetsu no Yaiba',
     image_url: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
     created_at: '2024-06-01T08:00:00Z',
     genres: [
@@ -303,6 +309,8 @@ export const INITIAL_SERIES: AnimeSeries[] = [
   {
     id: 4,
     title: 'Steins;Gate',
+    japanese_title: 'シュタインズ・ゲート',
+    romaji_title: 'Steins;Gate',
     image_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80',
     created_at: '2024-05-01T14:30:00Z',
     genres: [

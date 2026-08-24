@@ -583,6 +583,8 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "title",
+            "japanese_title",
+            "romaji_title",
             "cover_image",
             "created_at",
             "genres",

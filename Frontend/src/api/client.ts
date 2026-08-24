@@ -158,6 +158,8 @@ export const seriesApi = {
 
   async create(data: {
     title: string;
+    japanese_title?: string | null;
+    romaji_title?: string | null;
     cover_image?: number | null;
     genres?: number[] | Genre[];
     initial_season?: any;

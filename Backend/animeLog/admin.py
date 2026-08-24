@@ -94,8 +94,8 @@ class StudioAdmin(admin.ModelAdmin):
 
 @admin.register(AnimeSeries)
 class AnimeSeriesAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "cover_image", "created_at")
-    search_fields = ("title",)
+    list_display = ("id", "title", "romaji_title", "japanese_title", "cover_image", "created_at")
+    search_fields = ("title", "romaji_title", "japanese_title")
     filter_horizontal = ("genres",)
     inlines = [AnimeSeasonInline, AnimeMovieInline, FavoriteCharacterInline, RewatchInline]
 

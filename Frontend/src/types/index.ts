@@ -133,6 +133,8 @@ export interface AnimeMovie {
 export interface AnimeSeries {
   id: number;
   title: string;
+  japanese_title?: string | null;
+  romaji_title?: string | null;
   cover_image?: number | null;
   cover_image_url?: string | null;
   image_url?: string | null;
