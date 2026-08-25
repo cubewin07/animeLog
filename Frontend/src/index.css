@@ -3498,6 +3498,106 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.6;
 }
 
+/* ==========================================================================
+   Harmonized Character Reflection Note Plate (Modal)
+   ========================================================================== */
+
+.character-reflection-plate {
+  position: relative;
+  background: linear-gradient(180deg, rgba(212, 120, 58, 0.04) 0%, rgba(44, 38, 31, 0) 100%), var(--desk-surface);
+  border: 1px solid var(--border-desk-medium);
+  border-left: 3.5px solid var(--ember);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.character-reflection-plate:hover {
+  border-color: rgba(212, 120, 58, 0.35);
+  border-left-color: var(--ember);
+}
+
+.character-reflection-watermark {
+  position: absolute;
+  top: -12px;
+  right: 14px;
+  color: var(--ember);
+  opacity: 0.04;
+  pointer-events: none;
+  transform: rotate(8deg);
+}
+
+.character-reflection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.character-reflection-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background-color: rgba(212, 120, 58, 0.12);
+  color: var(--ember-text);
+  border: 1px solid rgba(212, 120, 58, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.character-reflection-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ember-text);
+}
+
+.character-reflection-body {
+  position: relative;
+  z-index: 1;
+  padding-top: 2px;
+}
+
+.character-reflection-text {
+  font-family: var(--font-serif);
+  font-size: 17.5px;
+  line-height: 1.75;
+  color: var(--text-desk);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  letter-spacing: 0.005em;
+}
+
+.character-reflection-empty {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 0 2px 0;
+}
+
+.character-reflection-empty-text {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--text-desk-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
 @media (max-width: 640px) {
   .rewatch-timeline-item {
     grid-template-columns: 24px minmax(0, 1fr);

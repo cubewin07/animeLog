@@ -14,7 +14,7 @@ import {
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
-import { TakeawaySlip } from './TakeawaySlip';
+import { CharacterReflectionPlate } from './CharacterReflectionPlate';
 import { MediaLibraryModal } from './MediaLibraryModal';
 
 interface CharacterDetailModalProps {
@@ -279,24 +279,20 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Why Worth Remembering (Takeaway Slip) */}
-            <div>
-              <TakeawaySlip
-                label="WHY THEY MATTERED TO ME"
-                text={character.why}
-                onWrite={
-                  onEdit
-                    ? () => {
-                        onClose();
-                        onEdit(character);
-                      }
-                    : undefined
-                }
-                emptyText="No character reflection recorded yet. Record why this character made a lasting impression."
-                emptyCtaText="Record Reflection"
-                isDetail
-              />
-            </div>
+            {/* Why Worth Remembering (Character Reflection Plate) */}
+            <CharacterReflectionPlate
+              why={character.why}
+              characterName={character.name}
+              label="WHY THEY MATTERED TO ME"
+              onEdit={
+                onEdit
+                  ? () => {
+                      onClose();
+                      onEdit(character);
+                    }
+                  : undefined
+              }
+            />
 
             {/* Memories & Stills Gallery */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 6 }}>
