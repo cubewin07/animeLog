@@ -322,6 +322,53 @@ def list_genres_and_studios() -> dict[str, Any]:
     }
 
 
+@sync_to_async
+def add_genre(name: str) -> dict[str, Any]:
+    """
+    Create a new Genre tag for anime and books (or retrieve if it already exists).
+
+    Args:
+        name: Name of the genre (e.g. 'Cyberpunk', 'Slice of Life', 'Psychological', 'Philosophy')
+    """
+    clean_name = str(name).strip()
+    if not clean_name:
+        return {"success": False, "error": "Genre name cannot be empty."}
+
+    genre, created = Genre.objects.get_or_create(name=clean_name)
+    action = "Created new" if created else "Found existing"
+    return {
+        "success": True,
+        "message": f"{action} genre '{genre.name}'.",
+        "genre_id": genre.id,
+        "name": genre.name,
+        "created": created,
+    }
+
+
+@sync_to_async
+def add_studio(name: str) -> dict[str, Any]:
+    """
+    Create a new anime production Studio (or retrieve if it already exists).
+
+    Args:
+        name: Name of the studio (e.g. 'Kyoto Animation', 'MAPPA', 'Ufotable', 'Bones', 'CloverWorks')
+    """
+    clean_name = str(name).strip()
+    if not clean_name:
+        return {"success": False, "error": "Studio name cannot be empty."}
+
+    studio, created = Studio.objects.get_or_create(name=clean_name)
+    action = "Created new" if created else "Found existing"
+    return {
+        "success": True,
+        "message": f"{action} studio '{studio.name}'.",
+        "studio_id": studio.id,
+        "name": studio.name,
+        "created": created,
+    }
+
+
+
 # ---------------------------------------------------------------------------
 # 2. Anime & Franchise Creation Tools
 # ---------------------------------------------------------------------------

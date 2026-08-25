@@ -32,6 +32,8 @@ mcp_server.add_tool(tools.get_journal_overview)
 mcp_server.add_tool(tools.get_series_detail)
 mcp_server.add_tool(tools.get_book_detail)
 mcp_server.add_tool(tools.list_genres_and_studios)
+mcp_server.add_tool(tools.add_genre)
+mcp_server.add_tool(tools.add_studio)
 
 # Anime Franchises & Progress
 mcp_server.add_tool(tools.log_anime_series)

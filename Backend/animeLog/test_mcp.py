@@ -197,6 +197,27 @@ class MCPToolsTestCase(TestCase):
         reflect_prompt = prompts.get_reflect_prompt(theme="courage")
         self.assertIn("courage", reflect_prompt)
 
+    async def test_add_genre_and_studio(self):
+        genre_res = await tools.add_genre("Cyberpunk")
+        self.assertTrue(genre_res["success"])
+        self.assertEqual(genre_res["name"], "Cyberpunk")
+        self.assertTrue(genre_res["created"])
+
+        # Re-adding should find existing
+        genre_dup = await tools.add_genre("Cyberpunk")
+        self.assertTrue(genre_dup["success"])
+        self.assertFalse(genre_dup["created"])
+
+        studio_res = await tools.add_studio("CloverWorks")
+        self.assertTrue(studio_res["success"])
+        self.assertEqual(studio_res["name"], "CloverWorks")
+        self.assertTrue(studio_res["created"])
+
+        # Re-adding studio
+        studio_dup = await tools.add_studio("CloverWorks")
+        self.assertTrue(studio_dup["success"])
+        self.assertFalse(studio_dup["created"])
+
     def test_asgi_streamable_http_handshake(self):
         from config.asgi import application
         from starlette.testclient import TestClient
@@ -219,4 +240,6 @@ class MCPToolsTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn("mcp-session-id", response.headers)
             self.assertIn("text/event-stream", response.headers.get("content-type", ""))
+
+
 
