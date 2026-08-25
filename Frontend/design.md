@@ -49,7 +49,12 @@ A personal anime & book journal designed around memories and lessons.
 | `--seal-text` | `#E8A099` | Delete text, danger accents |
 | `--ember` | `#D4783A` | Rating 9–10 score accent |
 | `--ember-text` | `#F0B27A` | High rating text on desk |
-| `--ballpoint` | `#2C4A6E` | Default left border rule on paper slips |
+| `--cel` | `#3A6F7C` | TV season rewatch node and selected Seasons chip |
+| `--cel-text` | `#8FCBD4` | Season rewatch text on desk |
+| `--cel-dim` | `rgba(58, 111, 124, 0.22)` | Season rewatch chip wash |
+| `--return-rail` | `rgba(44, 74, 110, 0.45)` | Timeline stem line (ballpoint at reduced opacity) |
+| `--return-mark` | `#E2D3BB` | Paper pip dot when rewatch notes exist |
+| `--ballpoint` | `#2C4A6E` | Default left border rule on paper slips, All Passes chip |
 | `--graphite` | `#8A8174` | Tertiary text, genre badges, metadata |
 | `--text-desk` | `#E6DCCE` | Primary title and body text on desk |
 | `--text-desk-muted` | `#A89F91` | Muted subtitle text on desk |
@@ -72,6 +77,15 @@ A personal anime & book journal designed around memories and lessons.
 - **UI & Navigation**: `Source Sans 3` (`--font-body`), humanist sans-serif (14–15px).
 - **Lessons & Reading**: `Source Serif 4` (`--font-serif`), roman reading typeface at 16–19px on paper slips.
 - **Ratings & Counts**: `IBM Plex Mono` (`--font-mono`), legible monospace for 1–10 scores (20–24px) and progress counts.
+
+## Return Spine (Rewatches Journal)
+
+1. **Scan-First Return Spine**: The `/rewatches` page functions as a chronological log of returns. Full paper slips (`TakeawaySlip`) are withheld on the spine list to eliminate visual overwhelm.
+2. **Dedicated Reader Modal**: Clicking any spine row opens `RewatchDetailModal` where the full reflection lives on paper. Create/edit stays in the separate `RewatchModal` form.
+3. **Narrow Target-Type Palette**: Nodes and type chips use targeted semantic colors: Franchise (`--tungsten`), Season (`--cel`), Film (`--night`), Episode (`--ember`). These mark nodes, chip edges, and active row highlights—never full-width card backgrounds.
+4. **Honest Per-Target Pass Numbering**: Pass numbers are assigned per target (`Pass 1`, `Pass 2`), numbered from the oldest dated pass.
+5. **Node Fill Rule**: The newest *dated* pass of a specific target sequence has a solid filled node; earlier passes and undated entries are hollow rings.
+6. **Paper Pip Indicator**: A 6px `--return-mark` dot indicates that a reflection exists on that pass without dumping excerpt text onto the spine.
 
 ## Design Rules
 

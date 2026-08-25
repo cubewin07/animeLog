@@ -60,7 +60,14 @@
   --ember: #D4783A;
   --ember-text: #F0B27A;
 
+  --cel: #3A6F7C;
+  --cel-hover: #488494;
+  --cel-text: #8FCBD4;
+  --cel-dim: rgba(58, 111, 124, 0.22);
+
   --ballpoint: #2C4A6E;
+  --return-rail: rgba(44, 74, 110, 0.45);
+  --return-mark: #E2D3BB;
 
   --graphite: #8A8174;
   --graphite-dim: rgba(138, 129, 116, 0.16);
@@ -2332,6 +2339,42 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--ash-text);
 }
 
+/* Rewatch Target Type Filter Chips */
+.filter-chip.active.active-all {
+  background-color: rgba(44, 74, 110, 0.22);
+  border-color: rgba(44, 74, 110, 0.45);
+  border-bottom: 2px solid var(--ballpoint);
+  color: var(--text-desk);
+}
+
+.filter-chip.active.active-series {
+  background-color: var(--tungsten-dim);
+  border-color: rgba(201, 149, 74, 0.45);
+  border-bottom: 2px solid var(--tungsten);
+  color: var(--tungsten);
+}
+
+.filter-chip.active.active-season {
+  background-color: var(--cel-dim);
+  border-color: rgba(58, 111, 124, 0.45);
+  border-bottom: 2px solid var(--cel);
+  color: var(--cel-text);
+}
+
+.filter-chip.active.active-movie {
+  background-color: var(--night-dim);
+  border-color: rgba(62, 95, 130, 0.45);
+  border-bottom: 2px solid var(--night);
+  color: var(--night-text);
+}
+
+.filter-chip.active.active-episode {
+  background-color: rgba(212, 120, 58, 0.2);
+  border-color: rgba(212, 120, 58, 0.45);
+  border-bottom: 2px solid var(--ember);
+  color: var(--ember-text);
+}
+
 .filter-chip .chip-count {
   font-size: 12px;
   font-family: var(--font-mono);
@@ -3117,3 +3160,359 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ==========================================================================
+   Return Spine — Rewatches Journal
+   ========================================================================== */
+
+/* Quiet Ledger */
+.rewatch-spine-ledger {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-desk-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.02em;
+}
+
+.rewatch-spine-ledger .ledger-sep {
+  color: var(--graphite);
+  opacity: 0.6;
+}
+
+/* Search Feedback */
+.rewatch-search-feedback {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-desk-muted);
+  padding: 8px 14px;
+  background-color: var(--desk-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-desk-subtle);
+  display: inline-block;
+  align-self: flex-start;
+}
+
+/* Detail Modal Badges */
+.rewatch-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.rewatch-chip-series {
+  background-color: var(--tungsten-dim);
+  color: var(--tungsten);
+  border: 1px solid rgba(201, 149, 74, 0.35);
+}
+
+.rewatch-chip-season {
+  background-color: var(--cel-dim);
+  color: var(--cel-text);
+  border: 1px solid rgba(58, 111, 124, 0.35);
+}
+
+.rewatch-chip-movie {
+  background-color: var(--night-dim);
+  color: var(--night-text);
+  border: 1px solid rgba(62, 95, 130, 0.35);
+}
+
+.rewatch-chip-episode {
+  background-color: rgba(212, 120, 58, 0.2);
+  color: var(--ember-text);
+  border: 1px solid rgba(212, 120, 58, 0.35);
+}
+
+/* Rewatch timeline */
+.rewatch-timeline {
+  display: grid;
+  gap: 32px;
+}
+
+.rewatch-timeline-group {
+  min-width: 0;
+}
+
+.rewatch-timeline-year {
+  color: var(--tungsten);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  margin-bottom: 12px;
+}
+
+.rewatch-timeline-items {
+  display: grid;
+  gap: 0;
+}
+
+.rewatch-timeline-item {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  grid-template-columns: 32px minmax(0, 1fr);
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.rewatch-timeline-rail {
+  display: flex;
+  justify-content: center;
+  position: relative;
+}
+
+.rewatch-timeline-rail::before {
+  background: var(--return-rail);
+  bottom: 0;
+  content: '';
+  left: 15px;
+  position: absolute;
+  top: 0;
+  width: 2px;
+}
+
+.rewatch-timeline-item:first-child .rewatch-timeline-rail::before {
+  top: 22px;
+}
+
+.rewatch-timeline-item:last-child .rewatch-timeline-rail::before {
+  bottom: calc(100% - 22px);
+}
+
+.rewatch-timeline-item:only-child .rewatch-timeline-rail::before {
+  display: none;
+}
+
+.rewatch-timeline-node {
+  background: var(--desk);
+  border: 3px solid var(--graphite);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--desk);
+  height: 14px;
+  margin-top: 15px;
+  position: relative;
+  width: 14px;
+  z-index: 1;
+}
+
+.rewatch-timeline-item.target-series .rewatch-timeline-node { border-color: var(--tungsten); }
+.rewatch-timeline-item.target-season .rewatch-timeline-node { border-color: var(--cel); }
+.rewatch-timeline-item.target-movie .rewatch-timeline-node { border-color: var(--night-text); }
+.rewatch-timeline-item.target-episode .rewatch-timeline-node { border-color: var(--ember); }
+
+.rewatch-timeline-card {
+  background: var(--desk-raised);
+  border: 1px solid var(--border-desk-subtle);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 5px;
+  margin: 0 0 14px 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.rewatch-timeline-item:hover .rewatch-timeline-card,
+.rewatch-timeline-item.selected .rewatch-timeline-card {
+  background: var(--desk-surface);
+  border-color: var(--border-desk-medium);
+}
+
+.rewatch-timeline-card-header {
+  align-items: start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.rewatch-timeline-date,
+.rewatch-timeline-meta,
+.rewatch-timeline-score {
+  color: var(--text-desk-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.rewatch-timeline-date {
+  color: var(--tungsten);
+  display: block;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.rewatch-timeline-title {
+  color: var(--text-desk);
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rewatch-timeline-score {
+  color: var(--tungsten);
+  font-size: 12px;
+  font-weight: 600;
+  padding-top: 3px;
+  white-space: nowrap;
+}
+
+.rewatch-timeline-meta {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.rewatch-timeline-scope {
+  color: var(--text-desk);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.rewatch-timeline-reflection {
+  border-left: 2px solid var(--tungsten);
+  color: var(--text-desk);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.55;
+  margin-top: 8px;
+  padding-left: 12px;
+  white-space: pre-wrap;
+}
+
+/* ==========================================================================
+   Harmonized Return Reflection Card (Modal)
+   ========================================================================== */
+
+.rewatch-reflection-plate {
+  background-color: var(--desk-surface);
+  border: 1px solid var(--border-desk-medium);
+  border-left: 3.5px solid var(--border-desk-medium);
+  border-radius: var(--radius-lg);
+  padding: 18px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: border-color 0.2s ease;
+}
+
+.rewatch-reflection-plate.target-series {
+  border-left-color: var(--tungsten);
+}
+
+.rewatch-reflection-plate.target-season {
+  border-left-color: var(--cel);
+}
+
+.rewatch-reflection-plate.target-movie {
+  border-left-color: var(--night-text);
+}
+
+.rewatch-reflection-plate.target-episode {
+  border-left-color: var(--ember);
+}
+
+.rewatch-reflection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rewatch-reflection-header .reflection-icon {
+  color: var(--tungsten);
+  opacity: 0.85;
+}
+
+.rewatch-reflection-plate.target-season .reflection-icon {
+  color: var(--cel-text);
+}
+
+.rewatch-reflection-plate.target-movie .reflection-icon {
+  color: var(--night-text);
+}
+
+.rewatch-reflection-plate.target-episode .reflection-icon {
+  color: var(--ember-text);
+}
+
+.rewatch-reflection-header .reflection-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-desk-muted);
+}
+
+.rewatch-reflection-body {
+  padding-top: 2px;
+}
+
+.rewatch-reflection-text {
+  font-family: var(--font-serif);
+  font-size: 17.5px;
+  line-height: 1.75;
+  color: var(--text-desk);
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rewatch-reflection-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 2px 0;
+}
+
+.rewatch-reflection-empty .reflection-empty-text {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-style: italic;
+  color: var(--text-desk-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (max-width: 640px) {
+  .rewatch-timeline-item {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .rewatch-timeline-rail::before {
+    left: 11px;
+  }
+
+  .rewatch-timeline-card {
+    margin-left: 4px;
+    padding: 12px;
+  }
+
+  .rewatch-timeline-title {
+    white-space: normal;
+  }
+}

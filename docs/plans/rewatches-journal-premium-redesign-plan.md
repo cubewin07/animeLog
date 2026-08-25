@@ -1,5 +1,7 @@
 # Rewatches Journal: Premium Redesign Plan
 
+> **Superseded (2026-08-25).** Do not implement this document for the Rewatches tab. The list-with-full-notes approach is the overwhelm the user reported. Source of truth: `docs/plans/rewatches-timeline-modal/`.
+
 ## Outcome
 
 Turn the Rewatches page from a uniform list of dark cards into a clear **record of returning**: each entry should make its target, pass, date, changed perspective, and available actions immediately legible.
