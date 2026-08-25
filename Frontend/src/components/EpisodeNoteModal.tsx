@@ -13,6 +13,7 @@ interface EpisodeNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   season: AnimeSeason | null;
+  initialNote?: EpisodeNote | null;
   onSaveNote: (data: {
     season: number;
     episode_number: number;
@@ -28,6 +29,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
   isOpen,
   onClose,
   season,
+  initialNote,
   onSaveNote,
   onDeleteNote,
 }) => {
@@ -49,6 +51,13 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
     setErrorMsg('');
     onClose();
   };
+
+  useEffect(() => {
+    if (!isOpen || !season) return;
+    if (initialNote !== undefined) {
+      setSelectedNote(initialNote);
+    }
+  }, [isOpen, season, initialNote]);
 
   useEffect(() => {
     if (!isOpen || !season) return;

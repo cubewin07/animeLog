@@ -1,5 +1,7 @@
 # Detail Page: Premium Folio Redesign Plan
 
+> **Superseded (2026-08-25).** Do not implement this document for franchise or book detail. Keeping the two-column dump and restyling paper is the overwhelm the user reported. Source of truth: `docs/plans/detail-page-redesign/`.
+
 ## Outcome
 
 Make anime franchise/release and book detail pages feel like a private **folio on a night desk**: one memorable reflection is the hero, while poster, progress, status, and metadata are easy to scan without competing for attention.

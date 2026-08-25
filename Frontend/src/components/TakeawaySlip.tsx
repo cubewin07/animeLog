@@ -1,5 +1,5 @@
-import React from 'react';
-import { PenLine, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { PenLine, Star, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface TakeawaySlipProps {
   text?: string | null;
@@ -12,6 +12,8 @@ interface TakeawaySlipProps {
   className?: string;
   isDetail?: boolean;
   compact?: boolean;
+  clamped?: boolean;
+  onToggleClamp?: () => void;
   emptyText?: string;
   emptyCtaText?: string;
 }
@@ -27,10 +29,26 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
   className = '',
   isDetail = false,
   compact = false,
-  emptyText = 'No lesson captured yet. A title without notes is incomplete.',
-  emptyCtaText = 'Write the lesson',
+  clamped = false,
+  onToggleClamp,
+  emptyText,
+  emptyCtaText,
 }) => {
-  const hasText = text && text.trim().length > 0;
+  const [internalExpanded, setInternalExpanded] = useState(false);
+  const hasText = Boolean(text && text.trim().length > 0);
+
+  const defaultEmptyText = isDetail
+    ? 'No lesson captured yet.'
+    : 'No lesson captured yet. A title without notes is incomplete.';
+
+  const defaultEmptyCtaText = isDetail
+    ? 'Write the lesson'
+    : 'Write the lesson';
+
+  const resolvedEmptyText = emptyText ?? defaultEmptyText;
+  const resolvedEmptyCtaText = emptyCtaText ?? defaultEmptyCtaText;
+
+  const isLessonSheet = isDetail || className.includes('lesson-sheet');
 
   const getStatusClass = () => {
     if (!status) return 'slip-ballpoint';
@@ -52,14 +70,26 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
   };
 
   const paddingStyle = isDetail
-    ? '24px 28px'
+    ? '22px 26px'
     : compact
     ? '12px 16px'
     : '16px 20px';
 
+  // Handle clamping state: if onToggleClamp is provided, parent controls it via `clamped`.
+  // Otherwise, use internalExpanded if clamped was initially true.
+  const isCurrentlyClamped = onToggleClamp ? clamped : (clamped && !internalExpanded);
+
+  const handleToggle = () => {
+    if (onToggleClamp) {
+      onToggleClamp();
+    } else {
+      setInternalExpanded((prev) => !prev);
+    }
+  };
+
   return (
     <div
-      className={`takeaway-slip ${getStatusClass()} ${!hasText ? 'slip-empty' : ''} ${className}`}
+      className={`takeaway-slip ${getStatusClass()} ${!hasText ? 'slip-empty' : ''} ${isLessonSheet ? 'lesson-sheet' : ''} ${className}`}
       style={{
         padding: paddingStyle,
       }}
@@ -71,7 +101,7 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
             <div
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: isDetail ? 22 : compact ? 15 : 17,
+                fontSize: isDetail ? 20 : compact ? 15 : 17,
                 fontWeight: 600,
                 color: 'var(--ink)',
                 lineHeight: 1.3,
@@ -95,7 +125,8 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {rating !== undefined && rating !== null && (
+          {/* Show rating if provided and not on detail lesson sheet */}
+          {!isLessonSheet && rating !== undefined && rating !== null && (
             <div
               className={getRatingBandClass(rating)}
               style={{
@@ -135,19 +166,45 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
       </div>
 
       {hasText ? (
-        <div
-          className="takeaway-slip-text"
-          style={{
-            fontSize: isDetail ? '19px' : compact ? '14.5px' : 'var(--type-lesson)',
-            lineHeight: isDetail ? 1.7 : 1.6,
-          }}
-        >
-          {text}
+        <div className="takeaway-slip-content">
+          <div
+            className={`takeaway-slip-text ${isCurrentlyClamped ? 'lesson-sheet-clamped' : ''}`}
+            style={{
+              fontSize: isLessonSheet ? '17px' : isDetail ? '18px' : compact ? '14.5px' : 'var(--type-lesson)',
+              lineHeight: isLessonSheet ? 1.65 : isDetail ? 1.7 : 1.6,
+            }}
+          >
+            {text}
+          </div>
+
+          {/* Clamp Toggle for long lessons */}
+          {clamped !== undefined && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleToggle}
+                className="lesson-clamp-toggle-btn"
+                aria-expanded={!isCurrentlyClamped}
+              >
+                {isCurrentlyClamped ? (
+                  <>
+                    <span>Read full lesson</span>
+                    <ChevronDown size={13} />
+                  </>
+                ) : (
+                  <>
+                    <span>Show less</span>
+                    <ChevronUp size={13} />
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div
           style={{
-            padding: compact ? '6px 0 2px 0' : '12px 0 6px 0',
+            padding: compact ? '6px 0 2px 0' : '10px 0 4px 0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -163,7 +220,7 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
               fontStyle: 'italic',
             }}
           >
-            {emptyText}
+            {resolvedEmptyText}
           </span>
           {onWrite && (
             <button
@@ -177,10 +234,10 @@ export const TakeawaySlip: React.FC<TakeawaySlipProps> = ({
                 alignItems: 'center',
                 gap: 6,
               }}
-              aria-label={emptyCtaText}
+              aria-label={resolvedEmptyCtaText}
             >
               <PenLine size={13} />
-              <span>{emptyCtaText}</span>
+              <span>{resolvedEmptyCtaText}</span>
             </button>
           )}
         </div>

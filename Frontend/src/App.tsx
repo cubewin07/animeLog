@@ -57,11 +57,13 @@ const FranchiseDetailRouteWrapper: React.FC<{
   onEditMovie: (movie: AnimeMovie) => void;
   onDeleteMovie: (id: number) => void;
   onMovieProgressDelta: (id: number, delta: number) => void;
-  onOpenEpisodeNotes: (season: AnimeSeason) => void;
+  onOpenEpisodeNotes: (season: AnimeSeason, note?: EpisodeNote) => void;
   onAddRewatchSeries?: (series: AnimeSeries) => void;
   onAddRewatchSeason: (season: AnimeSeason) => void;
   onAddRewatchMovie: (movie: AnimeMovie) => void;
   onAddRewatchEpisode?: (season: AnimeSeason, episodeNumber: number) => void;
+  onEditRewatch?: (rewatch: Rewatch) => void;
+  onDeleteRewatch?: (id: number) => void;
   onAddCharacter: (series: AnimeSeries) => void;
   onEditCharacter?: (character: FavoriteCharacter) => void;
   onDeleteCharacter?: (id: number) => void;
@@ -198,6 +200,7 @@ export const App: React.FC = () => {
 
   const [episodeNoteModalOpen, setEpisodeNoteModalOpen] = useState(false);
   const [targetSeasonForNotes, setTargetSeasonForNotes] = useState<AnimeSeason | null>(null);
+  const [targetNoteForEpisodeModal, setTargetNoteForEpisodeModal] = useState<EpisodeNote | null>(null);
 
   const [rewatchModalOpen, setRewatchModalOpen] = useState(false);
   const [rewatchTargetSeries, setRewatchTargetSeries] = useState<AnimeSeries | null>(null);
@@ -671,8 +674,9 @@ export const App: React.FC = () => {
     setEntryModalOpen(true);
   };
 
-  const openEpisodeNotesModal = (season: AnimeSeason) => {
+  const openEpisodeNotesModal = (season: AnimeSeason, note?: EpisodeNote) => {
     setTargetSeasonForNotes(season);
+    setTargetNoteForEpisodeModal(note || null);
     setEpisodeNoteModalOpen(true);
   };
 
@@ -861,6 +865,8 @@ export const App: React.FC = () => {
                   onAddRewatchSeason={openAddRewatchSeason}
                   onAddRewatchMovie={openAddRewatchMovie}
                   onAddRewatchEpisode={openAddRewatchEpisode}
+                  onEditRewatch={openEditRewatchModal}
+                  onDeleteRewatch={handleDeleteRewatch}
                   onAddCharacter={openAddCharacterModal}
                   onEditCharacter={openEditCharacterModal}
                   onDeleteCharacter={handleDeleteCharacter}
@@ -957,8 +963,12 @@ export const App: React.FC = () => {
 
       <EpisodeNoteModal
         isOpen={episodeNoteModalOpen}
-        onClose={() => setEpisodeNoteModalOpen(false)}
+        onClose={() => {
+          setEpisodeNoteModalOpen(false);
+          setTargetNoteForEpisodeModal(null);
+        }}
         season={targetSeasonForNotes}
+        initialNote={targetNoteForEpisodeModal}
         onSaveNote={handleSaveEpisodeNote}
         onDeleteNote={handleDeleteEpisodeNote}
       />

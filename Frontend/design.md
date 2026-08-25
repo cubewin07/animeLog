@@ -78,14 +78,17 @@ A personal anime & book journal designed around memories and lessons.
 - **Lessons & Reading**: `Source Serif 4` (`--font-serif`), roman reading typeface at 16–19px on paper slips.
 - **Ratings & Counts**: `IBM Plex Mono` (`--font-mono`), legible monospace for 1–10 scores (20–24px) and progress counts.
 
-## Return Spine (Rewatches Journal)
+## Detail Page: Journal Sheet & Progressive Disclosure
 
-1. **Scan-First Return Spine**: The `/rewatches` page functions as a chronological log of returns. Full paper slips (`TakeawaySlip`) are withheld on the spine list to eliminate visual overwhelm.
-2. **Dedicated Reader Modal**: Clicking any spine row opens `RewatchDetailModal` where the full reflection lives on paper. Create/edit stays in the separate `RewatchModal` form.
-3. **Narrow Target-Type Palette**: Nodes and type chips use targeted semantic colors: Franchise (`--tungsten`), Season (`--cel`), Film (`--night`), Episode (`--ember`). These mark nodes, chip edges, and active row highlights—never full-width card backgrounds.
-4. **Honest Per-Target Pass Numbering**: Pass numbers are assigned per target (`Pass 1`, `Pass 2`), numbered from the oldest dated pass.
-5. **Node Fill Rule**: The newest *dated* pass of a specific target sequence has a solid filled node; earlier passes and undated entries are hollow rings.
-6. **Paper Pip Indicator**: A 6px `--return-mark` dot indicates that a reflection exists on that pass without dumping excerpt text onto the spine.
+1. **Single Reading Column (`~860px`)**: The detail page abandons the 360px sticky catalog rail in favor of a single focused reading sheet on the desk.
+2. **First Eye Landing (Identity Band)**: A modest still (120×168 desktop, 72×100 mobile) with a 3px semantic status edge sits beside the Fraunces title, release switcher chips, fact line (format, status, mono score with rating band, progress stepper only when active), and Edit/More controls.
+3. **One Paper Sheet on the Page**: The takeaway lesson (`.takeaway-slip.lesson-sheet`) is the only `--page` rectangle on the page. Long lessons clamp to 8 lines with an in-place `Read full lesson` / `Show less` toggle. Empty lessons show a short invitation. No `--folio-*` tokens are used.
+4. **Scan-First Indexes (Paper Withheld)**:
+   - **Episode memories**: Story-order cue sheet (`.memory-cue-list`) with mono episode numbers, titles, scores, and a `--return-mark` pip. Max 5 rows on first paint; click row opens `EpisodeMemoryModal`.
+   - **Returns**: Dated mark rows (`.return-marks-list`) for the active release with honest per-target pass numbers (`passNumbers()`), rating, pip, and a franchise overflow toggle. Click row opens `RewatchDetailModal`.
+   - **Characters**: Portrait strip (`.character-strip`) of 56px circular still chips with pip. Click chip opens `CharacterDetailModal`.
+5. **About This Title**: A native `<details>` drawer at the bottom holds quiet catalog facts (genres, studios, started/finished dates, Japanese/Romaji titles).
+6. **Book Parity**: Books follow the exact same IA (identity band + clamped lesson sheet + About drawer) with banker green styling, without fake collection indexes.
 
 ## Design Rules
 
@@ -94,4 +97,5 @@ A personal anime & book journal designed around memories and lessons.
 3. **No Coral Reds & Decoupled Danger**: Delete and destructive actions use `--seal` (`#B44538`), completely uncoupled from completed `--spine`.
 4. **Rating is 1–10**: Score formatting uses rating bands so 10/10 and 4/10 are distinct.
 5. **Progress Stepper Guard**: Progress steppers appear only on in-progress titles (`WATCHING` or `READING`). Completed releases show clean count typography.
-6. **Mobile Reading First**: On narrow screens, the takeaway lesson appears before catalog poster chrome.
+6. **Mobile Identity vs Catalog Chrome**: On narrow screens, the modest 72×100 still beside the title is identity (where am I?), not catalog chrome. Catalog chrome (genres, studios, dates, Japanese/Romaji titles, delete) stays in the About drawer below the lesson sheet.
+
