@@ -49,6 +49,16 @@ class Command(BaseCommand):
         if transport == "stdio":
             mcp_server.run(transport="stdio")
         elif transport == "streamable-http":
-            mcp_server.run(transport="streamable-http", host=host, port=port)
+            try:
+                import uvicorn
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"Serving full Django API (/api/) + MCP Server (/mcp) on http://{host}:{port}/"
+                    )
+                )
+                uvicorn.run("config.asgi:application", host=host, port=port, reload=False)
+            except ImportError:
+                mcp_server.run(transport="streamable-http", host=host, port=port)
         elif transport == "sse":
             mcp_server.run(transport="sse", host=host, port=port)
+
