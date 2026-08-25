@@ -218,6 +218,81 @@ class MCPToolsTestCase(TestCase):
         self.assertTrue(studio_dup["success"])
         self.assertFalse(studio_dup["created"])
 
+    async def test_update_series_season_movie_rewatch_character(self):
+        # Create initial series
+        s_res = await tools.log_anime_series(title="Original Title", genres=["Action"])
+        series_id = s_res["series_id"]
+        season_id = s_res["season_id"]
+
+        # Update Series
+        up_s = await tools.update_anime_series(
+            series_id=series_id,
+            title="Updated Title",
+            japanese_title="更新タイトル",
+            genres=["Action", "Psychological"],
+        )
+        self.assertTrue(up_s["success"])
+        series = await AnimeSeries.objects.aget(pk=series_id)
+        self.assertEqual(series.title, "Updated Title")
+        self.assertEqual(series.japanese_title, "更新タイトル")
+        self.assertEqual(await series.genres.acount(), 2)
+
+        # Update Season
+        up_season = await tools.update_anime_season(
+            season_id=season_id,
+            title="Season 1: Extended",
+            total_episodes=24,
+            rating=9,
+            notes="Updated lesson: Patience and persistence.",
+            studios=["MAPPA"],
+        )
+        self.assertTrue(up_season["success"])
+        season = await AnimeSeason.objects.aget(pk=season_id)
+        self.assertEqual(season.title, "Season 1: Extended")
+        self.assertEqual(season.total_episodes, 24)
+        self.assertEqual(season.rating, 9)
+        self.assertEqual(season.notes, "Updated lesson: Patience and persistence.")
+
+        # Create & Update Movie
+        m_res = await tools.add_anime_movie(series_id=series_id, title="Movie 1")
+        movie_id = m_res["movie_id"]
+        up_movie = await tools.update_anime_movie(
+            movie_id=movie_id,
+            title="Movie 1: The Awakening",
+            total_minutes=120,
+            rating=8,
+        )
+        self.assertTrue(up_movie["success"])
+        movie = await AnimeMovie.objects.aget(pk=movie_id)
+        self.assertEqual(movie.title, "Movie 1: The Awakening")
+        self.assertEqual(movie.total_minutes, 120)
+
+        # Create & Update Favorite Character
+        c_res = await tools.add_favorite_character(series_id=series_id, name="Hero", why="Original why")
+        char_id = c_res["character_id"]
+        up_char = await tools.update_favorite_character(
+            character_id=char_id,
+            name="Hero Prime",
+            why="Updated lesson on leadership.",
+        )
+        self.assertTrue(up_char["success"])
+        char = await FavoriteCharacter.objects.aget(pk=char_id)
+        self.assertEqual(char.name, "Hero Prime")
+        self.assertEqual(char.why, "Updated lesson on leadership.")
+
+        # Create & Update Rewatch
+        r_res = await tools.log_rewatch(target_type="series", target_id=series_id, rating=8, notes="Pass 1")
+        rewatch_id = r_res["rewatch_id"]
+        up_rewatch = await tools.update_rewatch(
+            rewatch_id=rewatch_id,
+            rating=10,
+            notes="Pass 2: Found so much deeper symbolism.",
+        )
+        self.assertTrue(up_rewatch["success"])
+        rewatch = await Rewatch.objects.aget(pk=rewatch_id)
+        self.assertEqual(rewatch.rating, 10)
+        self.assertEqual(rewatch.notes, "Pass 2: Found so much deeper symbolism.")
+
     def test_asgi_streamable_http_handshake(self):
         from config.asgi import application
         from starlette.testclient import TestClient
@@ -240,6 +315,7 @@ class MCPToolsTestCase(TestCase):
             self.assertEqual(response.status_code, 200)
             self.assertIn("mcp-session-id", response.headers)
             self.assertIn("text/event-stream", response.headers.get("content-type", ""))
+
 
 
 

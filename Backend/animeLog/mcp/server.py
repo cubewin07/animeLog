@@ -37,14 +37,19 @@ mcp_server.add_tool(tools.add_studio)
 
 # Anime Franchises & Progress
 mcp_server.add_tool(tools.log_anime_series)
+mcp_server.add_tool(tools.update_anime_series)
 mcp_server.add_tool(tools.add_anime_season)
+mcp_server.add_tool(tools.update_anime_season)
 mcp_server.add_tool(tools.add_anime_movie)
+mcp_server.add_tool(tools.update_anime_movie)
 mcp_server.add_tool(tools.update_anime_progress)
 mcp_server.add_tool(tools.add_episode_note)
 
 # Rewatches & Favorite Characters
 mcp_server.add_tool(tools.log_rewatch)
+mcp_server.add_tool(tools.update_rewatch)
 mcp_server.add_tool(tools.add_favorite_character)
+mcp_server.add_tool(tools.update_favorite_character)
 
 # Books
 mcp_server.add_tool(tools.log_book)

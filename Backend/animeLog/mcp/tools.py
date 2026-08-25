@@ -783,6 +783,269 @@ def add_favorite_character(series_id: int, name: str, why: str) -> dict[str, Any
     }
 
 
+@sync_to_async
+def update_anime_series(
+    series_id: int,
+    title: str | None = None,
+    japanese_title: str | None = None,
+    romaji_title: str | None = None,
+    genres: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update metadata and genres for an Anime Series franchise.
+
+    Args:
+        series_id: ID of the AnimeSeries
+        title: Optional new series title
+        japanese_title: Optional Japanese title
+        romaji_title: Optional Romaji title
+        genres: Optional list of genre names to set
+    """
+    try:
+        series = AnimeSeries.objects.get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"success": False, "error": f"Anime series with ID {series_id} not found."}
+
+    if title is not None:
+        series.title = title.strip()
+    if japanese_title is not None:
+        series.japanese_title = japanese_title.strip() if japanese_title else None
+    if romaji_title is not None:
+        series.romaji_title = romaji_title.strip() if romaji_title else None
+    series.save()
+
+    if genres is not None:
+        genre_objs = _get_or_create_genres(genres)
+        series.genres.set(genre_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated anime series '{series.title}'.",
+        "series_id": series.id,
+    }
+
+
+@sync_to_async
+def update_anime_season(
+    season_id: int,
+    title: str | None = None,
+    season_number: int | None = None,
+    status: str | None = None,
+    total_episodes: int | None = None,
+    progress: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update any fields on an Anime Season (title, episodes, rating, status, notes, dates, studios).
+
+    Args:
+        season_id: ID of the AnimeSeason
+        title: Season title (e.g. 'Season 2' or 'Swordsmith Village Arc')
+        season_number: Season number
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_episodes: Total episode count
+        progress: Current episode progress
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        studios: Studio names producing this season
+    """
+    try:
+        season = AnimeSeason.objects.get(pk=season_id)
+    except AnimeSeason.DoesNotExist:
+        return {"success": False, "error": f"Season with ID {season_id} not found."}
+
+    if title is not None:
+        season.title = title.strip()
+    if season_number is not None:
+        season.season_number = season_number
+    if total_episodes is not None:
+        season.total_episodes = total_episodes
+    if progress is not None:
+        season.progress = progress
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in AnimeStatus.values:
+            season.status = s_val
+    if rating is not None:
+        season.rating = rating
+    if notes is not None:
+        season.notes = notes.strip() if notes else None
+    if start_date is not None:
+        season.start_date = start_date or None
+    if finish_date is not None:
+        season.finish_date = finish_date or None
+
+    season.save()
+
+    if studios is not None:
+        studio_objs = _get_or_create_studios(studios)
+        season.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated season '{season.title}' (ID: {season.id}).",
+        "season_id": season.id,
+        "status": season.status,
+        "progress": season.progress,
+    }
+
+
+@sync_to_async
+def update_anime_movie(
+    movie_id: int,
+    title: str | None = None,
+    status: str | None = None,
+    total_minutes: int | None = None,
+    progress_minutes: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update any fields on an Anime Movie release.
+
+    Args:
+        movie_id: ID of the AnimeMovie
+        title: Movie title
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_minutes: Movie runtime in minutes
+        progress_minutes: Current progress in minutes
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        studios: Production studios
+    """
+    try:
+        movie = AnimeMovie.objects.get(pk=movie_id)
+    except AnimeMovie.DoesNotExist:
+        return {"success": False, "error": f"Movie with ID {movie_id} not found."}
+
+    if title is not None:
+        movie.title = title.strip()
+    if total_minutes is not None:
+        movie.total_minutes = total_minutes
+    if progress_minutes is not None:
+        movie.progress_minutes = progress_minutes
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in AnimeStatus.values:
+            movie.status = s_val
+    if rating is not None:
+        movie.rating = rating
+    if notes is not None:
+        movie.notes = notes.strip() if notes else None
+    if start_date is not None:
+        movie.start_date = start_date or None
+    if finish_date is not None:
+        movie.finish_date = finish_date or None
+
+    movie.save()
+
+    if studios is not None:
+        studio_objs = _get_or_create_studios(studios)
+        movie.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated movie '{movie.title}' (ID: {movie.id}).",
+        "movie_id": movie.id,
+        "status": movie.status,
+    }
+
+
+@sync_to_async
+def update_rewatch(
+    rewatch_id: int,
+    rating: int | None = None,
+    notes: str | None = None,
+    episode_number: int | None = None,
+    episode_title: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update rating, reflection notes, episode details, or dates on an existing Rewatch record.
+
+    Args:
+        rewatch_id: ID of the Rewatch entry
+        rating: Optional rating 1-10
+        notes: Lessons or reflections
+        episode_number: Optional episode number
+        episode_title: Optional episode title
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+    """
+    try:
+        rewatch = Rewatch.objects.get(pk=rewatch_id)
+    except Rewatch.DoesNotExist:
+        return {"success": False, "error": f"Rewatch with ID {rewatch_id} not found."}
+
+    if rating is not None:
+        rewatch.rating = rating
+    if notes is not None:
+        rewatch.notes = notes.strip() if notes else None
+    if episode_number is not None:
+        rewatch.episode_number = episode_number
+    if episode_title is not None:
+        rewatch.episode_title = episode_title.strip() if episode_title else None
+    if start_date is not None:
+        rewatch.start_date = start_date or None
+    if finish_date is not None:
+        rewatch.finish_date = finish_date or None
+
+    rewatch.save()
+
+    return {
+        "success": True,
+        "message": f"Updated rewatch for '{rewatch.release_title}'.",
+        "rewatch_id": rewatch.id,
+        "rating": rewatch.rating,
+    }
+
+
+@sync_to_async
+def update_favorite_character(
+    character_id: int,
+    name: str | None = None,
+    why: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update the name or the reason / life lesson why a character is meaningful to you.
+
+    Args:
+        character_id: ID of the FavoriteCharacter
+        name: Optional character name
+        why: Optional reason / lesson
+    """
+    try:
+        char = FavoriteCharacter.objects.get(pk=character_id)
+    except FavoriteCharacter.DoesNotExist:
+        return {"success": False, "error": f"Favorite character with ID {character_id} not found."}
+
+    if name is not None:
+        char.name = name.strip()
+    if why is not None:
+        char.why = why.strip() if why else None
+
+    char.save()
+
+    return {
+        "success": True,
+        "message": f"Updated favorite character '{char.name}'.",
+        "character_id": char.id,
+    }
+
+
+
 # ---------------------------------------------------------------------------
 # 5. Book Journaling Tools
 # ---------------------------------------------------------------------------
