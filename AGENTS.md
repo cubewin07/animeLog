@@ -74,3 +74,4 @@ Spawn `backend` / `frontend` for independent slices. Keep contract work (seriali
 | `web-design-guidelines` | UI/accessibility review |
 | `webapp-testing` | Browser verification of local UI |
 | `context7` | Current library docs |
+| `animelog-journal` | Commercial Agensi Socratic journal companion skill (`skills/animelog-journal/`) |
