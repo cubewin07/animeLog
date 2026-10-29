@@ -16,6 +16,7 @@ import os
 import pathlib
 import re
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, Optional
@@ -72,8 +73,12 @@ def http_post_json(url: str, payload: dict, timeout: int = 10) -> dict:
         data=data,
         headers={"User-Agent": USER_AGENT, "Content-Type": "application/json", "Accept": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        body = err.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {err.code}: {body}") from err
 
 
 def is_backend_online() -> bool:
@@ -276,18 +281,40 @@ def cmd_log_episode(args):
             if not matching_series and series_list:
                 matching_series = series_list[0]
 
-            if matching_series:
-                season = next((sea for sea in matching_series.get("seasons", []) if sea.get("season_number") == season_num), None)
-                if season:
-                    payload = {
-                        "season": season.get("id"),
-                        "episode_number": ep_num,
-                        "rating": rating,
-                        "note": note_text,
-                    }
-                    res = http_post_json(f"{DEFAULT_API_BASE}/episode-notes/", payload)
-                    print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
-                    return
+            if not matching_series:
+                # Auto-create series on backend
+                series_payload = {
+                    "title": series_title,
+                    "genres": [],
+                    "initial_season": {
+                        "title": f"Season {season_num}",
+                        "season_number": season_num,
+                        "status": "WATCHING",
+                        "progress": ep_num,
+                    },
+                }
+                matching_series = http_post_json(f"{DEFAULT_API_BASE}/series/", series_payload)
+
+            season = next((sea for sea in matching_series.get("seasons", []) if sea.get("season_number") == season_num), None)
+            if not season:
+                season_payload = {
+                    "series": matching_series.get("id"),
+                    "title": f"Season {season_num}",
+                    "season_number": season_num,
+                    "status": "WATCHING",
+                    "progress": ep_num,
+                }
+                season = http_post_json(f"{DEFAULT_API_BASE}/seasons/", season_payload)
+
+            payload = {
+                "season": season.get("id"),
+                "episode_number": ep_num,
+                "rating": rating,
+                "note": note_text,
+            }
+            res = http_post_json(f"{DEFAULT_API_BASE}/episode-notes/", payload)
+            print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
+            return
         except Exception as e:
             if not args.fallback_local:
                 print(f"[error] Backend request failed: {e}. Pass --fallback-local or --offline to store locally.", file=sys.stderr)
@@ -334,18 +361,31 @@ def cmd_log_rewatch(args):
             # Find content object
             series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(target)}")
             match = next((s for s in series_list if s.get("title", "").lower() == target.lower()), None)
-            if match:
-                payload = {
-                    "content_type": "animeseries",
-                    "object_id": match.get("id"),
-                    "start_date": date_val,
-                    "finish_date": date_val,
-                    "rating": rating,
-                    "notes": notes,
+            if not match and series_list:
+                match = series_list[0]
+            if not match:
+                create_payload = {
+                    "title": target,
+                    "genres": [],
+                    "initial_season": {
+                        "title": "Season 1",
+                        "season_number": 1,
+                        "status": "COMPLETED",
+                    },
                 }
-                res = http_post_json(f"{DEFAULT_API_BASE}/rewatches/", payload)
-                print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
-                return
+                match = http_post_json(f"{DEFAULT_API_BASE}/series/", create_payload)
+
+            payload = {
+                "target_type": "series",
+                "target_id": match.get("id"),
+                "start_date": date_val,
+                "finish_date": date_val,
+                "rating": rating,
+                "notes": notes,
+            }
+            res = http_post_json(f"{DEFAULT_API_BASE}/rewatches/", payload)
+            print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
+            return
         except Exception as e:
             if not args.fallback_local:
                 print(f"[error] Backend request failed: {e}. Pass --fallback-local or --offline to store locally.", file=sys.stderr)
@@ -372,19 +412,44 @@ def cmd_log_character(args):
 
     if not args.offline and is_backend_online():
         try:
-            series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(series_title)}")
-            match = next((s for s in series_list if s.get("title", "").lower() == series_title.lower()), None)
-            if not match and series_list:
-                match = series_list[0]
-            if match:
-                payload = {
-                    "series": match.get("id"),
-                    "name": name,
-                    "why": why,
-                }
-                res = http_post_json(f"{DEFAULT_API_BASE}/characters/", payload)
-                print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
-                return
+            series_id = None
+            if series_title:
+                series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(series_title)}")
+                match = next((s for s in series_list if s.get("title", "").lower() == series_title.lower()), None)
+                if not match and series_list:
+                    match = series_list[0]
+                if not match:
+                    create_payload = {
+                        "title": series_title,
+                        "genres": [],
+                        "initial_season": {
+                            "title": "Season 1",
+                            "season_number": 1,
+                            "status": "COMPLETED",
+                        },
+                    }
+                    match = http_post_json(f"{DEFAULT_API_BASE}/series/", create_payload)
+                series_id = match.get("id")
+            else:
+                series_list = http_get_json(f"{DEFAULT_API_BASE}/series/")
+                if series_list:
+                    series_id = series_list[0].get("id")
+                else:
+                    create_payload = {
+                        "title": "Independent Memories",
+                        "genres": [],
+                    }
+                    created = http_post_json(f"{DEFAULT_API_BASE}/series/", create_payload)
+                    series_id = created.get("id")
+
+            payload = {
+                "series": series_id,
+                "name": name,
+                "why": why,
+            }
+            res = http_post_json(f"{DEFAULT_API_BASE}/characters/", payload)
+            print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
+            return
         except Exception as e:
             if not args.fallback_local:
                 print(f"[error] Backend request failed: {e}. Pass --fallback-local or --offline to store locally.", file=sys.stderr)
@@ -448,34 +513,57 @@ def cmd_log_book(args):
 
 
 def cmd_search(args):
-    q = args.query.lower().strip()
-    matches = {"series": [], "books": [], "characters": [], "rewatches": []}
+    q = args.query.strip()
+    if not args.offline and is_backend_online():
+        try:
+            q_enc = urllib.parse.quote(q)
+            series_res = http_get_json(f"{DEFAULT_API_BASE}/series/?search={q_enc}")
+            books_res = http_get_json(f"{DEFAULT_API_BASE}/books/?search={q_enc}")
+            chars_res = http_get_json(f"{DEFAULT_API_BASE}/characters/?search={q_enc}")
+            rewatches_res = http_get_json(f"{DEFAULT_API_BASE}/rewatches/?search={q_enc}")
+            print(json.dumps({
+                "mode": "connected",
+                "query": q,
+                "results": {
+                    "series": series_res,
+                    "books": books_res,
+                    "characters": chars_res,
+                    "rewatches": rewatches_res,
+                }
+            }, indent=2))
+            return
+        except Exception as e:
+            if not args.fallback_local:
+                print(f"[error] Backend search failed: {e}. Pass --fallback-local or --offline to search locally.", file=sys.stderr)
+                sys.exit(1)
+            print(f"[warning] Backend failed: {e}. Searching local journal.", file=sys.stderr)
 
+    matches = {"series": [], "books": [], "characters": [], "rewatches": []}
     local_data = load_local_journal()
     for s in local_data.get("series", []):
-        matched = q in s.get("title", "").lower()
+        matched = q.lower() in s.get("title", "").lower()
         matched_notes = []
         for sea in s.get("seasons", []):
-            if q in sea.get("notes", "").lower():
+            if q.lower() in sea.get("notes", "").lower():
                 matched = True
                 matched_notes.append(f"Season {sea.get('season_number')}: {sea.get('notes')}")
             for ep in sea.get("episode_notes", []):
-                if q in ep.get("note", "").lower():
+                if q.lower() in ep.get("note", "").lower():
                     matched = True
                     matched_notes.append(f"Ep {ep.get('episode_number')}: {ep.get('note')}")
         if matched:
             matches["series"].append({"title": s.get("title"), "matched_notes": matched_notes})
 
     for b in local_data.get("books", []):
-        if q in b.get("title", "").lower() or q in (b.get("author") or "").lower() or q in b.get("notes", "").lower():
+        if q.lower() in b.get("title", "").lower() or q.lower() in (b.get("author") or "").lower() or q.lower() in b.get("notes", "").lower():
             matches["books"].append({"title": b.get("title"), "author": b.get("author"), "notes": b.get("notes")})
 
     for c in local_data.get("characters", []):
-        if q in c.get("name", "").lower() or q in c.get("why", "").lower() or q in c.get("series_title", "").lower():
+        if q.lower() in c.get("name", "").lower() or q.lower() in c.get("why", "").lower() or q.lower() in c.get("series_title", "").lower():
             matches["characters"].append(c)
 
     for r in local_data.get("rewatches", []):
-        if q in r.get("release_title", "").lower() or q in r.get("notes", "").lower():
+        if q.lower() in r.get("release_title", "").lower() or q.lower() in r.get("notes", "").lower():
             matches["rewatches"].append(r)
 
     print(json.dumps({"query": q, "results": matches}, indent=2))
@@ -686,35 +774,37 @@ def cmd_export_obsidian(args):
 # ---------------------------------------------------------------------------
 
 def main():
-    parser = argparse.ArgumentParser(description="AnimeLog Socratic Journal Companion CLI")
-    parser.add_argument("--offline", action="store_true", help="Operate strictly on local storage (~/.animelog/journal.json)")
-    parser.add_argument("--fallback-local", action="store_true", help="Fallback to local storage if backend connection fails")
+    base_parser = argparse.ArgumentParser(add_help=False)
+    base_parser.add_argument("--offline", action="store_true", help="Operate strictly on local storage (~/.animelog/journal.json)")
+    base_parser.add_argument("--fallback-local", action="store_true", help="Fallback to local storage if backend connection fails")
+
+    parser = argparse.ArgumentParser(description="AnimeLog Socratic Journal Companion CLI", parents=[base_parser])
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     # lookup-anime
-    p_la = sub.add_parser("lookup-anime", help="Search MyAnimeList via Jikan")
+    p_la = sub.add_parser("lookup-anime", parents=[base_parser], help="Search MyAnimeList via Jikan")
     p_la.add_argument("query", help="Anime title")
     p_la.add_argument("--limit", type=int, default=5, help="Max results")
     p_la.set_defaults(func=cmd_lookup_anime)
 
     # lookup-character
-    p_lc = sub.add_parser("lookup-character", help="Search character via Jikan")
+    p_lc = sub.add_parser("lookup-character", parents=[base_parser], help="Search character via Jikan")
     p_lc.add_argument("query", help="Character name")
     p_lc.add_argument("--limit", type=int, default=5, help="Max results")
     p_lc.set_defaults(func=cmd_lookup_character)
 
     # lookup-book
-    p_lb = sub.add_parser("lookup-book", help="Search book via OpenLibrary")
+    p_lb = sub.add_parser("lookup-book", parents=[base_parser], help="Search book via OpenLibrary")
     p_lb.add_argument("query", help="Book title or author")
     p_lb.add_argument("--limit", type=int, default=5, help="Max results")
     p_lb.set_defaults(func=cmd_lookup_book)
 
     # status
-    p_st = sub.add_parser("status", help="Get journal status and totals")
+    p_st = sub.add_parser("status", parents=[base_parser], help="Get journal status and totals")
     p_st.set_defaults(func=cmd_status)
 
     # log-anime
-    p_an = sub.add_parser("log-anime", help="Log an anime franchise")
+    p_an = sub.add_parser("log-anime", parents=[base_parser], help="Log an anime franchise")
     p_an.add_argument("title", help="Franchise title")
     p_an.add_argument("--status", default="WATCHING", choices=["WATCHING", "COMPLETED", "PLAN_TO_WATCH", "ON_HOLD", "DROPPED"])
     p_an.add_argument("--rating", type=int, choices=range(1, 11), help="Rating 1-10")
@@ -724,7 +814,7 @@ def main():
     p_an.set_defaults(func=cmd_log_anime)
 
     # log-episode
-    p_ep = sub.add_parser("log-episode", help="Log a specific episode reflection note")
+    p_ep = sub.add_parser("log-episode", parents=[base_parser], help="Log a specific episode reflection note")
     p_ep.add_argument("series", help="Franchise title")
     p_ep.add_argument("episode", type=int, help="Episode number")
     p_ep.add_argument("--season", type=int, default=1, help="Season number (default: 1)")
@@ -733,7 +823,7 @@ def main():
     p_ep.set_defaults(func=cmd_log_episode)
 
     # log-rewatch
-    p_rw = sub.add_parser("log-rewatch", help="Log a rewatch pass and perspective evolution")
+    p_rw = sub.add_parser("log-rewatch", parents=[base_parser], help="Log a rewatch pass and perspective evolution")
     p_rw.add_argument("target", help="Title of the series or film rewatched")
     p_rw.add_argument("--date", help="Date of rewatch (YYYY-MM-DD)")
     p_rw.add_argument("--rating", type=int, choices=range(1, 11), help="Score on this pass (1-10)")
@@ -741,14 +831,14 @@ def main():
     p_rw.set_defaults(func=cmd_log_rewatch)
 
     # log-character
-    p_ch = sub.add_parser("log-character", help="Catalog a memorable character virtue")
+    p_ch = sub.add_parser("log-character", parents=[base_parser], help="Catalog a memorable character virtue")
     p_ch.add_argument("name", help="Character name")
     p_ch.add_argument("--series", help="Franchise title")
     p_ch.add_argument("--why", required=True, help="Why this character is remembered (core virtue/lesson)")
     p_ch.set_defaults(func=cmd_log_character)
 
     # log-book
-    p_bk = sub.add_parser("log-book", help="Log a book entry")
+    p_bk = sub.add_parser("log-book", parents=[base_parser], help="Log a book entry")
     p_bk.add_argument("title", help="Book title")
     p_bk.add_argument("--author", help="Author name")
     p_bk.add_argument("--status", default="READING", choices=["READING", "COMPLETED", "PLAN_TO_READ", "ON_HOLD", "DROPPED"])
@@ -759,18 +849,18 @@ def main():
     p_bk.set_defaults(func=cmd_log_book)
 
     # search
-    p_sr = sub.add_parser("search", help="Search journal across all titles, notes, and virtues")
+    p_sr = sub.add_parser("search", parents=[base_parser], help="Search journal across all titles, notes, and virtues")
     p_sr.add_argument("query", help="Search keyword")
     p_sr.set_defaults(func=cmd_search)
 
     # reflect
-    p_rf = sub.add_parser("reflect", help="Generate Socratic reflection questions for a title")
+    p_rf = sub.add_parser("reflect", parents=[base_parser], help="Generate Socratic reflection questions for a title")
     p_rf.add_argument("--title", help="Title of anime or book")
     p_rf.add_argument("--genre", choices=["shonen", "seinen", "slice-of-life", "general"], default="general", help="Genre framework")
     p_rf.set_defaults(func=cmd_reflect)
 
     # export-obsidian
-    p_eo = sub.add_parser("export-obsidian", help="Export journal to Obsidian Markdown vault with [[wikilinks]]")
+    p_eo = sub.add_parser("export-obsidian", parents=[base_parser], help="Export journal to Obsidian Markdown vault with [[wikilinks]]")
     p_eo.add_argument("--out", default="./animelog-vault", help="Output directory")
     p_eo.set_defaults(func=cmd_export_obsidian)
 
