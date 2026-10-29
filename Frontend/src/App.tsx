@@ -813,6 +813,7 @@ export const App: React.FC = () => {
                   onEditMovie={(series, movie) => openEditMovieModal(movie)}
                   onEditBook={openEditBookModal}
                   onOpenLogModal={openNewFranchiseModal}
+                  onToast={addToast}
                 />
               }
             />

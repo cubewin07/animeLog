@@ -1,9 +1,24 @@
-import React, { useRef } from 'react';
-import { BookOpen, ChevronRight, Clapperboard, Film, PenLine, RotateCcw, Star, Tv, UsersRound } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  Clapperboard,
+  Copy,
+  Download,
+  Film,
+  PenLine,
+  RotateCcw,
+  Star,
+  Tv,
+  UsersRound,
+} from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { AnimeMovie, AnimeSeason, AnimeSeries, Book, FavoriteCharacter, JournalStats, Rewatch } from '../types';
 import { ProgressStepper } from '../components/ProgressStepper';
+import { ExportModal } from '../components/ExportModal';
+import { ReadingRoomModal } from '../components/ReadingRoomModal';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface DashboardViewProps {
@@ -20,6 +35,7 @@ interface DashboardViewProps {
   onEditMovie?: (series: AnimeSeries, movie: AnimeMovie) => void;
   onEditBook?: (book: Book) => void;
   onOpenLogModal?: () => void;
+  onToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
 type LessonKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
@@ -75,8 +91,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onEditMovie,
   onEditBook,
   onOpenLogModal,
+  onToast,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showReadingRoomModal, setShowReadingRoomModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [copiedFeatured, setCopiedFeatured] = useState(false);
   const current: CurrentTitle[] = [];
   const lessons: Lesson[] = [];
 
@@ -156,10 +176,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <h1>Your stories, still in motion.</h1>
           <p className="desk-home-intro">A working desk for what you are living with now, and a reading room for the ideas that stayed after the credits.</p>
         </div>
-        <div className="desk-ledger" aria-label="Journal totals">
-          <div><strong>{stats.totalLessons}</strong><span>lessons kept</span></div>
-          <div><strong>{stats.rewatchesCount}</strong><span>returns made</span></div>
-          <div><strong>{stats.totalCompleted}</strong><span>titles finished</span></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowExportModal(true)}
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Download size={14} />
+            <span>Export Journal</span>
+          </button>
+          <div className="desk-ledger" aria-label="Journal totals">
+            <div><strong>{stats.totalLessons}</strong><span>lessons kept</span></div>
+            <div><strong>{stats.rewatchesCount}</strong><span>returns made</span></div>
+            <div><strong>{stats.totalCompleted}</strong><span>titles finished</span></div>
+          </div>
         </div>
       </header>
 
@@ -190,7 +221,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </section>
 
       <section className="desk-reading-room desk-animate-item" aria-labelledby="reading-room-heading">
-        <div className="desk-section-heading"><div><p className="desk-eyebrow">the reading room</p><h2 id="reading-room-heading">What stayed with you</h2></div><span className="desk-count-note">{lessons.length} recorded thoughts</span></div>
+        <div className="desk-section-heading">
+          <div>
+            <p className="desk-eyebrow">the reading room</p>
+            <h2 id="reading-room-heading">What stayed with you</h2>
+          </div>
+          <button
+            type="button"
+            className="desk-text-action"
+            onClick={() => setShowReadingRoomModal(true)}
+          >
+            Browse reading room ({lessons.length}) <ChevronRight size={15} />
+          </button>
+        </div>
         {featuredLesson ? (
           <div className="lesson-layout">
             <article className="featured-lesson">
@@ -200,7 +243,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <h3>{featuredLesson.title}</h3><p>{featuredLesson.context}</p>
               </button>
               <blockquote>“{notePreview(featuredLesson.note, 440)}”</blockquote>
-              <div className="featured-lesson-footer"><span>Latest entry</span>{featuredLesson.rating && <span className={`lesson-score ${ratingClass(featuredLesson.rating)}`}><Star size={13} fill="currentColor" /> {featuredLesson.rating}/10</span>}</div>
+              <div className="featured-lesson-footer">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>Latest entry</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const text = `“${featuredLesson.note}”\n— ${featuredLesson.title} (${featuredLesson.context})`;
+                      navigator.clipboard.writeText(text);
+                      setCopiedFeatured(true);
+                      if (onToast) onToast('Copied lesson quote to clipboard');
+                      setTimeout(() => setCopiedFeatured(false), 2000);
+                    }}
+                    style={{ fontSize: 11, padding: '2px 6px', height: 22 }}
+                    aria-label="Copy featured lesson quote"
+                  >
+                    {copiedFeatured ? <Check size={12} color="var(--spine-text)" /> : <Copy size={12} />}
+                    <span>{copiedFeatured ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                {featuredLesson.rating && (
+                  <span className={`lesson-score ${ratingClass(featuredLesson.rating)}`}>
+                    <Star size={13} fill="currentColor" /> {featuredLesson.rating}/10
+                  </span>
+                )}
+              </div>
             </article>
             <div className="memory-index">
               <div className="memory-index-heading"><span>Memory index</span><span>{memoryIndex.length.toString().padStart(2, '0')}</span></div>
@@ -216,6 +285,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <section className="desk-side-section" aria-labelledby="returns-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><RotateCcw size={13} /> return shelf</p><h2 id="returns-heading">Seen again</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('rewatches')}>All returns <ChevronRight size={15} /></button></div>{recentReturns.length ? <div className="return-timeline">{recentReturns.map((rewatch) => { const date = returnDate(rewatch.finish_date || rewatch.start_date); return <button type="button" key={rewatch.id} className="return-timeline-item" onClick={() => onNavigate('rewatches')}><time className="return-timeline-date"><span>{date.month}</span><strong>{date.day}</strong><small>{date.year}</small></time><span className="return-timeline-node" /><span className="return-timeline-copy"><strong>{rewatch.release_title || rewatch.series_title || 'A remembered title'}</strong><small>{notePreview(rewatch.notes || '', 78)}</small></span></button>; })}</div> : <p className="desk-quiet-copy">Rewatches become a record of how a story changes with you.</p>}</section>
         <section className="desk-side-section" aria-labelledby="characters-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><UsersRound size={13} /> character shelf</p><h2 id="characters-heading">People remembered</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('characters')}>All characters <ChevronRight size={15} /></button></div>{rememberedCharacters.length ? <div className="character-memory-deck">{rememberedCharacters.map((character) => { const image = character.cover_image_url || character.image_url || character.images?.[0]?.url || character.images?.[0]?.file; return <button type="button" className="character-memory-card" key={character.id} onClick={() => onNavigate('characters')}><span className="character-memory-portrait">{image ? <img src={image} alt="" /> : character.name.slice(0, 1)}</span><span className="character-memory-copy"><small>{character.series_title || 'Favorite character'}</small><strong>{character.name}</strong><em>“{notePreview(character.why || '', 88)}”</em></span></button>; })}</div> : <p className="desk-quiet-copy">Keep the characters whose choices gave you something to think about.</p>}</section>
       </div>
+
+      {/* Reader & Export Modals */}
+      <ReadingRoomModal
+        isOpen={showReadingRoomModal}
+        onClose={() => setShowReadingRoomModal(false)}
+        lessons={lessons}
+        onToast={onToast}
+      />
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onToast={onToast}
+      />
     </div>
   );
 };
