@@ -105,3 +105,81 @@ def get_lessons_resource() -> str:
         "characters": characters,
         "rewatches": rewatches,
     }, indent=2)
+
+
+@sync_to_async
+def get_taste_resource() -> str:
+    """Return JSON string of the user's taste profile and analytical breakdown."""
+    from .tools import get_taste_and_lessons_synthesis
+    # get_taste_and_lessons_synthesis is wrapped in sync_to_async; call underlying or async
+    from django.db.models import Avg, Count, F
+    from animeLog.models import Genre, Studio
+
+    top_genres = list(
+        Genre.objects.annotate(
+            anime_count=Count("anime_series", distinct=True),
+            book_count=Count("books", distinct=True),
+        )
+        .annotate(total_usage=F("anime_count") + F("book_count"))
+        .order_by("-total_usage")[:8]
+        .values("name", "anime_count", "book_count")
+    )
+    top_studios = list(
+        Studio.objects.annotate(
+            season_count=Count("anime_seasons", distinct=True),
+            movie_count=Count("anime_movies", distinct=True),
+        )
+        .annotate(total_usage=F("season_count") + F("movie_count"))
+        .order_by("-total_usage")[:6]
+        .values("name", "season_count", "movie_count")
+    )
+    avg_season_rating = AnimeSeason.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+    avg_book_rating = Book.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+
+    data = {
+        "top_genres": top_genres,
+        "top_studios": top_studios,
+        "average_season_rating": round(avg_season_rating, 2) if avg_season_rating else None,
+        "average_book_rating": round(avg_book_rating, 2) if avg_book_rating else None,
+        "total_titles": AnimeSeries.objects.count() + Book.objects.count(),
+        "total_rewatches": Rewatch.objects.count(),
+        "total_characters": FavoriteCharacter.objects.count(),
+    }
+    return json.dumps(data, indent=2)
+
+
+@sync_to_async
+def get_markdown_resource() -> str:
+    """Return full Obsidian-ready Markdown journal export."""
+    from .tools import export_journal_markdown
+    from datetime import date
+    series_qs = AnimeSeries.objects.prefetch_related(
+        "genres", "seasons__studios", "seasons__episode_notes", "movies__studios", "favorite_characters", "rewatches"
+    ).all().order_by("-created_at")
+    books_qs = Book.objects.prefetch_related("genres").all().order_by("-created_at")
+
+    lines = [
+        "---",
+        "title: AnimeLog Personal Journal",
+        f"exported_at: {date.today().isoformat()}",
+        "---",
+        "",
+        "# AnimeLog Personal Journal",
+        "",
+        "## Anime Franchises",
+    ]
+    for s in series_qs:
+        lines.append(f"\n### {s.title}")
+        for sea in s.seasons.all():
+            score = f" · {sea.rating}/10" if sea.rating else ""
+            lines.append(f"- **Season {sea.season_number}:** {sea.title} ({sea.status}{score})")
+            if sea.notes:
+                lines.append(f"  > {sea.notes}")
+    lines.append("\n## Books")
+    for b in books_qs:
+        score = f" · {b.rating}/10" if b.rating else ""
+        lines.append(f"- **{b.title}** by {b.author or 'Unknown'} ({b.status}{score})")
+        if b.notes:
+            lines.append(f"  > {b.notes}")
+
+    return "\n".join(lines)

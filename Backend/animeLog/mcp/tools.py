@@ -25,7 +25,9 @@ from animeLog.models import (
     BookStatus,
     EpisodeNote,
     FavoriteCharacter,
+    Folder,
     Genre,
+    Image,
     Rewatch,
     Studio,
 )
@@ -142,6 +144,23 @@ def search_journal(query: str = "", media_type: str = "all") -> list[dict[str, A
                 "target_type": r.target_type,
                 "rating": r.rating,
                 "notes": r.notes,
+            })
+
+    # Episode Notes
+    if media_type in ("all", "episodes", "notes"):
+        ep_qs = EpisodeNote.objects.select_related("season", "season__series").all()
+        if q:
+            ep_qs = ep_qs.filter(Q(note__icontains=q) | Q(episode_title__icontains=q)).distinct()
+        for en in ep_qs[:20]:
+            results.append({
+                "type": "episode_note",
+                "id": en.id,
+                "series_title": en.season.series.title if en.season and en.season.series else "",
+                "season_title": en.season.title if en.season else "",
+                "episode_number": en.episode_number,
+                "episode_title": en.episode_title,
+                "rating": en.rating,
+                "note": en.note,
             })
 
     return results
@@ -1150,3 +1169,370 @@ def update_book_progress(
         "progress": book.progress,
         "rating": book.rating,
     }
+
+
+@sync_to_async
+def update_book(
+    book_id: int,
+    title: str | None = None,
+    author: str | None = None,
+    status: str | None = None,
+    total_pages: int | None = None,
+    progress: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    genres: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update details, metadata, status, rating, or reflections on a book.
+
+    Args:
+        book_id: ID of the Book
+        title: Optional new title
+        author: Optional author name
+        status: Status ('READING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_READ')
+        total_pages: Total page count
+        progress: Current page count
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        genres: Genre tags
+    """
+    try:
+        book = Book.objects.get(pk=book_id)
+    except Book.DoesNotExist:
+        return {"success": False, "error": f"Book with ID {book_id} not found."}
+
+    if title is not None:
+        book.title = title.strip()
+    if author is not None:
+        book.author = author.strip() if author else None
+    if total_pages is not None:
+        book.total_pages = total_pages
+    if progress is not None:
+        book.progress = progress
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in BookStatus.values:
+            book.status = s_val
+    if rating is not None:
+        book.rating = rating
+    if notes is not None:
+        book.notes = notes.strip() if notes else None
+    if start_date is not None:
+        book.start_date = start_date or None
+    if finish_date is not None:
+        book.finish_date = finish_date or None
+
+    book.save()
+
+    if genres is not None:
+        genre_objs = _get_or_create_genres(genres)
+        book.genres.set(genre_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated book '{book.title}'.",
+        "book_id": book.id,
+        "status": book.status,
+    }
+
+
+@sync_to_async
+def delete_journal_entry(target_type: str, target_id: int) -> dict[str, Any]:
+    """
+    Delete an entry from your journal by type and ID.
+    Supports: series, season, movie, episode_note, rewatch, character, book.
+
+    Args:
+        target_type: One of 'series', 'season', 'movie', 'episode_note', 'rewatch', 'character', 'book'
+        target_id: ID of the record to delete
+    """
+    norm_type = target_type.lower().strip()
+    type_map = {
+        "series": AnimeSeries,
+        "season": AnimeSeason,
+        "movie": AnimeMovie,
+        "episode_note": EpisodeNote,
+        "rewatch": Rewatch,
+        "character": FavoriteCharacter,
+        "book": Book,
+    }
+    if norm_type not in type_map:
+        return {
+            "success": False,
+            "error": f"Invalid target_type '{target_type}'. Must be one of: {', '.join(type_map.keys())}.",
+        }
+
+    model_cls = type_map[norm_type]
+    try:
+        obj = model_cls.objects.get(pk=target_id)
+        name = str(obj)
+        obj.delete()
+        return {
+            "success": True,
+            "message": f"Successfully deleted {norm_type} '{name}' (ID: {target_id}).",
+        }
+    except model_cls.DoesNotExist:
+        return {
+            "success": False,
+            "error": f"{norm_type} with ID {target_id} not found.",
+        }
+
+
+@sync_to_async
+def lookup_external_metadata(query: str, media_type: str = "anime") -> list[dict[str, Any]]:
+    """
+    Look up external metadata from MyAnimeList (via Jikan) or OpenLibrary without leaving the agent.
+
+    Args:
+        query: Search term (e.g. 'Frieren', 'Steins;Gate', 'Marcus Aurelius')
+        media_type: 'anime', 'character', or 'book'
+    """
+    from animeLog.services.metadata_lookup import (
+        search_anime_metadata,
+        search_book_metadata,
+        search_character_metadata,
+    )
+
+    m_norm = media_type.lower().strip()
+    if m_norm == "anime":
+        return search_anime_metadata(query)
+    elif m_norm == "character":
+        return search_character_metadata(query)
+    elif m_norm == "book":
+        return search_book_metadata(query)
+    return []
+
+
+@sync_to_async
+def smart_log_anime(
+    query: str,
+    status: str = "WATCHING",
+    rating: int | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """
+    Search MyAnimeList via Jikan, fetch official metadata, download the high-res poster artwork,
+    and create the anime franchise with Season 1 in a single call.
+
+    Args:
+        query: Anime title to look up on MyAnimeList (e.g. 'Frieren', 'Vinland Saga')
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        rating: Optional rating score 1-10
+        notes: Personal reflection, memory, or life lesson
+    """
+    from animeLog.services.metadata_lookup import import_remote_image, search_anime_metadata
+
+    matches = search_anime_metadata(query, limit=1)
+    if not matches:
+        return {"success": False, "error": f"No anime matches found on MyAnimeList for '{query}'."}
+
+    match = matches[0]
+    cover_image_obj = None
+    if match.get("cover_url"):
+        try:
+            cover_image_obj = import_remote_image(
+                url=match["cover_url"],
+                title=match["title"],
+                folder_name="Anime Covers",
+            )
+        except Exception:
+            pass
+
+    status_val = status.upper().strip()
+    if status_val not in AnimeStatus.values:
+        status_val = AnimeStatus.WATCHING
+
+    with transaction.atomic():
+        series = AnimeSeries.objects.create(
+            title=match["title"],
+            japanese_title=match.get("japanese_title"),
+            romaji_title=match.get("romaji_title"),
+            cover_image=cover_image_obj,
+        )
+        if match.get("genres"):
+            genres = _get_or_create_genres(match["genres"])
+            series.genres.set(genres)
+
+        if match.get("media_type") == "movie":
+            movie = AnimeMovie.objects.create(
+                series=series,
+                title=match["title"],
+                cover_image=cover_image_obj,
+                status=status_val,
+                total_minutes=match.get("total_minutes"),
+                progress_minutes=match.get("total_minutes") if status_val == AnimeStatus.COMPLETED and match.get("total_minutes") else 0,
+                rating=rating or (int(round(match["score"])) if match.get("score") else None),
+                notes=notes.strip() if notes else match.get("synopsis"),
+                finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+            )
+            if match.get("studios"):
+                studios = _get_or_create_studios(match["studios"])
+                movie.studios.set(studios)
+            release_id = movie.id
+            release_type = "movie"
+        else:
+            season = AnimeSeason.objects.create(
+                series=series,
+                title="Season 1",
+                season_number=1,
+                cover_image=cover_image_obj,
+                status=status_val,
+                total_episodes=match.get("total_episodes"),
+                progress=match.get("total_episodes") if status_val == AnimeStatus.COMPLETED and match.get("total_episodes") else 0,
+                rating=rating or (int(round(match["score"])) if match.get("score") else None),
+                notes=notes.strip() if notes else match.get("synopsis"),
+                finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+            )
+            if match.get("studios"):
+                studios = _get_or_create_studios(match["studios"])
+                season.studios.set(studios)
+            release_id = season.id
+            release_type = "season"
+
+    return {
+        "success": True,
+        "message": f"Successfully auto-logged '{series.title}' from MyAnimeList with cover artwork.",
+        "series_id": series.id,
+        "release_type": release_type,
+        "release_id": release_id,
+        "status": status_val,
+    }
+
+
+@sync_to_async
+def get_taste_and_lessons_synthesis() -> dict[str, Any]:
+    """
+    Synthesize user's taste profile, studio affinities, top genres, rating distribution,
+    and all philosophical reflection notes across anime and literature.
+    """
+    from django.db.models import Avg, Count, F
+
+    top_genres = list(
+        Genre.objects.annotate(
+            anime_count=Count("anime_series", distinct=True),
+            book_count=Count("books", distinct=True),
+        )
+        .annotate(total_usage=F("anime_count") + F("book_count"))
+        .order_by("-total_usage")[:8]
+        .values("name", "anime_count", "book_count")
+    )
+
+    top_studios = list(
+        Studio.objects.annotate(
+            season_count=Count("anime_seasons", distinct=True),
+            movie_count=Count("anime_movies", distinct=True),
+        )
+        .annotate(total_usage=F("season_count") + F("movie_count"))
+        .order_by("-total_usage")[:6]
+        .values("name", "season_count", "movie_count")
+    )
+
+    avg_season_rating = AnimeSeason.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+    avg_book_rating = Book.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+
+    all_lessons = []
+    for s in AnimeSeason.objects.exclude(notes__isnull=True).exclude(notes="").select_related("series"):
+        all_lessons.append({"source": f"{s.series.title} - {s.title}", "rating": s.rating, "takeaway": s.notes})
+    for m in AnimeMovie.objects.exclude(notes__isnull=True).exclude(notes="").select_related("series"):
+        all_lessons.append({"source": f"{m.series.title} - Film", "rating": m.rating, "takeaway": m.notes})
+    for en in EpisodeNote.objects.exclude(note="").select_related("season__series"):
+        all_lessons.append({
+            "source": f"{en.season.series.title} S{en.season.season_number} Ep {en.episode_number}",
+            "rating": en.rating,
+            "takeaway": en.note,
+        })
+    for b in Book.objects.exclude(notes__isnull=True).exclude(notes=""):
+        all_lessons.append({"source": f"Book: {b.title} by {b.author or 'Unknown'}", "rating": b.rating, "takeaway": b.notes})
+    for r in Rewatch.objects.exclude(notes__isnull=True).exclude(notes=""):
+        all_lessons.append({"source": f"Rewatch: {r.release_title}", "rating": r.rating, "takeaway": r.notes})
+    for c in FavoriteCharacter.objects.exclude(why__isnull=True).exclude(why="").select_related("series"):
+        all_lessons.append({"source": f"Character: {c.name} ({c.series_title})", "takeaway": c.why})
+
+    return {
+        "taste_profile": {
+            "top_genres": top_genres,
+            "top_studios": top_studios,
+            "average_season_rating": round(avg_season_rating, 2) if avg_season_rating else None,
+            "average_book_rating": round(avg_book_rating, 2) if avg_book_rating else None,
+            "total_titles": AnimeSeries.objects.count() + Book.objects.count(),
+            "total_rewatch_passes": Rewatch.objects.count(),
+            "total_characters_kept": FavoriteCharacter.objects.count(),
+        },
+        "lessons_count": len(all_lessons),
+        "lessons": all_lessons,
+    }
+
+
+@sync_to_async
+def export_journal_markdown() -> str:
+    """
+    Generate an Obsidian-ready Markdown export of the entire journal with YAML frontmatter.
+    """
+    series_qs = AnimeSeries.objects.prefetch_related(
+        "genres", "seasons__studios", "seasons__episode_notes", "movies__studios", "favorite_characters", "rewatches"
+    ).all().order_by("-created_at")
+    books_qs = Book.objects.prefetch_related("genres").all().order_by("-created_at")
+    rewatches_qs = Rewatch.objects.all().order_by("-start_date", "-id")
+    characters_qs = FavoriteCharacter.objects.select_related("series").all().order_by("name")
+
+    lines = [
+        "---",
+        "title: AnimeLog Personal Journal Export",
+        f"exported_at: {date.today().isoformat()}",
+        "generator: AnimeLog MCP Companion",
+        "---",
+        "",
+        "# AnimeLog Personal Journal",
+        "",
+        "## Anime Franchises\n",
+    ]
+    for s in series_qs:
+        lines.append(f"### {s.title}")
+        if s.japanese_title or s.romaji_title:
+            lines.append(f"*{s.japanese_title or ''} / {s.romaji_title or ''}*")
+        genres_str = ", ".join([g.name for g in s.genres.all()])
+        if genres_str:
+            lines.append(f"- **Genres:** {genres_str}")
+        for sea in s.seasons.all():
+            score_str = f" · Rating: {sea.rating}/10" if sea.rating else ""
+            lines.append(f"\n#### Season {sea.season_number}: {sea.title} ({sea.status}{score_str})")
+            lines.append(f"- Progress: {sea.progress}/{sea.total_episodes or '?'}")
+            if sea.notes:
+                lines.append(f"> {sea.notes}\n")
+            for ep in sea.episode_notes.all():
+                ep_score = f" [{ep.rating}/10]" if ep.rating else ""
+                lines.append(f"- **Ep {ep.episode_number}{ep_score}:** {ep.note}")
+        for mov in s.movies.all():
+            score_str = f" · Rating: {mov.rating}/10" if mov.rating else ""
+            lines.append(f"\n#### Film: {mov.title} ({mov.status}{score_str})")
+            if mov.notes:
+                lines.append(f"> {mov.notes}\n")
+        lines.append("")
+
+    lines.append("## Literature & Books\n")
+    for b in books_qs:
+        b_score = f" · Rating: {b.rating}/10" if b.rating else ""
+        lines.append(f"### {b.title} by {b.author or 'Unknown'} ({b.status}{b_score})")
+        lines.append(f"- Progress: {b.progress}/{b.total_pages or '?'} pages")
+        if b.notes:
+            lines.append(f"> {b.notes}\n")
+
+    lines.append("## Rewatches & Return Passes\n")
+    for r in rewatches_qs:
+        r_score = f" · Rating: {r.rating}/10" if r.rating else ""
+        lines.append(f"- **{r.release_title}** ({r.start_date or 'Undated'}{r_score})")
+        if r.notes:
+            lines.append(f"  > {r.notes}")
+
+    lines.append("\n## Memorable Characters & Virtues\n")
+    for c in characters_qs:
+        lines.append(f"- **{c.name}** ({c.series_title})")
+        if c.why:
+            lines.append(f"  *“{c.why}”*")
+
+    return "\n".join(lines)

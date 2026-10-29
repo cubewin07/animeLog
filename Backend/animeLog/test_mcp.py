@@ -293,6 +293,97 @@ class MCPToolsTestCase(TestCase):
         self.assertEqual(rewatch.rating, 10)
         self.assertEqual(rewatch.notes, "Pass 2: Found so much deeper symbolism.")
 
+    async def test_update_book_and_delete_entry(self):
+        b_res = await tools.log_book(
+            title="Siddhartha",
+            author="Hermann Hesse",
+            status="READING",
+            total_pages=152,
+            notes="Wisdom cannot be imparted.",
+        )
+        book_id = b_res["book_id"]
+
+        up_book = await tools.update_book(
+            book_id=book_id,
+            rating=10,
+            notes="Wisdom is not communicable; words cannot capture the whole.",
+        )
+        self.assertTrue(up_book["success"])
+        b = await Book.objects.aget(pk=book_id)
+        self.assertEqual(b.rating, 10)
+
+        # Delete entry
+        del_res = await tools.delete_journal_entry("book", book_id)
+        self.assertTrue(del_res["success"])
+        self.assertFalse(await Book.objects.filter(pk=book_id).aexists())
+
+    from unittest.mock import patch
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    async def test_smart_log_anime_flow(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "mal_id": 19,
+                    "title": "Monster",
+                    "title_japanese": "モンスター",
+                    "type": "TV",
+                    "episodes": 74,
+                    "score": 9.15,
+                    "status": "Finished Airing",
+                    "synopsis": "Dr. Kenzo Tenma...",
+                    "studios": [{"name": "Madhouse"}],
+                    "genres": [{"name": "Psychological"}, {"name": "Mystery"}],
+                    "images": {"jpg": {"large_image_url": "https://example.com/monster.jpg"}},
+                }
+            ]
+        }
+        mock_get.return_value.content = b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        mock_get.return_value.headers = {"Content-Type": "image/gif"}
+
+        res = await tools.smart_log_anime(
+            query="Monster",
+            status="COMPLETED",
+            rating=10,
+            notes="The true monster lies within human nature and nihilism.",
+        )
+        self.assertTrue(res["success"])
+        series = await AnimeSeries.objects.aget(pk=res["series_id"])
+        self.assertEqual(series.title, "Monster")
+        season = await AnimeSeason.objects.aget(pk=res["release_id"])
+        self.assertEqual(season.total_episodes, 74)
+        self.assertEqual(season.progress, 74)
+        self.assertEqual(season.rating, 10)
+
+    async def test_taste_synthesis_and_markdown_export(self):
+        # Create a series with lesson
+        s_res = await tools.log_anime_series(
+            title="Vinland Saga",
+            initial_season_notes="A true warrior needs no sword.",
+            genres=["Action", "Drama"],
+            studios=["MAPPA"],
+        )
+        synth = await tools.get_taste_and_lessons_synthesis()
+        self.assertIn("taste_profile", synth)
+        self.assertGreaterEqual(synth["lessons_count"], 1)
+
+        md = await tools.export_journal_markdown()
+        self.assertIn("Vinland Saga", md)
+        self.assertIn("A true warrior needs no sword.", md)
+
+    def test_new_mcp_prompts_and_resources(self):
+        socratic = prompts.get_socratic_reflection_prompt("Frieren")
+        self.assertIn("Turning Point", socratic)
+        self.assertIn("Real-World Parallel", socratic)
+
+        rewatch_diff = prompts.get_rewatch_perspective_diff_prompt("Steins;Gate")
+        self.assertIn("Perspective Diff", rewatch_diff)
+
+        char_virtue = prompts.get_character_virtue_prompt("Himmel")
+        self.assertIn("core virtue", char_virtue)
+
+
     def test_asgi_streamable_http_handshake(self):
         from config.asgi import application
         from starlette.testclient import TestClient
