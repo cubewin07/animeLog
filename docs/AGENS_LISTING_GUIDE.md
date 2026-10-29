@@ -10,8 +10,8 @@ Ready-to-use listing package for submitting to [agensi.io/sell](https://www.agen
 - **Tagline:** Turn watching and reading into lasting life lessons. Live MyAnimeList & OpenLibrary auto-enrichment, Socratic reflection workflows, rewatch evolution diffs, and Obsidian vault export.
 - **Category:** Personal Growth / Entertainment / Productivity / Lifestyle
 - **Price Recommendation:**
-  - **One-time:** \$14.00 (You keep 70% = **\$9.80 / sale**)
-  - **Free Tier:** Can also offer free download to build audience and direct users to your GitHub repo.
+  - **Impulse Buy Tier:** \$5.00–\$7.00 (You keep 70% = **\$3.50–\$4.90 / sale**). Highly recommended over \$14 for optimal conversion in developer/lifestyle categories.
+  - **Free Tier:** Free download to build audience, gather ratings, and funnel users to your open-source GitHub repo.
 - **Tags:** `anime`, `manga`, `myanimelist`, `jikan`, `obsidian`, `journaling`, `socratic-reflection`, `philosophy`, `books`, `claude-code`, `cursor`
 
 ---
@@ -46,6 +46,8 @@ Whether you are using **Claude Code, Cursor, Windsurf, Copilot, or Codex CLI**, 
 python3 scripts/animelog_cli.py lookup-anime "Frieren"
 python3 scripts/animelog_cli.py log-anime "Frieren: Beyond Journey's End" --rating 10 --notes "A masterclass on the passage of time and cherishing fleeting moments."
 python3 scripts/animelog_cli.py log-character "Himmel" --series "Frieren: Beyond Journey's End" --why "Living courageously so that even fleeting encounters leave warmth."
+python3 scripts/animelog_cli.py import-mal "my_mal_username" --limit 50
+python3 scripts/animelog_cli.py taste-profile
 python3 scripts/animelog_cli.py reflect --title "Vinland Saga" --genre seinen
 python3 scripts/animelog_cli.py export-obsidian --out ./my-vault
 ```
@@ -57,7 +59,7 @@ python3 scripts/animelog_cli.py export-obsidian --out ./my-vault
 
 1. Navigate to **[agensi.io/sell](https://www.agensi.io/sell)** and sign in.
 2. Upload the `skills/animelog-journal/` folder (contains `SKILL.md`, `scripts/animelog_cli.py`, `references/`).
-3. Set price to **\$14.00** (or your chosen amount).
+3. Set price to **\$5.00 – \$7.00** (or Free tier).
 4. Paste the description above into the listing form.
 5. Automated security scan: `scripts/animelog_cli.py` has **zero external package dependencies** and uses standard library only, ensuring an instant pass.
 6. Connect your Stripe account for automated monthly payouts.

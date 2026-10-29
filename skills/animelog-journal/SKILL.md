@@ -77,12 +77,18 @@ python3 scripts/animelog_cli.py lookup-anime "Frieren"
 python3 scripts/animelog_cli.py lookup-character "Himmel"
 python3 scripts/animelog_cli.py lookup-book "Meditations Marcus Aurelius"
 
-# Log Titles & Notes
+# Log Titles & Notes (Auto-Enriched with Japanese Title, Genres, Studios & Covers)
 python3 scripts/animelog_cli.py log-anime "Frieren: Beyond Journey's End" --status COMPLETED --rating 10 --notes "A masterclass on the passage of time."
 python3 scripts/animelog_cli.py log-episode "Frieren: Beyond Journey's End" 1 --note "The true beginning of the journey."
 python3 scripts/animelog_cli.py log-rewatch "Frieren: Beyond Journey's End" --notes "Felt even more poignant on second viewing." --rating 10
 python3 scripts/animelog_cli.py log-character "Himmel" --series "Frieren: Beyond Journey's End" --why "Because it is what a hero would do."
 python3 scripts/animelog_cli.py log-book "Meditations" --author "Marcus Aurelius" --status COMPLETED --rating 10 --notes "You have power over your mind - not outside events."
+
+# Import Public MyAnimeList Profile into Journal (Standalone or Connected)
+python3 scripts/animelog_cli.py import-mal "my_mal_username" --limit 50
+
+# Synthesize Taste Profile, Ratings, & All Recorded Life Lessons
+python3 scripts/animelog_cli.py taste-profile
 
 # Search Journal (Titles, Notes, Characters, Virtues)
 python3 scripts/animelog_cli.py search "passage of time"

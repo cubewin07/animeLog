@@ -1,6 +1,6 @@
 # Frontend
 
-SPA for the personal anime/book journal. Empty folder today — scaffold here, not inside Django templates.
+SPA for the personal anime/book journal. Built with React 19, TypeScript, Vite, GSAP micro-interactions, and vanilla CSS design system. Proxies to the Django REST API at `/api/`.
 
 ## Intended stack (locked)
 
