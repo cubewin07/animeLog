@@ -211,16 +211,92 @@ def cmd_status(args):
     print(json.dumps({"mode": "standalone_local", "local_file": str(LOCAL_FILE), "stats": stats}, indent=2))
 
 
+def enrich_anime_metadata(title: str) -> Optional[dict]:
+    clean_title = title.strip()
+    if not clean_title:
+        return None
+    url = f"https://api.jikan.moe/v4/anime?q={urllib.parse.quote(clean_title)}&limit=1"
+    try:
+        data = http_get_json(url)
+        items = data.get("data", [])
+        if not items:
+            return None
+        it = items[0]
+        images = it.get("images", {}).get("jpg", {})
+        cover = images.get("large_image_url") or images.get("image_url")
+        return {
+            "title": it.get("title"),
+            "japanese_title": it.get("title_japanese"),
+            "romaji_title": it.get("title"),
+            "episodes": it.get("episodes"),
+            "score": it.get("score"),
+            "genres": [g.get("name") for g in it.get("genres", [])],
+            "studios": [s.get("name") for s in it.get("studios", [])],
+            "cover_url": cover,
+            "synopsis": it.get("synopsis"),
+        }
+    except Exception:
+        return None
+
+
+def enrich_book_metadata(title: str, author: Optional[str] = None) -> Optional[dict]:
+    q = title.strip()
+    if author:
+        q = f"{q} {author.strip()}"
+    if not q:
+        return None
+    url = f"https://openlibrary.org/search.json?q={urllib.parse.quote(q)}&limit=1"
+    try:
+        data = http_get_json(url)
+        docs = data.get("docs", [])
+        if not docs:
+            return None
+        d = docs[0]
+        authors = d.get("author_name") or []
+        cover_id = d.get("cover_i")
+        return {
+            "title": d.get("title"),
+            "author": authors[0] if authors else None,
+            "total_pages": d.get("number_of_pages_median"),
+            "genres": (d.get("subject") or [])[:5],
+            "cover_url": f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else None,
+        }
+    except Exception:
+        return None
+
+
 def cmd_log_anime(args):
     title = args.title.strip()
     status_val = (args.status or "WATCHING").upper()
     rating = validate_rating(args.rating)
     notes = args.notes or ""
 
+    enriched = None
+    if getattr(args, "enrich", True):
+        enriched = enrich_anime_metadata(title)
+
+    japanese_title = enriched.get("japanese_title") if enriched else None
+    romaji_title = enriched.get("romaji_title") if enriched else None
+    genres = enriched.get("genres") if enriched else []
+    studios = enriched.get("studios") if enriched else []
+    cover_url = enriched.get("cover_url") if enriched else None
+    score_mal = enriched.get("score") if enriched else None
+
+    total_eps = int(args.episodes) if args.episodes else (enriched.get("episodes") if enriched else None)
+    if total_eps is not None:
+        try:
+            total_eps = int(total_eps)
+        except (ValueError, TypeError):
+            total_eps = None
+
+    progress_val = int(args.progress) if args.progress else (total_eps if status_val == "COMPLETED" and total_eps else 0)
+
     if not args.offline and is_backend_online():
         try:
             payload = {
                 "title": title,
+                "japanese_title": japanese_title,
+                "romaji_title": romaji_title,
                 "genres": [],
                 "initial_season": {
                     "title": "Season 1",
@@ -228,12 +304,12 @@ def cmd_log_anime(args):
                     "status": status_val,
                     "rating": rating,
                     "notes": notes,
-                    "total_episodes": int(args.episodes) if args.episodes else None,
-                    "progress": int(args.progress) if args.progress else (int(args.episodes) if status_val == "COMPLETED" and args.episodes else 0),
+                    "total_episodes": total_eps,
+                    "progress": progress_val,
                 },
             }
             res = http_post_json(f"{DEFAULT_API_BASE}/series/", payload)
-            print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
+            print(json.dumps({"success": True, "mode": "connected", "entry": res, "enriched": enriched is not None}, indent=2))
             return
         except Exception as e:
             if not args.fallback_local:
@@ -245,6 +321,12 @@ def cmd_log_anime(args):
     new_entry = {
         "id": int(datetime.datetime.now().timestamp() * 1000),
         "title": title,
+        "japanese_title": japanese_title,
+        "romaji_title": romaji_title,
+        "cover_url": cover_url,
+        "genres": genres or [],
+        "studios": studios or [],
+        "score_mal": score_mal,
         "created_at": datetime.date.today().isoformat(),
         "seasons": [
             {
@@ -252,8 +334,8 @@ def cmd_log_anime(args):
                 "season_number": 1,
                 "title": "Season 1",
                 "status": status_val,
-                "progress": int(args.progress) if args.progress else 0,
-                "total_episodes": int(args.episodes) if args.episodes else None,
+                "progress": progress_val,
+                "total_episodes": total_eps,
                 "rating": rating,
                 "notes": notes,
                 "episode_notes": [],
@@ -263,7 +345,7 @@ def cmd_log_anime(args):
     }
     local_data.setdefault("series", []).insert(0, new_entry)
     save_local_journal(local_data)
-    print(json.dumps({"success": True, "mode": "standalone_local", "entry": new_entry}, indent=2))
+    print(json.dumps({"success": True, "mode": "standalone_local", "entry": new_entry, "enriched": enriched is not None}, indent=2))
 
 
 def cmd_log_episode(args):
@@ -474,20 +556,36 @@ def cmd_log_book(args):
     rating = validate_rating(args.rating)
     notes = args.notes or ""
 
+    enriched = None
+    if getattr(args, "enrich", True):
+        enriched = enrich_book_metadata(title, args.author)
+
+    author = (args.author or (enriched.get("author") if enriched else None) or "").strip() or None
+    total_pages = int(args.pages) if args.pages else (enriched.get("total_pages") if enriched else None)
+    if total_pages is not None:
+        try:
+            total_pages = int(total_pages)
+        except (ValueError, TypeError):
+            total_pages = None
+
+    genres = enriched.get("genres") if enriched else []
+    cover_url = enriched.get("cover_url") if enriched else None
+    progress_val = int(args.progress) if args.progress else (total_pages if status_val == "COMPLETED" and total_pages else 0)
+
     if not args.offline and is_backend_online():
         try:
             payload = {
                 "title": title,
-                "author": args.author or None,
+                "author": author,
                 "status": status_val,
                 "rating": rating,
-                "progress": int(args.progress) if args.progress else 0,
-                "total_pages": int(args.pages) if args.pages else None,
+                "progress": progress_val,
+                "total_pages": total_pages,
                 "notes": notes,
                 "genres": [],
             }
             res = http_post_json(f"{DEFAULT_API_BASE}/books/", payload)
-            print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
+            print(json.dumps({"success": True, "mode": "connected", "entry": res, "enriched": enriched is not None}, indent=2))
             return
         except Exception as e:
             if not args.fallback_local:
@@ -499,17 +597,262 @@ def cmd_log_book(args):
     new_entry = {
         "id": int(datetime.datetime.now().timestamp() * 1000),
         "title": title,
-        "author": args.author or None,
+        "author": author,
         "status": status_val,
-        "progress": int(args.progress) if args.progress else 0,
-        "total_pages": int(args.pages) if args.pages else None,
+        "progress": progress_val,
+        "total_pages": total_pages,
         "rating": rating,
         "notes": notes,
+        "genres": genres or [],
+        "cover_url": cover_url,
         "created_at": datetime.date.today().isoformat(),
     }
     local_data.setdefault("books", []).insert(0, new_entry)
     save_local_journal(local_data)
-    print(json.dumps({"success": True, "mode": "standalone_local", "entry": new_entry}, indent=2))
+    print(json.dumps({"success": True, "mode": "standalone_local", "entry": new_entry, "enriched": enriched is not None}, indent=2))
+
+
+def cmd_import_mal(args):
+    clean_user = args.username.strip()
+    if not clean_user:
+        print(json.dumps({"error": "Username cannot be empty."}))
+        sys.exit(1)
+    limit = max(1, min(args.limit, 100))
+
+    if not args.offline and is_backend_online():
+        try:
+            payload = {"username": clean_user, "limit": limit}
+            res = http_post_json(f"{DEFAULT_API_BASE}/import/mal/", payload)
+            print(json.dumps({"success": True, "mode": "connected", "result": res}, indent=2))
+            return
+        except Exception as e:
+            if not args.fallback_local:
+                print(f"[error] Backend MAL import failed: {e}. Pass --fallback-local or --offline to import locally.", file=sys.stderr)
+                sys.exit(1)
+            print(f"[warning] Backend failed: {e}. Importing locally.", file=sys.stderr)
+
+    url = f"https://api.jikan.moe/v4/users/{urllib.parse.quote(clean_user)}/animelist?limit={limit}"
+    try:
+        data = http_get_json(url).get("data", [])
+    except Exception as exc:
+        print(json.dumps({"error": f"Failed to fetch MyAnimeList user animelist: {exc}", "username": clean_user}))
+        sys.exit(1)
+
+    STATUS_MAP = {
+        "watching": "WATCHING",
+        "1": "WATCHING",
+        "completed": "COMPLETED",
+        "2": "COMPLETED",
+        "on_hold": "ON_HOLD",
+        "on-hold": "ON_HOLD",
+        "3": "ON_HOLD",
+        "dropped": "DROPPED",
+        "4": "DROPPED",
+        "plan_to_watch": "PLAN_TO_WATCH",
+        "plan to watch": "PLAN_TO_WATCH",
+        "6": "PLAN_TO_WATCH",
+    }
+
+    local_data = load_local_journal()
+    imported_count = 0
+    updated_count = 0
+
+    for item in data:
+        entry = item.get("entry", {})
+        title = entry.get("title")
+        if not title:
+            continue
+        raw_status = str(item.get("status") or "watching").lower()
+        anime_status = STATUS_MAP.get(raw_status, "WATCHING")
+        raw_score = item.get("score")
+        score = int(raw_score) if raw_score and 1 <= int(raw_score) <= 10 else None
+        progress = item.get("episodes_seen") or 0
+        total_episodes = item.get("episodes_total") or None
+        images = entry.get("images", {}).get("jpg", {})
+        cover = images.get("large_image_url") or images.get("image_url")
+
+        existing = next((s for s in local_data.get("series", []) if s.get("title", "").lower() == title.lower()), None)
+        if existing:
+            updated_count += 1
+            if existing.get("seasons"):
+                s1 = existing["seasons"][0]
+                s1["status"] = anime_status
+                if score is not None:
+                    s1["rating"] = score
+                if progress:
+                    s1["progress"] = progress
+                if total_episodes:
+                    s1["total_episodes"] = total_episodes
+            if not existing.get("cover_url") and cover:
+                existing["cover_url"] = cover
+        else:
+            imported_count += 1
+            new_s = {
+                "id": int(datetime.datetime.now().timestamp() * 1000) + imported_count,
+                "title": title,
+                "japanese_title": entry.get("title_japanese"),
+                "cover_url": cover,
+                "created_at": datetime.date.today().isoformat(),
+                "seasons": [{
+                    "id": 1,
+                    "season_number": 1,
+                    "title": "Season 1",
+                    "status": anime_status,
+                    "rating": score,
+                    "progress": progress,
+                    "total_episodes": total_episodes,
+                    "notes": "",
+                    "episode_notes": [],
+                }],
+                "movies": [],
+            }
+            local_data.setdefault("series", []).append(new_s)
+
+    save_local_journal(local_data)
+    print(json.dumps({
+        "success": True,
+        "mode": "standalone_local",
+        "username": clean_user,
+        "total_processed": len(data),
+        "imported": imported_count,
+        "updated": updated_count,
+    }, indent=2))
+
+
+def cmd_taste_profile(args):
+    if not args.offline and is_backend_online():
+        try:
+            export_data = http_get_json(f"{DEFAULT_API_BASE}/export/?export_format=json")
+            series_list = export_data.get("series", [])
+            books_list = export_data.get("books", [])
+            rewatches_list = export_data.get("rewatches", [])
+            characters_list = export_data.get("characters", [])
+            mode_str = "connected"
+        except Exception:
+            local = load_local_journal()
+            series_list = local.get("series", [])
+            books_list = local.get("books", [])
+            rewatches_list = local.get("rewatches", [])
+            characters_list = local.get("characters", [])
+            mode_str = "standalone_local"
+    else:
+        local = load_local_journal()
+        series_list = local.get("series", [])
+        books_list = local.get("books", [])
+        rewatches_list = local.get("rewatches", [])
+        characters_list = local.get("characters", [])
+        mode_str = "standalone_local"
+
+    # Genre tally
+    genre_counts: dict[str, int] = {}
+    for s in series_list:
+        for g in s.get("genres", []):
+            name = g.get("name") if isinstance(g, dict) else str(g)
+            if name:
+                genre_counts[name] = genre_counts.get(name, 0) + 1
+    for b in books_list:
+        for g in b.get("genres", []):
+            name = g.get("name") if isinstance(g, dict) else str(g)
+            if name:
+                genre_counts[name] = genre_counts.get(name, 0) + 1
+
+    top_genres = sorted([{"genre": k, "count": v} for k, v in genre_counts.items()], key=lambda x: x["count"], reverse=True)[:8]
+
+    # Studio tally
+    studio_counts: dict[str, int] = {}
+    for s in series_list:
+        for st in s.get("studios", []):
+            name = st.get("name") if isinstance(st, dict) else str(st)
+            if name:
+                studio_counts[name] = studio_counts.get(name, 0) + 1
+        for sea in s.get("seasons", []):
+            for st in sea.get("studios", []):
+                name = st.get("name") if isinstance(st, dict) else str(st)
+                if name:
+                    studio_counts[name] = studio_counts.get(name, 0) + 1
+
+    top_studios = sorted([{"studio": k, "count": v} for k, v in studio_counts.items()], key=lambda x: x["count"], reverse=True)[:6]
+
+    # Ratings
+    anime_ratings = []
+    for s in series_list:
+        for sea in s.get("seasons", []):
+            if sea.get("rating"):
+                anime_ratings.append(sea.get("rating"))
+        for m in s.get("movies", []):
+            if m.get("rating"):
+                anime_ratings.append(m.get("rating"))
+
+    book_ratings = [b.get("rating") for b in books_list if b.get("rating")]
+
+    avg_anime = round(sum(anime_ratings) / len(anime_ratings), 2) if anime_ratings else None
+    avg_book = round(sum(book_ratings) / len(book_ratings), 2) if book_ratings else None
+
+    # All reflections/lessons
+    lessons = []
+    for s in series_list:
+        s_title = s.get("title", "Untitled")
+        for sea in s.get("seasons", []):
+            if sea.get("notes") and sea.get("notes").strip():
+                lessons.append({
+                    "source": f"{s_title} - Season {sea.get('season_number', 1)}",
+                    "rating": sea.get("rating"),
+                    "takeaway": sea.get("notes").strip(),
+                })
+            for ep in sea.get("episode_notes", []):
+                if ep.get("note") and ep.get("note").strip():
+                    lessons.append({
+                        "source": f"{s_title} S{sea.get('season_number', 1)} Ep {ep.get('episode_number')}",
+                        "rating": ep.get("rating"),
+                        "takeaway": ep.get("note").strip(),
+                    })
+        for m in s.get("movies", []):
+            if m.get("notes") and m.get("notes").strip():
+                lessons.append({
+                    "source": f"{s_title} - Film: {m.get('title')}",
+                    "rating": m.get("rating"),
+                    "takeaway": m.get("notes").strip(),
+                })
+
+    for b in books_list:
+        if b.get("notes") and b.get("notes").strip():
+            lessons.append({
+                "source": f"Book: {b.get('title')} ({b.get('author') or 'Unknown'})",
+                "rating": b.get("rating"),
+                "takeaway": b.get("notes").strip(),
+            })
+
+    for r in rewatches_list:
+        if r.get("notes") and r.get("notes").strip():
+            lessons.append({
+                "source": f"Rewatch: {r.get('release_title') or 'Entry'}",
+                "rating": r.get("rating"),
+                "takeaway": r.get("notes").strip(),
+            })
+
+    for c in characters_list:
+        if c.get("why") and c.get("why").strip():
+            char_series = c.get("series_title") or (c.get("series", {}).get("title") if isinstance(c.get("series"), dict) else "General")
+            lessons.append({
+                "source": f"Character Virtue: {c.get('name')} ({char_series})",
+                "takeaway": c.get("why").strip(),
+            })
+
+    print(json.dumps({
+        "mode": mode_str,
+        "taste_profile": {
+            "top_genres": top_genres,
+            "top_studios": top_studios,
+            "average_anime_rating": avg_anime,
+            "average_book_rating": avg_book,
+            "total_series": len(series_list),
+            "total_books": len(books_list),
+            "total_rewatches": len(rewatches_list),
+            "total_characters": len(characters_list),
+            "total_lessons_recorded": len(lessons),
+        },
+        "lessons": lessons,
+    }, indent=2))
 
 
 def cmd_search(args):
@@ -648,20 +991,31 @@ def cmd_export_obsidian(args):
     for s in series_list:
         file_path = get_unique_path(anime_folder, s.get("title", "Untitled"))
         title_val = s.get("title", "Untitled")
+        cover_val = s.get("cover_url") or s.get("cover_image_url") or s.get("image_url") or ""
+        genres = [g.get("name") if isinstance(g, dict) else str(g) for g in s.get("genres", [])]
+        studios = [st.get("name") if isinstance(st, dict) else str(st) for st in s.get("studios", [])]
+
         lines = [
             "---",
             "type: anime-journal",
             f"title: {escape_yaml(title_val)}",
             f"japanese_title: {escape_yaml(s.get('japanese_title') or '')}",
+            f"romaji_title: {escape_yaml(s.get('romaji_title') or '')}",
+            f"cover_url: {escape_yaml(cover_val)}",
             f"exported: {today}",
             "---",
             "",
             f"# {title_val}",
             "",
         ]
-        genres = [g.get("name") if isinstance(g, dict) else str(g) for g in s.get("genres", [])]
+        if cover_val:
+            lines.append(f"![Cover]({cover_val})\n")
         if genres:
-            lines.append(f"**Genres:** {', '.join(genres)}\n")
+            lines.append(f"**Genres:** {', '.join(genres)}")
+        if studios:
+            lines.append(f"**Studios:** {', '.join(studios)}")
+        if genres or studios:
+            lines.append("")
 
         for sea in s.get("seasons", []):
             score_str = f" · Rating: {sea.get('rating')}/10" if sea.get("rating") else ""
@@ -687,6 +1041,9 @@ def cmd_export_obsidian(args):
     for b in books_list:
         file_path = get_unique_path(books_folder, b.get("title", "Untitled"))
         title_val = b.get("title", "Untitled")
+        b_cover = b.get("cover_url") or b.get("cover_image_url") or b.get("image_url") or ""
+        b_genres = [g.get("name") if isinstance(g, dict) else str(g) for g in b.get("genres", [])]
+
         lines = [
             "---",
             "type: book-journal",
@@ -694,14 +1051,20 @@ def cmd_export_obsidian(args):
             f"author: {escape_yaml(b.get('author') or '')}",
             f"status: {b.get('status')}",
             f"rating: {b.get('rating') or ''}",
+            f"cover_url: {escape_yaml(b_cover)}",
             f"exported: {today}",
             "---",
             "",
             f"# {title_val}",
-            f"**Author:** {b.get('author') or 'Unknown'}",
-            f"**Progress:** {b.get('progress', 0)}/{b.get('total_pages') or '?'} pages",
             "",
         ]
+        if b_cover:
+            lines.append(f"![Cover]({b_cover})\n")
+        lines.append(f"**Author:** {b.get('author') or 'Unknown'}")
+        lines.append(f"**Progress:** {b.get('progress', 0)}/{b.get('total_pages') or '?'} pages")
+        if b_genres:
+            lines.append(f"**Genres:** {', '.join(b_genres)}")
+        lines.append("")
         if b.get("notes"):
             lines.append(f"{format_blockquote(b.get('notes'))}\n")
         file_path.write_text("\n".join(lines), encoding="utf-8")
@@ -811,6 +1174,7 @@ def main():
     p_an.add_argument("--episodes", type=int, help="Total episodes")
     p_an.add_argument("--progress", type=int, help="Current progress")
     p_an.add_argument("--notes", help="Life lesson / reflection note")
+    p_an.add_argument("--no-enrich", action="store_false", dest="enrich", default=True, help="Disable automatic Jikan metadata lookup")
     p_an.set_defaults(func=cmd_log_anime)
 
     # log-episode
@@ -846,11 +1210,23 @@ def main():
     p_bk.add_argument("--pages", type=int, help="Total pages")
     p_bk.add_argument("--progress", type=int, help="Current page")
     p_bk.add_argument("--notes", help="Takeaway / philosophy note")
+    p_bk.add_argument("--no-enrich", action="store_false", dest="enrich", default=True, help="Disable automatic OpenLibrary lookup")
     p_bk.set_defaults(func=cmd_log_book)
+
+    # import-mal
+    p_im = sub.add_parser("import-mal", parents=[base_parser], help="Import public anime list from MyAnimeList")
+    p_im.add_argument("username", help="MyAnimeList username")
+    p_im.add_argument("--limit", type=int, default=50, help="Max entries to import (default: 50)")
+    p_im.set_defaults(func=cmd_import_mal)
+
+    # taste-profile
+    p_tp = sub.add_parser("taste-profile", parents=[base_parser], help="Synthesize taste profile, ratings, genres, and all philosophical reflections")
+    p_tp.set_defaults(func=cmd_taste_profile)
 
     # search
     p_sr = sub.add_parser("search", parents=[base_parser], help="Search journal across all titles, notes, and virtues")
     p_sr.add_argument("query", help="Search keyword")
+    p_sr.set_defaults(func=cmd_search)
     p_sr.set_defaults(func=cmd_search)
 
     # reflect
