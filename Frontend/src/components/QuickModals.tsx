@@ -17,6 +17,7 @@ import { CustomSelect, SelectItem } from './CustomSelect';
 import { CustomDatePicker } from './CustomDatePicker';
 import { CustomNumberInput } from './CustomNumberInput';
 import { CustomRatingInput } from './CustomRatingInput';
+import { SmartMetadataSearch } from './SmartMetadataSearch';
 
 interface RewatchModalProps {
   isOpen: boolean;
@@ -676,6 +677,22 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {!editCharacter && (
+            <SmartMetadataSearch
+              type="character"
+              onSelectCharacter={(char, importedImage) => {
+                setName(char.name);
+                if (char.about && !why) {
+                  setWhy(char.about.slice(0, 240));
+                }
+                if (importedImage) {
+                  setImageId(importedImage.id);
+                  setImageUrl(importedImage.url);
+                }
+              }}
+            />
+          )}
+
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               Associated Franchise

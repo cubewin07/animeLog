@@ -16,6 +16,7 @@ import { CustomNumberInput } from './CustomNumberInput';
 import { CustomRatingInput } from './CustomRatingInput';
 import { CustomProgressField } from './CustomProgressField';
 import { SeasonNumberPicker } from './SeasonNumberPicker';
+import { SmartMetadataSearch } from './SmartMetadataSearch';
 
 export type EntryModalMode =
   | 'new-franchise'
@@ -442,6 +443,52 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             <div className="form-error">
               {errorMsg}
             </div>
+          )}
+
+          {/* Smart Metadata Autofill from MAL / OpenLibrary */}
+          {!isEditing && (
+            <SmartMetadataSearch
+              type={activeTab === 'book' ? 'book' : 'anime'}
+              onSelectAnime={(item, importedImage) => {
+                setTitle(item.title);
+                if (item.japanese_title) setJapaneseTitle(item.japanese_title);
+                if (item.romaji_title) setRomajiTitle(item.romaji_title);
+                if (item.total_episodes) setTotalCount(item.total_episodes);
+                if (item.total_minutes) setTotalCount(item.total_minutes);
+                if (item.synopsis && !notes) setNotes(item.synopsis);
+                if (importedImage) {
+                  setCoverImageId(importedImage.id);
+                  setCoverImageUrl(importedImage.url);
+                }
+                if (item.genres && item.genres.length > 0) {
+                  const matched = genres
+                    .filter((g) => item.genres.some((ig) => ig.toLowerCase() === g.name.toLowerCase()))
+                    .map((g) => g.id);
+                  if (matched.length > 0) setSelectedGenreIds(matched);
+                }
+                if (item.studios && item.studios.length > 0) {
+                  const matched = studios
+                    .filter((s) => item.studios.some((is) => is.toLowerCase() === s.name.toLowerCase()))
+                    .map((s) => s.id);
+                  if (matched.length > 0) setSelectedStudioIds(matched);
+                }
+              }}
+              onSelectBook={(item, importedImage) => {
+                setTitle(item.title);
+                if (item.author) setAuthor(item.author);
+                if (item.total_pages) setTotalCount(item.total_pages);
+                if (importedImage) {
+                  setCoverImageId(importedImage.id);
+                  setCoverImageUrl(importedImage.url);
+                }
+                if (item.genres && item.genres.length > 0) {
+                  const matched = genres
+                    .filter((g) => item.genres.some((ig) => ig.toLowerCase() === g.name.toLowerCase()))
+                    .map((g) => g.id);
+                  if (matched.length > 0) setSelectedGenreIds(matched);
+                }
+              }}
+            />
           )}
 
           {/* Franchise Selector when adding season/movie */}

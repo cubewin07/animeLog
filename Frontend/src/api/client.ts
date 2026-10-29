@@ -145,6 +145,13 @@ export const imageApi = {
       method: 'DELETE',
     });
   },
+
+  async importUrl(url: string, title?: string, folder?: string): Promise<ImageAsset> {
+    return fetchJson<ImageAsset>(`${API_BASE}/images/import-url/`, {
+      method: 'POST',
+      body: JSON.stringify({ url, title, folder }),
+    });
+  },
 };
 
 export const seriesApi = {
@@ -500,3 +507,72 @@ export const statsApi = {
     return fetchJson<JournalStats>(`${API_BASE}/stats/`);
   },
 };
+
+export interface ExternalAnimeLookupResult {
+  source: 'mal';
+  source_id: number;
+  title: string;
+  japanese_title?: string | null;
+  romaji_title?: string | null;
+  media_type: 'season' | 'movie';
+  format?: string;
+  total_episodes?: number | null;
+  total_minutes?: number | null;
+  score?: number | null;
+  status?: string | null;
+  synopsis?: string;
+  studios: string[];
+  genres: string[];
+  cover_url?: string;
+}
+
+export interface ExternalCharacterLookupResult {
+  source: 'mal';
+  source_id: number;
+  name: string;
+  name_kanji?: string | null;
+  about?: string;
+  portrait_url?: string;
+}
+
+export interface ExternalBookLookupResult {
+  source: 'openlibrary';
+  key?: string;
+  title: string;
+  author?: string | null;
+  total_pages?: number | null;
+  genres: string[];
+  first_publish_year?: number | null;
+  cover_url?: string;
+}
+
+export const lookupApi = {
+  async searchAnime(query: string): Promise<ExternalAnimeLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalAnimeLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'anime', q: query })}`
+    );
+    return res.results || [];
+  },
+  async searchCharacter(query: string): Promise<ExternalCharacterLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalCharacterLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'character', q: query })}`
+    );
+    return res.results || [];
+  },
+  async searchBook(query: string): Promise<ExternalBookLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalBookLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'book', q: query })}`
+    );
+    return res.results || [];
+  },
+};
+
+export const exportApi = {
+  async exportJson(): Promise<any> {
+    return fetchJson<any>(`${API_BASE}/export/?export_format=json`);
+  },
+  async exportMarkdown(): Promise<{ content: string; format: string }> {
+    return fetchJson<{ content: string; format: string }>(`${API_BASE}/export/?export_format=markdown`);
+  },
+};
+
