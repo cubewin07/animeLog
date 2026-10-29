@@ -118,6 +118,24 @@ class ImageViewSet(viewsets.ModelViewSet):
     queryset = Image.objects.select_related("folder").all().order_by("-created_at")
     serializer_class = ImageSerializer
 
+    @action(detail=False, methods=["post"], url_path="import-url")
+    def import_url(self, request):
+        url = request.data.get("url")
+        if not url:
+            return Response(
+                {"url": "Image URL is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        title = request.data.get("title", "")
+        folder_name = request.data.get("folder", "Imported Media")
+        try:
+            from .services.metadata_lookup import import_remote_image
+
+            image = import_remote_image(url=url, title=title, folder_name=folder_name)
+            return Response(self.get_serializer(image).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     def get_queryset(self):
         queryset = super().get_queryset()
         folder_param = self.request.query_params.get("folder")
@@ -504,3 +522,176 @@ class StatsView(APIView):
 
         serializer = JournalStatsSerializer(data)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MetadataLookupView(APIView):
+    """
+    Unified metadata lookup against Jikan (MyAnimeList) and OpenLibrary.
+    Query params:
+      - type: 'anime', 'character', or 'book'
+      - q: Search string
+    """
+
+    def get(self, request):
+        from .services.metadata_lookup import (
+            search_anime_metadata,
+            search_book_metadata,
+            search_character_metadata,
+        )
+
+        media_type = request.query_params.get("type", "anime").lower().strip()
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return Response({"results": []}, status=status.HTTP_200_OK)
+
+        if media_type == "anime":
+            results = search_anime_metadata(query)
+        elif media_type == "character":
+            results = search_character_metadata(query)
+        elif media_type == "book":
+            results = search_book_metadata(query)
+        else:
+            return Response(
+                {"error": f"Invalid type '{media_type}'. Must be 'anime', 'character', or 'book'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"results": results}, status=status.HTTP_200_OK)
+
+
+class JournalExportView(APIView):
+    """
+    Export the full personal journal in JSON or Obsidian-ready Markdown.
+    Query params:
+      - format: 'json' (default) or 'markdown'
+    """
+
+    def get(self, request):
+        export_format = (
+            request.query_params.get("export_format")
+            or request.query_params.get("format_type")
+            or request.query_params.get("style")
+            or "json"
+        ).lower().strip()
+        series_qs = (
+            AnimeSeries.objects.select_related("cover_image")
+            .prefetch_related(
+                "genres",
+                "seasons__studios",
+                "seasons__episode_notes",
+                "movies__studios",
+                "favorite_characters",
+                "rewatches",
+            )
+            .all()
+            .order_by("-created_at")
+        )
+        books_qs = (
+            Book.objects.select_related("cover_image")
+            .prefetch_related("genres")
+            .all()
+            .order_by("-created_at")
+        )
+        rewatches_qs = Rewatch.objects.all().order_by("-start_date", "-id")
+        characters_qs = (
+            FavoriteCharacter.objects.select_related("series")
+            .all()
+            .order_by("name")
+        )
+
+        if export_format == "markdown":
+            md_lines = [
+                "---",
+                "title: AnimeLog Personal Journal Export",
+                f"exported_at: {date.today().isoformat()}",
+                "generator: AnimeLog Still & Spine",
+                "---",
+                "",
+                "# AnimeLog Personal Journal",
+                "",
+                "## Anime Franchises",
+                "",
+            ]
+            for s in series_qs:
+                md_lines.append(f"### {s.title}")
+                if s.japanese_title or s.romaji_title:
+                    md_lines.append(
+                        f"*{s.japanese_title or ''} / {s.romaji_title or ''}*"
+                    )
+                genres_str = ", ".join([g.name for g in s.genres.all()])
+                if genres_str:
+                    md_lines.append(f"- **Genres:** {genres_str}")
+                for season in s.seasons.all():
+                    score_str = f" · Rating: {season.rating}/10" if season.rating else ""
+                    md_lines.append(
+                        f"\n#### Season {season.season_number}: {season.title} ({season.status}{score_str})"
+                    )
+                    md_lines.append(
+                        f"- Progress: {season.progress}/{season.total_episodes or '?'}"
+                    )
+                    if season.notes:
+                        md_lines.append(f"> {season.notes}\n")
+                    for ep in season.episode_notes.all():
+                        ep_score = f" [{ep.rating}/10]" if ep.rating else ""
+                        md_lines.append(
+                            f"- **Ep {ep.episode_number}{ep_score}:** {ep.note}"
+                        )
+                for movie in s.movies.all():
+                    score_str = f" · Rating: {movie.rating}/10" if movie.rating else ""
+                    md_lines.append(
+                        f"\n#### Film: {movie.title} ({movie.status}{score_str})"
+                    )
+                    if movie.notes:
+                        md_lines.append(f"> {movie.notes}\n")
+                md_lines.append("")
+
+            md_lines.append("## Literature & Books\n")
+            for b in books_qs:
+                b_score = f" · Rating: {b.rating}/10" if b.rating else ""
+                md_lines.append(
+                    f"### {b.title} by {b.author or 'Unknown'} ({b.status}{b_score})"
+                )
+                md_lines.append(
+                    f"- Progress: {b.progress}/{b.total_pages or '?'} pages"
+                )
+                if b.notes:
+                    md_lines.append(f"> {b.notes}\n")
+
+            md_lines.append("## Rewatches & Return Passes\n")
+            for r in rewatches_qs:
+                r_score = f" · Rating: {r.rating}/10" if r.rating else ""
+                md_lines.append(
+                    f"- **{r.release_title}** ({r.start_date or 'Undated'}{r_score})"
+                )
+                if r.notes:
+                    md_lines.append(f"  > {r.notes}")
+
+            md_lines.append("\n## Memorable Characters & Virtues\n")
+            for c in characters_qs:
+                md_lines.append(f"- **{c.name}** ({c.series_title})")
+                if c.why:
+                    md_lines.append(f"  *“{c.why}”*")
+
+            markdown_text = "\n".join(md_lines)
+            return Response(
+                {"content": markdown_text, "format": "markdown"},
+                status=status.HTTP_200_OK,
+            )
+
+        # JSON format
+        series_data = AnimeSeriesSerializer(series_qs, many=True).data
+        books_data = BookSerializer(books_qs, many=True).data
+        rewatches_data = RewatchSerializer(rewatches_qs, many=True).data
+        characters_data = FavoriteCharacterSerializer(characters_qs, many=True).data
+
+        return Response(
+            {
+                "version": "1.0",
+                "exported_at": date.today().isoformat(),
+                "series": series_data,
+                "books": books_data,
+                "rewatches": rewatches_data,
+                "characters": characters_data,
+            },
+            status=status.HTTP_200_OK,
+        )

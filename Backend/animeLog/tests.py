@@ -835,3 +835,102 @@ class QueryOptimizationTests(JournalAPIFixtureMixin, APITestCase):
         response = self.client.get("/api/series/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 5)
+
+
+class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
+    from unittest.mock import patch
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_lookup_anime_metadata(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "mal_id": 52991,
+                    "title": "Sousou no Frieren",
+                    "title_japanese": "葬送のフリーレン",
+                    "type": "TV",
+                    "episodes": 28,
+                    "duration": "24 min per ep",
+                    "score": 9.35,
+                    "status": "Finished Airing",
+                    "synopsis": "During their decade-long quest...",
+                    "studios": [{"name": "Madhouse"}],
+                    "genres": [{"name": "Adventure"}, {"name": "Fantasy"}],
+                    "images": {"jpg": {"large_image_url": "https://example.com/frieren.jpg"}},
+                }
+            ]
+        }
+
+        res = self.client.get("/api/lookup/?type=anime&q=Frieren")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("results", res.data)
+        self.assertEqual(len(res.data["results"]), 1)
+        item = res.data["results"][0]
+        self.assertEqual(item["title"], "Sousou no Frieren")
+        self.assertEqual(item["total_episodes"], 28)
+        self.assertEqual(item["studios"], ["Madhouse"])
+        self.assertEqual(item["genres"], ["Adventure", "Fantasy"])
+        self.assertEqual(item["cover_url"], "https://example.com/frieren.jpg")
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_lookup_book_metadata(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "docs": [
+                {
+                    "key": "/works/OL123W",
+                    "title": "Man's Search for Meaning",
+                    "author_name": ["Viktor E. Frankl"],
+                    "number_of_pages_median": 165,
+                    "subject": ["Psychology", "Philosophy"],
+                    "first_publish_year": 1946,
+                    "cover_i": 98765,
+                }
+            ]
+        }
+
+        res = self.client.get("/api/lookup/?type=book&q=Frankl")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["results"]), 1)
+        item = res.data["results"][0]
+        self.assertEqual(item["title"], "Man's Search for Meaning")
+        self.assertEqual(item["author"], "Viktor E. Frankl")
+        self.assertEqual(item["total_pages"], 165)
+        self.assertIn("covers.openlibrary.org", item["cover_url"])
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_import_image_from_url(self, mock_get):
+        mock_get.return_value.status_code = 200
+        # Valid 1x1 GIF bytes
+        mock_get.return_value.content = (
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        )
+        mock_get.return_value.headers = {"Content-Type": "image/gif"}
+
+        res = self.client.post(
+            "/api/images/import-url/",
+            {"url": "https://example.com/poster.gif", "title": "Imported Poster"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", res.data)
+        self.assertEqual(res.data["title"], "Imported Poster")
+        self.assertEqual(res.data["folder_name"], "Imported Media")
+
+    def test_export_journal_json_and_markdown(self):
+        res_json = self.client.get("/api/export/?export_format=json")
+        self.assertEqual(res_json.status_code, status.HTTP_200_OK)
+        self.assertIn("series", res_json.data)
+        self.assertIn("books", res_json.data)
+        self.assertIn("rewatches", res_json.data)
+        self.assertIn("characters", res_json.data)
+
+        res_md = self.client.get("/api/export/?export_format=markdown")
+        self.assertEqual(res_md.status_code, status.HTTP_200_OK)
+        self.assertIn("content", res_md.data)
+        content = res_md.data["content"]
+        self.assertIn("Frieren: Beyond Journey's End", content)
+        self.assertIn("Meditations", content)
+        self.assertIn("Himmel", content)
+
