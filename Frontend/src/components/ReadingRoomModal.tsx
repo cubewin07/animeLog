@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
-import { X, Search, Star, Copy, Check, PenLine, ChevronRight, BookOpen, Tv, Film, UsersRound, RotateCcw } from 'lucide-react';
+import { X, Search, Star, Copy, Check, PenLine, ChevronRight, BookOpen, Tv, Film, UsersRound, RotateCcw, Image as ImageIcon } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
+import { downloadQuoteCard } from '../utils/cardGenerator';
 
 export type LessonKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
 
@@ -248,6 +249,24 @@ export const ReadingRoomModal: React.FC<ReadingRoomModalProps> = ({
                 </blockquote>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 2 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadQuoteCard({
+                        title: lesson.title,
+                        context: lesson.context,
+                        note: lesson.note,
+                        rating: lesson.rating,
+                      });
+                      if (onToast) onToast('Downloaded paper-slip quote card (PNG)!');
+                    }}
+                    className="btn btn-ghost"
+                    style={{ fontSize: 12, padding: '4px 8px' }}
+                    aria-label="Save shareable quote card"
+                  >
+                    <ImageIcon size={13} />
+                    <span>Quote Card</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleCopyQuote(lesson)}

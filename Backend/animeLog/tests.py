@@ -954,3 +954,57 @@ class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertIn("Himmel", content)
         self.assertIn("obsidian_compat: true", content)
 
+    @patch("animeLog.services.importer.requests.get")
+    def test_mal_user_import(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "entry": {"mal_id": 52991, "title": "Sousou no Frieren (Imported)"},
+                    "score": 10,
+                    "status": "completed",
+                    "episodes_seen": 28,
+                    "episodes_total": 28,
+                }
+            ]
+        }
+        res = self.client.post("/api/import/mal/", {"username": "otaku_user"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["imported_count"], 1)
+
+        # Verify created in DB
+        imported_series = AnimeSeries.objects.filter(title="Sousou no Frieren (Imported)").first()
+        self.assertIsNotNone(imported_series)
+        season = imported_series.seasons.first()
+        self.assertEqual(season.status, AnimeStatus.COMPLETED)
+        self.assertEqual(season.rating, 10)
+
+    def test_journal_json_import(self):
+        payload = {
+            "version": "1.0",
+            "series": [
+                {
+                    "title": "Neon Genesis Evangelion",
+                    "seasons": [{"season_number": 1, "title": "TV Series", "status": "COMPLETED", "rating": 10, "notes": "Hedgehog dilemma."}],
+                }
+            ],
+            "books": [
+                {
+                    "title": "Thus Spoke Zarathustra",
+                    "author": "Friedrich Nietzsche",
+                    "status": "COMPLETED",
+                    "rating": 9,
+                    "notes": "Become who you are.",
+                }
+            ],
+            "characters": [],
+            "rewatches": [],
+        }
+        res = self.client.post("/api/import/json/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["imported"]["series"], 1)
+        self.assertEqual(res.data["imported"]["books"], 1)
+
+        self.assertTrue(AnimeSeries.objects.filter(title="Neon Genesis Evangelion").exists())
+        self.assertTrue(Book.objects.filter(title="Thus Spoke Zarathustra").exists())
+

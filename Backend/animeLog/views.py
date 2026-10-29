@@ -636,3 +636,67 @@ class JournalExportView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class MALImportView(APIView):
+    """
+    Import public anime list for a MyAnimeList username.
+    Query / body params:
+      - username: MAL username
+      - limit: Maximum titles to fetch (default: 50)
+    """
+
+    def post(self, request):
+        from .services.importer import import_mal_username
+        from .services.metadata_lookup import ExternalServiceError
+
+        username = (
+            request.data.get("username")
+            or request.query_params.get("username", "")
+        ).strip()
+        if not username:
+            return Response(
+                {"error": "MyAnimeList username is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        limit = request.data.get("limit") or request.query_params.get("limit", 50)
+        try:
+            limit = int(limit)
+        except (ValueError, TypeError):
+            limit = 50
+
+        try:
+            result = import_mal_username(username=username, limit=limit)
+            return Response(result, status=status.HTTP_200_OK)
+        except ExternalServiceError as exc:
+            return Response(
+                {"error": str(exc)},
+                status=exc.status_code if exc.status_code in (404, 429, 502) else status.HTTP_502_BAD_GATEWAY,
+            )
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class JournalImportView(APIView):
+    """
+    Restore or merge journal entries from an AnimeLog JSON backup.
+    Body: JSON object with { series, books, rewatches, characters }
+    """
+
+    def post(self, request):
+        from .services.importer import import_journal_json
+
+        data = request.data
+        if not isinstance(data, dict):
+            return Response(
+                {"error": "Expected JSON object containing journal data."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = import_journal_json(data)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+

@@ -576,3 +576,19 @@ export const exportApi = {
   },
 };
 
+export const importApi = {
+  async importMal(username: string, limit: number = 50): Promise<{ success: boolean; username: string; total_processed: number; imported_count: number; updated_count: number }> {
+    return fetchJson<{ success: boolean; username: string; total_processed: number; imported_count: number; updated_count: number }>(`${API_BASE}/import/mal/`, {
+      method: 'POST',
+      body: JSON.stringify({ username, limit }),
+    });
+  },
+  async importJson(data: any): Promise<{ success: boolean; imported: { series: number; books: number; characters: number; rewatches: number } }> {
+    return fetchJson<{ success: boolean; imported: { series: number; books: number; characters: number; rewatches: number } }>(`${API_BASE}/import/json/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+
