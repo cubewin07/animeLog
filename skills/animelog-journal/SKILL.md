@@ -1,11 +1,11 @@
 ---
 name: animelog-journal
-version: 1.0.0
+version: 1.1.0
 description: >
   Socratic anime and book journal companion. Logs titles with zero-key MyAnimeList
   and OpenLibrary auto-enrichment, guides post-watch philosophical reflections,
   tracks rewatch perspective evolution, catalogs memorable character virtues,
-  and exports to Obsidian-compatible Markdown vaults.
+  and exports to linked Obsidian-compatible Markdown vaults.
 author: cubewin07
 homepage: https://github.com/cubewin07/animeLog
 tags:
@@ -61,50 +61,60 @@ If no local server is running, use the bundled Python CLI script:
 ```bash
 python3 scripts/animelog_cli.py <command>
 ```
-All commands read/write to `~/.animelog/journal.json` and can export an Obsidian Markdown vault at any time.
+All commands read/write to `~/.animelog/journal.json` and can export an Obsidian Markdown vault with linked nodes at any time.
 
 ---
 
-## Core Workflows
+## Complete CLI Command Reference
 
-### 1. Socratic Post-Watch Reflection Interview
+```bash
+# Socratic Reflection Prompt Generator
+python3 scripts/animelog_cli.py reflect --title "Frieren" --genre slice-of-life
+python3 scripts/animelog_cli.py reflect --title "Vinland Saga" --genre seinen
+
+# Live Metadata Lookup (Zero API Keys)
+python3 scripts/animelog_cli.py lookup-anime "Frieren"
+python3 scripts/animelog_cli.py lookup-character "Himmel"
+python3 scripts/animelog_cli.py lookup-book "Meditations Marcus Aurelius"
+
+# Log Titles & Notes
+python3 scripts/animelog_cli.py log-anime "Frieren: Beyond Journey's End" --status COMPLETED --rating 10 --notes "A masterclass on the passage of time."
+python3 scripts/animelog_cli.py log-episode "Frieren: Beyond Journey's End" 1 --note "The true beginning of the journey."
+python3 scripts/animelog_cli.py log-rewatch "Frieren: Beyond Journey's End" --notes "Felt even more poignant on second viewing." --rating 10
+python3 scripts/animelog_cli.py log-character "Himmel" --series "Frieren: Beyond Journey's End" --why "Because it is what a hero would do."
+python3 scripts/animelog_cli.py log-book "Meditations" --author "Marcus Aurelius" --status COMPLETED --rating 10 --notes "You have power over your mind - not outside events."
+
+# Search Journal (Titles, Notes, Characters, Virtues)
+python3 scripts/animelog_cli.py search "passage of time"
+
+# Status & Counts
+python3 scripts/animelog_cli.py status
+
+# Export to Linked Obsidian Markdown Vault
+python3 scripts/animelog_cli.py export-obsidian --out ./my-anime-vault
+```
+
+---
+
+## Socratic Reflection Protocols
+
+### 1. The Post-Title Reflection Interview
 When the user finishes a title or pivotal episode, do **not** simply ask *"What score do you give it?"*
 Follow the 3-Question Framework:
 1. **The Turning Point:** *"What specific scene, sacrifice, or dilemma challenged your assumptions?"*
 2. **The Mirror Question:** *"How does this struggle mirror a dilemma or relationship in your real life?"*
 3. **The Lasting Rule:** *"What single sentence of wisdom or virtue would you preserve in your journal for your future self?"*
 
-Once the user shares their thoughts, synthesize a memorable takeaway note (with their rating 1–10) and save it:
-```bash
-# If using CLI:
-python3 scripts/animelog_cli.py log-anime "<Title>" --status COMPLETED --rating <1-10> --notes "<Takeaway note>"
-```
-Or call the `update_anime_progress` / `smart_log_anime` MCP tool.
-
-### 2. Live Metadata & Cover Autofill (Zero API Key)
-Look up public anime details (English title, Japanese kanji, Romaji, episode count, studios, genres, score, synopsis, poster artwork):
-```bash
-python3 scripts/animelog_cli.py lookup-anime "Frieren"
-python3 scripts/animelog_cli.py lookup-character "Himmel"
-python3 scripts/animelog_cli.py lookup-book "Meditations Marcus Aurelius"
-```
-
-### 3. Rewatch Perspective Diff
+### 2. Rewatch Perspective Diff
 When the user rewatches an anime:
 1. Search their past notes on this title.
 2. Ask: *"What has real life taught you since you first watched this that made you view this ending or character differently?"*
 3. Record their updated pass with the evolution in perspective.
 
-### 4. Character Virtue Archiving
+### 3. Character Virtue Archiving
 When the user mentions a character who inspired them:
 - Extract the core virtue (e.g. Himmel's gentle kindness, Thors' refusal to create enemies, Okabe's relentless responsibility).
 - Save the character name, associated franchise, and the *"why"* lesson.
-
-### 5. Obsidian Vault & Markdown Export
-Export all journal entries into Obsidian-compatible Markdown files with YAML frontmatter:
-```bash
-python3 scripts/animelog_cli.py export-obsidian --out ./my-anime-vault
-```
 
 ---
 

@@ -35,7 +35,7 @@ Whether you are using **Claude Code, Cursor, Windsurf, Copilot, or Codex CLI**, 
 4. **Favorite Character Virtue Catalog:**
    - Archive characters worth remembering and the specific virtues or ideals they represent.
 5. **Obsidian Vault & Markdown Export:**
-   - Export your entire journal into clean Markdown notes with YAML frontmatter ready for your Second Brain.
+   - Export your entire journal into clean Markdown notes with YAML frontmatter and `[[wikilinks]]` ready for your Second Brain.
 6. **Dual-Mode Operation:**
    - **Mode A (Connected):** Connects to the open-source AnimeLog Django + React web desk and Streamable HTTP MCP server (`http://127.0.0.1:8000`).
    - **Mode B (Standalone):** Works right out of the box using a zero-dependency Python CLI backed by local Markdown and JSON.
@@ -45,6 +45,8 @@ Whether you are using **Claude Code, Cursor, Windsurf, Copilot, or Codex CLI**, 
 # In Claude Code or Cursor terminal:
 python3 scripts/animelog_cli.py lookup-anime "Frieren"
 python3 scripts/animelog_cli.py log-anime "Frieren: Beyond Journey's End" --rating 10 --notes "A masterclass on the passage of time and cherishing fleeting moments."
+python3 scripts/animelog_cli.py log-character "Himmel" --series "Frieren: Beyond Journey's End" --why "Living courageously so that even fleeting encounters leave warmth."
+python3 scripts/animelog_cli.py reflect --title "Vinland Saga" --genre seinen
 python3 scripts/animelog_cli.py export-obsidian --out ./my-vault
 ```
 ```
