@@ -24,7 +24,7 @@ from typing import Any, Optional
 USER_AGENT = "AnimeLog-Companion-Skill/1.0"
 DEFAULT_API_BASE = os.environ.get("ANIMELOG_API_BASE", "http://127.0.0.1:8000/api")
 LOCAL_DIR = pathlib.Path.home() / ".animelog"
-LOCAL_FILE = LOCAL_DIR / "journal.json"
+LOCAL_FILE = pathlib.Path(os.environ["ANIMELOG_JOURNAL_FILE"]) if os.environ.get("ANIMELOG_JOURNAL_FILE") else (LOCAL_DIR / "journal.json")
 
 
 def validate_rating(val: Optional[str]) -> Optional[int]:
@@ -66,12 +66,13 @@ def http_get_json(url: str, timeout: int = 10) -> Any:
         return json.loads(resp.read().decode("utf-8"))
 
 
-def http_post_json(url: str, payload: dict, timeout: int = 10) -> dict:
+def http_post_json(url: str, payload: dict, timeout: int = 10, method: str = "POST") -> dict:
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
         url,
         data=data,
         headers={"User-Agent": USER_AGENT, "Content-Type": "application/json", "Accept": "application/json"},
+        method=method,
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -90,8 +91,62 @@ def is_backend_online() -> bool:
         return False
 
 
+def _find_matching_series(series_list: list[dict], title_query: str) -> Optional[dict]:
+    """Match a series by exact case-insensitive title first, then title substring (ignoring notes-only matches)."""
+    q_low = title_query.strip().lower()
+    if not q_low or not series_list:
+        return None
+    exact = next((s for s in series_list if s.get("title", "").strip().lower() == q_low), None)
+    if exact:
+        return exact
+    return next((s for s in series_list if q_low in s.get("title", "").lower()), None)
+
+
+def _resolve_backend_named_ids(endpoint: str, names: list[str]) -> list[int]:
+    """Resolve or create Genre / Studio records by name on the connected backend and return their IDs."""
+    if not names:
+        return []
+    try:
+        existing = http_get_json(f"{DEFAULT_API_BASE}/{endpoint}/")
+        by_name = {str(item.get("name", "")).strip().lower(): item.get("id") for item in existing if item.get("id")}
+    except Exception:
+        by_name = {}
+
+    ids: list[int] = []
+    for raw_name in names:
+        clean_name = str(raw_name).strip()
+        if not clean_name:
+            continue
+        found_id = by_name.get(clean_name.lower())
+        if found_id:
+            ids.append(found_id)
+            continue
+        try:
+            created = http_post_json(f"{DEFAULT_API_BASE}/{endpoint}/", {"name": clean_name})
+            if created.get("id"):
+                ids.append(created["id"])
+                by_name[clean_name.lower()] = created["id"]
+        except Exception:
+            pass
+    return ids
+
+
+def _import_backend_cover(cover_url: Optional[str], title: str, folder: str) -> Optional[int]:
+    """Import remote cover image into the connected backend's Image library if possible."""
+    if not cover_url:
+        return None
+    try:
+        img = http_post_json(
+            f"{DEFAULT_API_BASE}/images/import-url/",
+            {"url": cover_url, "title": title, "folder": folder},
+        )
+        return img.get("id")
+    except Exception:
+        return None
+
+
 def load_local_journal() -> dict:
-    LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    LOCAL_FILE.parent.mkdir(parents=True, exist_ok=True)
     if not LOCAL_FILE.exists():
         default_data = {
             "version": "1.0",
@@ -109,7 +164,7 @@ def load_local_journal() -> dict:
 
 
 def save_local_journal(data: dict) -> None:
-    LOCAL_DIR.mkdir(parents=True, exist_ok=True)
+    LOCAL_FILE.parent.mkdir(parents=True, exist_ok=True)
     LOCAL_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
@@ -272,7 +327,7 @@ def cmd_log_anime(args):
     notes = args.notes or ""
 
     enriched = None
-    if getattr(args, "enrich", True):
+    if not args.offline and getattr(args, "enrich", True):
         enriched = enrich_anime_metadata(title)
 
     japanese_title = enriched.get("japanese_title") if enriched else None
@@ -293,11 +348,13 @@ def cmd_log_anime(args):
 
     if not args.offline and is_backend_online():
         try:
+            genre_ids = _resolve_backend_named_ids("genres", genres)
+            studio_ids = _resolve_backend_named_ids("studios", studios)
             payload = {
                 "title": title,
                 "japanese_title": japanese_title,
                 "romaji_title": romaji_title,
-                "genres": [],
+                "genres": genre_ids,
                 "initial_season": {
                     "title": "Season 1",
                     "season_number": 1,
@@ -309,6 +366,16 @@ def cmd_log_anime(args):
                 },
             }
             res = http_post_json(f"{DEFAULT_API_BASE}/series/", payload)
+            # Attach studios or cover to the created season/series if enriched
+            if studio_ids and res.get("seasons"):
+                season_id = res["seasons"][0].get("id")
+                if season_id:
+                    try:
+                        http_post_json(f"{DEFAULT_API_BASE}/seasons/{season_id}/", {"studios": studio_ids}, method="PATCH")
+                    except Exception:
+                        pass
+            if cover_url and res.get("id"):
+                _import_backend_cover(cover_url, title, target_series_id=res["id"])
             print(json.dumps({"success": True, "mode": "connected", "entry": res, "enriched": enriched is not None}, indent=2))
             return
         except Exception as e:
@@ -359,9 +426,7 @@ def cmd_log_episode(args):
         try:
             # Look up series to get season ID
             series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(series_title)}")
-            matching_series = next((s for s in series_list if s.get("title", "").lower() == series_title.lower()), None)
-            if not matching_series and series_list:
-                matching_series = series_list[0]
+            matching_series = _find_matching_series(series_list, series_title)
 
             if not matching_series:
                 # Auto-create series on backend
@@ -388,13 +453,20 @@ def cmd_log_episode(args):
                 }
                 season = http_post_json(f"{DEFAULT_API_BASE}/seasons/", season_payload)
 
+            existing_ep = next(
+                (ep for ep in season.get("episode_notes", []) if ep.get("episode_number") == ep_num),
+                None,
+            )
             payload = {
                 "season": season.get("id"),
                 "episode_number": ep_num,
                 "rating": rating,
                 "note": note_text,
             }
-            res = http_post_json(f"{DEFAULT_API_BASE}/episode-notes/", payload)
+            if existing_ep and existing_ep.get("id"):
+                res = http_post_json(f"{DEFAULT_API_BASE}/episode-notes/{existing_ep['id']}/", payload, method="PATCH")
+            else:
+                res = http_post_json(f"{DEFAULT_API_BASE}/episode-notes/", payload)
             print(json.dumps({"success": True, "mode": "connected", "entry": res}, indent=2))
             return
         except Exception as e:
@@ -420,14 +492,22 @@ def cmd_log_episode(args):
         season_entry = {"id": len(series_entry.get("seasons", [])) + 1, "season_number": season_num, "title": f"Season {season_num}", "status": "WATCHING", "episode_notes": []}
         series_entry.setdefault("seasons", []).append(season_entry)
 
-    ep_note = {
-        "id": int(datetime.datetime.now().timestamp() * 1000),
-        "episode_number": ep_num,
-        "rating": rating,
-        "note": note_text,
-        "created_at": datetime.date.today().isoformat(),
-    }
-    season_entry.setdefault("episode_notes", []).append(ep_note)
+    ep_notes_list = season_entry.setdefault("episode_notes", [])
+    existing_local_ep = next((ep for ep in ep_notes_list if ep.get("episode_number") == ep_num), None)
+    if existing_local_ep:
+        existing_local_ep["rating"] = rating
+        existing_local_ep["note"] = note_text
+        existing_local_ep["updated_at"] = datetime.date.today().isoformat()
+        ep_note = existing_local_ep
+    else:
+        ep_note = {
+            "id": int(datetime.datetime.now().timestamp() * 1000),
+            "episode_number": ep_num,
+            "rating": rating,
+            "note": note_text,
+            "created_at": datetime.date.today().isoformat(),
+        }
+        ep_notes_list.append(ep_note)
     save_local_journal(local_data)
     print(json.dumps({"success": True, "mode": "standalone_local", "series": series_title, "episode_note": ep_note}, indent=2))
 
@@ -442,9 +522,7 @@ def cmd_log_rewatch(args):
         try:
             # Find content object
             series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(target)}")
-            match = next((s for s in series_list if s.get("title", "").lower() == target.lower()), None)
-            if not match and series_list:
-                match = series_list[0]
+            match = _find_matching_series(series_list, target)
             if not match:
                 create_payload = {
                     "title": target,
@@ -497,9 +575,7 @@ def cmd_log_character(args):
             series_id = None
             if series_title:
                 series_list = http_get_json(f"{DEFAULT_API_BASE}/series/?search={urllib.parse.quote(series_title)}")
-                match = next((s for s in series_list if s.get("title", "").lower() == series_title.lower()), None)
-                if not match and series_list:
-                    match = series_list[0]
+                match = _find_matching_series(series_list, series_title)
                 if not match:
                     create_payload = {
                         "title": series_title,
@@ -557,7 +633,7 @@ def cmd_log_book(args):
     notes = args.notes or ""
 
     enriched = None
-    if getattr(args, "enrich", True):
+    if not args.offline and getattr(args, "enrich", True):
         enriched = enrich_book_metadata(title, args.author)
 
     author = (args.author or (enriched.get("author") if enriched else None) or "").strip() or None
@@ -574,6 +650,7 @@ def cmd_log_book(args):
 
     if not args.offline and is_backend_online():
         try:
+            genre_ids = _resolve_backend_named_ids("genres", genres)
             payload = {
                 "title": title,
                 "author": author,
@@ -582,9 +659,11 @@ def cmd_log_book(args):
                 "progress": progress_val,
                 "total_pages": total_pages,
                 "notes": notes,
-                "genres": [],
+                "genres": genre_ids,
             }
             res = http_post_json(f"{DEFAULT_API_BASE}/books/", payload)
+            if cover_url and res.get("id"):
+                _import_backend_cover(cover_url, title, target_book_id=res["id"])
             print(json.dumps({"success": True, "mode": "connected", "entry": res, "enriched": enriched is not None}, indent=2))
             return
         except Exception as e:
@@ -758,18 +837,26 @@ def cmd_taste_profile(args):
 
     top_genres = sorted([{"genre": k, "count": v} for k, v in genre_counts.items()], key=lambda x: x["count"], reverse=True)[:8]
 
-    # Studio tally
+    # Studio tally (deduplicated per franchise)
     studio_counts: dict[str, int] = {}
     for s in series_list:
+        series_studios: set[str] = set()
         for st in s.get("studios", []):
             name = st.get("name") if isinstance(st, dict) else str(st)
             if name:
-                studio_counts[name] = studio_counts.get(name, 0) + 1
+                series_studios.add(name)
         for sea in s.get("seasons", []):
             for st in sea.get("studios", []):
                 name = st.get("name") if isinstance(st, dict) else str(st)
                 if name:
-                    studio_counts[name] = studio_counts.get(name, 0) + 1
+                    series_studios.add(name)
+        for m in s.get("movies", []):
+            for st in m.get("studios", []):
+                name = st.get("name") if isinstance(st, dict) else str(st)
+                if name:
+                    series_studios.add(name)
+        for name in series_studios:
+            studio_counts[name] = studio_counts.get(name, 0) + 1
 
     top_studios = sorted([{"studio": k, "count": v} for k, v in studio_counts.items()], key=lambda x: x["count"], reverse=True)[:6]
 
@@ -1138,10 +1225,32 @@ def cmd_export_obsidian(args):
 
 def main():
     base_parser = argparse.ArgumentParser(add_help=False)
-    base_parser.add_argument("--offline", action="store_true", help="Operate strictly on local storage (~/.animelog/journal.json)")
-    base_parser.add_argument("--fallback-local", action="store_true", help="Fallback to local storage if backend connection fails")
+    base_parser.add_argument(
+        "--offline",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Operate strictly on local storage (~/.animelog/journal.json)",
+    )
+    base_parser.add_argument(
+        "--fallback-local",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="Fallback to local storage if backend connection fails",
+    )
 
-    parser = argparse.ArgumentParser(description="AnimeLog Socratic Journal Companion CLI", parents=[base_parser])
+    parser = argparse.ArgumentParser(description="AnimeLog Socratic Journal Companion CLI")
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        default=False,
+        help="Operate strictly on local storage (~/.animelog/journal.json)",
+    )
+    parser.add_argument(
+        "--fallback-local",
+        action="store_true",
+        default=False,
+        help="Fallback to local storage if backend connection fails",
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     # lookup-anime
@@ -1226,7 +1335,6 @@ def main():
     # search
     p_sr = sub.add_parser("search", parents=[base_parser], help="Search journal across all titles, notes, and virtues")
     p_sr.add_argument("query", help="Search keyword")
-    p_sr.set_defaults(func=cmd_search)
     p_sr.set_defaults(func=cmd_search)
 
     # reflect
