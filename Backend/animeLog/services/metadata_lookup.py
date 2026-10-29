@@ -13,6 +13,7 @@ import re
 import urllib.parse
 from typing import Any
 import requests
+from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.utils.text import slugify
 
@@ -22,27 +23,59 @@ logger = logging.getLogger(__name__)
 
 USER_AGENT = "AnimeLog-Journal/1.0 (https://github.com/cubewin07/animeLog)"
 REQUEST_TIMEOUT = 12
+CACHE_TTL_SECONDS = 86400  # 24 hours
+
+ALLOWED_IMAGE_DOMAINS = {
+    "cdn.myanimelist.net",
+    "images.myanimelist.net",
+    "myanimelist.net",
+    "covers.openlibrary.org",
+    "openlibrary.org",
+}
+MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+class ExternalServiceError(Exception):
+    """Raised when an external lookup provider fails or is unreachable."""
+
+    def __init__(self, message: str, status_code: int = 502):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def search_anime_metadata(query: str, limit: int = 8) -> list[dict[str, Any]]:
     """
     Search Jikan v4 API for anime series, films, and OVAs.
     Returns normalized metadata including titles, episode counts, studios, genres, and cover artwork.
+    Results are cached for 24 hours.
     """
     clean_query = query.strip()
     if not clean_query:
         return []
 
+    cache_key = f"animelog_lookup_anime_{slugify(clean_query)}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     url = f"https://api.jikan.moe/v4/anime?q={urllib.parse.quote(clean_query)}&limit={max(1, min(limit, 25))}"
     try:
         response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
-        if response.status_code != 200:
-            logger.warning("Jikan API error %s: %s", response.status_code, response.text[:200])
-            return []
+    except Exception as exc:
+        logger.warning("Failed to connect to Jikan API for '%s': %s", clean_query, exc)
+        raise ExternalServiceError(f"Unable to connect to MyAnimeList/Jikan: {exc}")
+
+    if response.status_code == 429:
+        raise ExternalServiceError("MyAnimeList/Jikan rate limit reached. Please wait a few seconds and try again.", 429)
+    if response.status_code != 200:
+        logger.warning("Jikan API error %s: %s", response.status_code, response.text[:200])
+        raise ExternalServiceError(f"MyAnimeList/Jikan returned error {response.status_code}.", 502)
+
+    try:
         data = response.json().get("data", [])
     except Exception as exc:
-        logger.warning("Failed to fetch anime metadata for '%s': %s", clean_query, exc)
-        return []
+        logger.warning("Failed to parse Jikan response: %s", exc)
+        raise ExternalServiceError("Invalid response received from MyAnimeList/Jikan.", 502)
 
     results = []
     for item in data:
@@ -88,27 +121,42 @@ def search_anime_metadata(query: str, limit: int = 8) -> list[dict[str, Any]]:
             "cover_url": cover_url,
         })
 
+    cache.set(cache_key, results, CACHE_TTL_SECONDS)
     return results
 
 
 def search_character_metadata(query: str, limit: int = 8) -> list[dict[str, Any]]:
     """
     Search Jikan v4 API for memorable characters.
+    Results are cached for 24 hours.
     """
     clean_query = query.strip()
     if not clean_query:
         return []
 
+    cache_key = f"animelog_lookup_char_{slugify(clean_query)}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     url = f"https://api.jikan.moe/v4/characters?q={urllib.parse.quote(clean_query)}&limit={max(1, min(limit, 25))}"
     try:
         response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
-        if response.status_code != 200:
-            logger.warning("Jikan character API error %s: %s", response.status_code, response.text[:200])
-            return []
+    except Exception as exc:
+        logger.warning("Failed to connect to Jikan character API for '%s': %s", clean_query, exc)
+        raise ExternalServiceError(f"Unable to connect to MyAnimeList/Jikan: {exc}")
+
+    if response.status_code == 429:
+        raise ExternalServiceError("MyAnimeList/Jikan rate limit reached. Please wait a few seconds and try again.", 429)
+    if response.status_code != 200:
+        logger.warning("Jikan character API error %s: %s", response.status_code, response.text[:200])
+        raise ExternalServiceError(f"MyAnimeList/Jikan returned error {response.status_code}.", 502)
+
+    try:
         data = response.json().get("data", [])
     except Exception as exc:
-        logger.warning("Failed to fetch character metadata for '%s': %s", clean_query, exc)
-        return []
+        logger.warning("Failed to parse Jikan character response: %s", exc)
+        raise ExternalServiceError("Invalid character response received from MyAnimeList/Jikan.", 502)
 
     results = []
     for item in data:
@@ -124,27 +172,40 @@ def search_character_metadata(query: str, limit: int = 8) -> list[dict[str, Any]
             "portrait_url": portrait_url,
         })
 
+    cache.set(cache_key, results, CACHE_TTL_SECONDS)
     return results
 
 
 def search_book_metadata(query: str, limit: int = 8) -> list[dict[str, Any]]:
     """
     Search OpenLibrary API for books and literature.
+    Results are cached for 24 hours.
     """
     clean_query = query.strip()
     if not clean_query:
         return []
 
+    cache_key = f"animelog_lookup_book_{slugify(clean_query)}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     url = f"https://openlibrary.org/search.json?q={urllib.parse.quote(clean_query)}&limit={max(1, min(limit, 25))}"
     try:
         response = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=REQUEST_TIMEOUT)
-        if response.status_code != 200:
-            logger.warning("OpenLibrary API error %s", response.status_code)
-            return []
+    except Exception as exc:
+        logger.warning("Failed to connect to OpenLibrary for '%s': %s", clean_query, exc)
+        raise ExternalServiceError(f"Unable to connect to OpenLibrary: {exc}")
+
+    if response.status_code != 200:
+        logger.warning("OpenLibrary API error %s", response.status_code)
+        raise ExternalServiceError(f"OpenLibrary returned error {response.status_code}.", 502)
+
+    try:
         docs = response.json().get("docs", [])
     except Exception as exc:
-        logger.warning("Failed to fetch book metadata for '%s': %s", clean_query, exc)
-        return []
+        logger.warning("Failed to parse OpenLibrary response: %s", exc)
+        raise ExternalServiceError("Invalid response received from OpenLibrary.", 502)
 
     results = []
     for doc in docs:
@@ -164,6 +225,7 @@ def search_book_metadata(query: str, limit: int = 8) -> list[dict[str, Any]]:
             "cover_url": cover_url,
         })
 
+    cache.set(cache_key, results, CACHE_TTL_SECONDS)
     return results
 
 
@@ -174,28 +236,82 @@ def import_remote_image(
 ) -> Image:
     """
     Download a remote image file and save it into the Image library.
-    Ensures a target folder exists and assigns proper naming.
+    Ensures URL safety (SSRF whitelist), size limit (max 5 MB), and deduplication.
     """
     clean_url = url.strip()
     if not clean_url:
         raise ValueError("Image URL cannot be empty.")
 
-    resp = requests.get(
-        clean_url,
-        headers={"User-Agent": USER_AGENT},
-        timeout=15,
+    parsed = urllib.parse.urlparse(clean_url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError("Invalid URL scheme. Only HTTP and HTTPS are supported.")
+
+    hostname = (parsed.hostname or "").lower()
+    is_allowed = any(
+        hostname == domain or hostname.endswith("." + domain)
+        for domain in ALLOWED_IMAGE_DOMAINS
     )
-    if resp.status_code != 200 or not resp.content:
+    if not is_allowed:
+        raise ValueError(
+            f"Domain '{hostname}' is not in the trusted image sources allowlist ({', '.join(sorted(ALLOWED_IMAGE_DOMAINS))})."
+        )
+
+    clean_title = title.strip()
+    folder, _ = Folder.objects.get_or_create(
+        name=folder_name.strip() or "Imported Media",
+        parent=None,
+    )
+
+    # Deduplication check: if an image with this title already exists in the folder, reuse it
+    if clean_title:
+        existing = Image.objects.filter(folder=folder, title=clean_title).first()
+        if existing:
+            return existing
+
+    try:
+        resp = requests.get(
+            clean_url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=15,
+            stream=True,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Failed to connect to image host: {exc}")
+
+    if resp.status_code != 200:
         raise RuntimeError(f"Failed to download image from {clean_url}: HTTP {resp.status_code}")
 
+    content_length = resp.headers.get("Content-Length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_IMAGE_SIZE_BYTES:
+                raise ValueError(f"Remote image size exceeds 5 MB limit ({content_length} bytes).")
+        except (ValueError, TypeError):
+            pass
+
+    content_chunks = []
+    total_downloaded = 0
+    for chunk in resp.iter_content(chunk_size=65536):
+        if chunk:
+            total_downloaded += len(chunk)
+            if total_downloaded > MAX_IMAGE_SIZE_BYTES:
+                raise ValueError("Remote image exceeded 5 MB limit during streaming download.")
+            content_chunks.append(chunk)
+
+    raw_bytes = b"".join(content_chunks)
+    if not raw_bytes:
+        raise RuntimeError("Downloaded image is empty.")
+
     # Determine file extension from content-type or url
-    content_type = resp.headers.get("Content-Type", "")
+    content_type = resp.headers.get("Content-Type", "").lower()
     ext = ".jpg"
     if "png" in content_type:
         ext = ".png"
     elif "webp" in content_type:
         ext = ".webp"
-    elif "jpeg" in content_type:
+    elif "gif" in content_type:
+        ext = ".gif"
+    elif "jpeg" in content_type or "jpg" in content_type:
         ext = ".jpg"
     else:
         path = urllib.parse.urlparse(clean_url).path
@@ -203,18 +319,13 @@ def import_remote_image(
         if url_ext:
             ext = url_ext.lower()
 
-    slug = slugify(title)[:40] if title else "asset"
+    slug = slugify(clean_title)[:40] if clean_title else "asset"
     filename = f"{slug}_{os.urandom(4).hex()}{ext}"
 
-    folder, _ = Folder.objects.get_or_create(
-        name=folder_name.strip() or "Imported Media",
-        parent=None,
-    )
-
     image = Image.objects.create(
-        file=ContentFile(resp.content, name=filename),
-        title=title.strip() or filename,
-        alt_text=f"Cover art for {title}" if title else None,
+        file=ContentFile(raw_bytes, name=filename),
+        title=clean_title or filename,
+        alt_text=f"Cover art for {clean_title}" if clean_title else None,
         folder=folder,
     )
     return image

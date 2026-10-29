@@ -902,21 +902,40 @@ class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
     @patch("animeLog.services.metadata_lookup.requests.get")
     def test_import_image_from_url(self, mock_get):
         mock_get.return_value.status_code = 200
-        # Valid 1x1 GIF bytes
-        mock_get.return_value.content = (
+        gif_bytes = (
             b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
         )
-        mock_get.return_value.headers = {"Content-Type": "image/gif"}
+        mock_get.return_value.content = gif_bytes
+        mock_get.return_value.iter_content.return_value = [gif_bytes]
+        mock_get.return_value.headers = {"Content-Type": "image/gif", "Content-Length": str(len(gif_bytes))}
 
         res = self.client.post(
             "/api/images/import-url/",
-            {"url": "https://example.com/poster.gif", "title": "Imported Poster"},
+            {"url": "https://cdn.myanimelist.net/images/anime/1015/138006l.gif", "title": "Imported Poster"},
             format="json",
         )
         self.assertEqual(res.status_code, status.HTTP_201_CREATED)
         self.assertIn("id", res.data)
         self.assertEqual(res.data["title"], "Imported Poster")
         self.assertEqual(res.data["folder_name"], "Imported Media")
+
+        # Test deduplication: importing again returns the existing image without error
+        res_dup = self.client.post(
+            "/api/images/import-url/",
+            {"url": "https://cdn.myanimelist.net/images/anime/1015/138006l.gif", "title": "Imported Poster"},
+            format="json",
+        )
+        self.assertEqual(res_dup.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_dup.data["id"], res.data["id"])
+
+    def test_import_image_ssrf_rejection(self):
+        res = self.client.post(
+            "/api/images/import-url/",
+            {"url": "http://169.254.169.254/latest/meta-data/", "title": "Evil URL"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("not in the trusted image sources allowlist", res.data.get("error", ""))
 
     def test_export_journal_json_and_markdown(self):
         res_json = self.client.get("/api/export/?export_format=json")
@@ -930,7 +949,8 @@ class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
         self.assertEqual(res_md.status_code, status.HTTP_200_OK)
         self.assertIn("content", res_md.data)
         content = res_md.data["content"]
-        self.assertIn("Frieren: Beyond Journey's End", content)
-        self.assertIn("Meditations", content)
+        self.assertIn("[[Frieren: Beyond Journey's End]]", content)
+        self.assertIn("[[Meditations]]", content)
         self.assertIn("Himmel", content)
+        self.assertIn("obsidian_compat: true", content)
 

@@ -534,6 +534,7 @@ class MetadataLookupView(APIView):
 
     def get(self, request):
         from .services.metadata_lookup import (
+            ExternalServiceError,
             search_anime_metadata,
             search_book_metadata,
             search_character_metadata,
@@ -544,29 +545,36 @@ class MetadataLookupView(APIView):
         if not query:
             return Response({"results": []}, status=status.HTTP_200_OK)
 
-        if media_type == "anime":
-            results = search_anime_metadata(query)
-        elif media_type == "character":
-            results = search_character_metadata(query)
-        elif media_type == "book":
-            results = search_book_metadata(query)
-        else:
+        try:
+            if media_type == "anime":
+                results = search_anime_metadata(query)
+            elif media_type == "character":
+                results = search_character_metadata(query)
+            elif media_type == "book":
+                results = search_book_metadata(query)
+            else:
+                return Response(
+                    {"error": f"Invalid type '{media_type}'. Must be 'anime', 'character', or 'book'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response({"results": results}, status=status.HTTP_200_OK)
+        except ExternalServiceError as exc:
             return Response(
-                {"error": f"Invalid type '{media_type}'. Must be 'anime', 'character', or 'book'."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"error": str(exc), "status_code": exc.status_code},
+                status=exc.status_code if exc.status_code in (429, 502) else status.HTTP_502_BAD_GATEWAY,
             )
-
-        return Response({"results": results}, status=status.HTTP_200_OK)
 
 
 class JournalExportView(APIView):
     """
     Export the full personal journal in JSON or Obsidian-ready Markdown.
     Query params:
-      - format: 'json' (default) or 'markdown'
+      - export_format: 'json' (default) or 'markdown'
     """
 
     def get(self, request):
+        from .services.export import generate_journal_markdown
+
         export_format = (
             request.query_params.get("export_format")
             or request.query_params.get("format_type")
@@ -600,79 +608,12 @@ class JournalExportView(APIView):
         )
 
         if export_format == "markdown":
-            md_lines = [
-                "---",
-                "title: AnimeLog Personal Journal Export",
-                f"exported_at: {date.today().isoformat()}",
-                "generator: AnimeLog Still & Spine",
-                "---",
-                "",
-                "# AnimeLog Personal Journal",
-                "",
-                "## Anime Franchises",
-                "",
-            ]
-            for s in series_qs:
-                md_lines.append(f"### {s.title}")
-                if s.japanese_title or s.romaji_title:
-                    md_lines.append(
-                        f"*{s.japanese_title or ''} / {s.romaji_title or ''}*"
-                    )
-                genres_str = ", ".join([g.name for g in s.genres.all()])
-                if genres_str:
-                    md_lines.append(f"- **Genres:** {genres_str}")
-                for season in s.seasons.all():
-                    score_str = f" · Rating: {season.rating}/10" if season.rating else ""
-                    md_lines.append(
-                        f"\n#### Season {season.season_number}: {season.title} ({season.status}{score_str})"
-                    )
-                    md_lines.append(
-                        f"- Progress: {season.progress}/{season.total_episodes or '?'}"
-                    )
-                    if season.notes:
-                        md_lines.append(f"> {season.notes}\n")
-                    for ep in season.episode_notes.all():
-                        ep_score = f" [{ep.rating}/10]" if ep.rating else ""
-                        md_lines.append(
-                            f"- **Ep {ep.episode_number}{ep_score}:** {ep.note}"
-                        )
-                for movie in s.movies.all():
-                    score_str = f" · Rating: {movie.rating}/10" if movie.rating else ""
-                    md_lines.append(
-                        f"\n#### Film: {movie.title} ({movie.status}{score_str})"
-                    )
-                    if movie.notes:
-                        md_lines.append(f"> {movie.notes}\n")
-                md_lines.append("")
-
-            md_lines.append("## Literature & Books\n")
-            for b in books_qs:
-                b_score = f" · Rating: {b.rating}/10" if b.rating else ""
-                md_lines.append(
-                    f"### {b.title} by {b.author or 'Unknown'} ({b.status}{b_score})"
-                )
-                md_lines.append(
-                    f"- Progress: {b.progress}/{b.total_pages or '?'} pages"
-                )
-                if b.notes:
-                    md_lines.append(f"> {b.notes}\n")
-
-            md_lines.append("## Rewatches & Return Passes\n")
-            for r in rewatches_qs:
-                r_score = f" · Rating: {r.rating}/10" if r.rating else ""
-                md_lines.append(
-                    f"- **{r.release_title}** ({r.start_date or 'Undated'}{r_score})"
-                )
-                if r.notes:
-                    md_lines.append(f"  > {r.notes}")
-
-            md_lines.append("\n## Memorable Characters & Virtues\n")
-            for c in characters_qs:
-                md_lines.append(f"- **{c.name}** ({c.series_title})")
-                if c.why:
-                    md_lines.append(f"  *“{c.why}”*")
-
-            markdown_text = "\n".join(md_lines)
+            markdown_text = generate_journal_markdown(
+                series_qs=series_qs,
+                books_qs=books_qs,
+                rewatches_qs=rewatches_qs,
+                characters_qs=characters_qs,
+            )
             return Response(
                 {"content": markdown_text, "format": "markdown"},
                 status=status.HTTP_200_OK,

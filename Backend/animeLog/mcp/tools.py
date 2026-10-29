@@ -1473,66 +1473,6 @@ def export_journal_markdown() -> str:
     """
     Generate an Obsidian-ready Markdown export of the entire journal with YAML frontmatter.
     """
-    series_qs = AnimeSeries.objects.prefetch_related(
-        "genres", "seasons__studios", "seasons__episode_notes", "movies__studios", "favorite_characters", "rewatches"
-    ).all().order_by("-created_at")
-    books_qs = Book.objects.prefetch_related("genres").all().order_by("-created_at")
-    rewatches_qs = Rewatch.objects.all().order_by("-start_date", "-id")
-    characters_qs = FavoriteCharacter.objects.select_related("series").all().order_by("name")
+    from animeLog.services.export import generate_journal_markdown
 
-    lines = [
-        "---",
-        "title: AnimeLog Personal Journal Export",
-        f"exported_at: {date.today().isoformat()}",
-        "generator: AnimeLog MCP Companion",
-        "---",
-        "",
-        "# AnimeLog Personal Journal",
-        "",
-        "## Anime Franchises\n",
-    ]
-    for s in series_qs:
-        lines.append(f"### {s.title}")
-        if s.japanese_title or s.romaji_title:
-            lines.append(f"*{s.japanese_title or ''} / {s.romaji_title or ''}*")
-        genres_str = ", ".join([g.name for g in s.genres.all()])
-        if genres_str:
-            lines.append(f"- **Genres:** {genres_str}")
-        for sea in s.seasons.all():
-            score_str = f" · Rating: {sea.rating}/10" if sea.rating else ""
-            lines.append(f"\n#### Season {sea.season_number}: {sea.title} ({sea.status}{score_str})")
-            lines.append(f"- Progress: {sea.progress}/{sea.total_episodes or '?'}")
-            if sea.notes:
-                lines.append(f"> {sea.notes}\n")
-            for ep in sea.episode_notes.all():
-                ep_score = f" [{ep.rating}/10]" if ep.rating else ""
-                lines.append(f"- **Ep {ep.episode_number}{ep_score}:** {ep.note}")
-        for mov in s.movies.all():
-            score_str = f" · Rating: {mov.rating}/10" if mov.rating else ""
-            lines.append(f"\n#### Film: {mov.title} ({mov.status}{score_str})")
-            if mov.notes:
-                lines.append(f"> {mov.notes}\n")
-        lines.append("")
-
-    lines.append("## Literature & Books\n")
-    for b in books_qs:
-        b_score = f" · Rating: {b.rating}/10" if b.rating else ""
-        lines.append(f"### {b.title} by {b.author or 'Unknown'} ({b.status}{b_score})")
-        lines.append(f"- Progress: {b.progress}/{b.total_pages or '?'} pages")
-        if b.notes:
-            lines.append(f"> {b.notes}\n")
-
-    lines.append("## Rewatches & Return Passes\n")
-    for r in rewatches_qs:
-        r_score = f" · Rating: {r.rating}/10" if r.rating else ""
-        lines.append(f"- **{r.release_title}** ({r.start_date or 'Undated'}{r_score})")
-        if r.notes:
-            lines.append(f"  > {r.notes}")
-
-    lines.append("\n## Memorable Characters & Virtues\n")
-    for c in characters_qs:
-        lines.append(f"- **{c.name}** ({c.series_title})")
-        if c.why:
-            lines.append(f"  *“{c.why}”*")
-
-    return "\n".join(lines)
+    return generate_journal_markdown()
