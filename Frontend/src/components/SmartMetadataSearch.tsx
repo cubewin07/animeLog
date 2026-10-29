@@ -6,7 +6,13 @@ import {
   imageApi,
   lookupApi,
 } from '../api/client';
-import { Search, Sparkles, Loader2, X, Check, BookOpen, Tv, Film } from 'lucide-react';
+import { Search, Sparkles, Loader2, X, Check, BookOpen, Tv, AlertCircle } from 'lucide-react';
+
+type LookupResultItem = (
+  | (ExternalAnimeLookupResult & { name?: string; portrait_url?: string; key?: string })
+  | (ExternalCharacterLookupResult & { title?: string; cover_url?: string; key?: string })
+  | (ExternalBookLookupResult & { name?: string; portrait_url?: string; source_id?: number })
+);
 
 interface SmartMetadataSearchProps {
   type: 'anime' | 'character' | 'book';
@@ -22,12 +28,17 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
   onSelectBook,
 }) => {
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<LookupResultItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [importingImage, setImportingImage] = useState(false);
   const [autofilledTitle, setAutofilledTitle] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+
   const containerRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const listboxRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -37,7 +48,12 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
       }
     };
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, []);
 
   const handleSearch = async (searchQuery: string) => {
@@ -45,43 +61,57 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
     if (!q) {
       setResults([]);
       setIsOpen(false);
+      setErrorMessage(null);
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
       setLoading(true);
+      setErrorMessage(null);
+      setHighlightedIndex(-1);
+
+      let data: LookupResultItem[] = [];
       if (type === 'anime') {
-        const data = await lookupApi.searchAnime(q);
-        setResults(data);
+        data = await lookupApi.searchAnime(q) as LookupResultItem[];
       } else if (type === 'character') {
-        const data = await lookupApi.searchCharacter(q);
-        setResults(data);
+        data = await lookupApi.searchCharacter(q) as LookupResultItem[];
       } else if (type === 'book') {
-        const data = await lookupApi.searchBook(q);
-        setResults(data);
+        data = await lookupApi.searchBook(q) as LookupResultItem[];
       }
+
+      setResults(data);
       setIsOpen(true);
-    } catch (err) {
-      console.error('Metadata lookup error:', err);
+      if (data.length === 0) {
+        setErrorMessage(`No matching ${type === 'book' ? 'books' : 'titles'} found. You can enter details manually below.`);
+      }
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
+      console.warn('Metadata lookup error:', err);
+      const isRateLimit = err?.status === 429 || String(err?.message || '').includes('429');
+      if (isRateLimit) {
+        setErrorMessage('Rate limit reached on public metadata API. Please wait a few seconds and try again.');
+      } else {
+        setErrorMessage('External metadata lookup is currently unreachable. You can continue logging manually.');
+      }
+      setIsOpen(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearch(query);
-    }
-  };
-
-  const handleSelect = async (item: any) => {
+  const handleSelect = async (item: LookupResultItem) => {
     setIsOpen(false);
-    const itemTitle = item.title || item.name || '';
+    setErrorMessage(null);
+    const itemTitle = (item as any).title || (item as any).name || '';
     setAutofilledTitle(itemTitle);
 
     let importedImage: { id: number; url: string } | null = null;
-    const remoteUrl = item.cover_url || item.portrait_url;
+    const remoteUrl = (item as any).cover_url || (item as any).portrait_url;
 
     if (remoteUrl) {
       try {
@@ -97,11 +127,45 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
     }
 
     if (type === 'anime' && onSelectAnime) {
-      onSelectAnime(item, importedImage);
+      onSelectAnime(item as ExternalAnimeLookupResult, importedImage);
     } else if (type === 'character' && onSelectCharacter) {
-      onSelectCharacter(item, importedImage);
+      onSelectCharacter(item as ExternalCharacterLookupResult, importedImage);
     } else if (type === 'book' && onSelectBook) {
-      onSelectBook(item, importedImage);
+      onSelectBook(item as ExternalBookLookupResult, importedImage);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!isOpen && results.length > 0) {
+        setIsOpen(true);
+        setHighlightedIndex(0);
+      } else if (results.length > 0) {
+        setHighlightedIndex((prev) => {
+          const next = prev < results.length - 1 ? prev + 1 : 0;
+          return next;
+        });
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (isOpen && results.length > 0) {
+        setHighlightedIndex((prev) => {
+          const next = prev > 0 ? prev - 1 : results.length - 1;
+          return next;
+        });
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (isOpen && highlightedIndex >= 0 && highlightedIndex < results.length) {
+        handleSelect(results[highlightedIndex]);
+      } else {
+        handleSearch(query);
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      setHighlightedIndex(-1);
     }
   };
 
@@ -130,9 +194,17 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
         <input
           type="text"
           value={query}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={isOpen}
+          aria-controls="metadata-lookup-listbox"
+          aria-activedescendant={highlightedIndex >= 0 ? `metadata-option-${highlightedIndex}` : undefined}
           onChange={(e) => {
             setQuery(e.target.value);
-            if (!e.target.value) setIsOpen(false);
+            if (!e.target.value) {
+              setIsOpen(false);
+              setErrorMessage(null);
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder={placeholderText}
@@ -155,6 +227,8 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
               setQuery('');
               setResults([]);
               setIsOpen(false);
+              setErrorMessage(null);
+              setHighlightedIndex(-1);
             }}
             aria-label="Clear autofill search"
             style={{
@@ -211,6 +285,34 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
         </div>
       )}
 
+      {/* Error or notice banner */}
+      {errorMessage && !isOpen && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            fontSize: 12,
+            color: 'var(--tungsten)',
+            background: 'rgba(217, 119, 6, 0.12)',
+            border: '1px solid rgba(217, 119, 6, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '6px 10px',
+            marginTop: 6,
+          }}
+        >
+          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+          <span>{errorMessage}</span>
+          <button
+            type="button"
+            onClick={() => setErrorMessage(null)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
+
       {/* Success banner if applied */}
       {autofilledTitle && !isOpen && !importingImage && (
         <div
@@ -244,6 +346,10 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
       {/* Dropdown Results List */}
       {isOpen && results.length > 0 && (
         <div
+          ref={listboxRef}
+          id="metadata-lookup-listbox"
+          role="listbox"
+          aria-label="Metadata search results"
           style={{
             position: 'absolute',
             top: '100%',
@@ -275,23 +381,28 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
             }}
           >
             <span>{results.length} Matches Found</span>
-            <span>Click to auto-fill</span>
+            <span>Use ↑↓ and Enter or click</span>
           </div>
 
           {results.map((item, idx) => {
-            const itemTitle = item.title || item.name || '';
-            const thumb = item.cover_url || item.portrait_url;
+            const itemTitle = (item as any).title || (item as any).name || '';
+            const thumb = (item as any).cover_url || (item as any).portrait_url;
+            const isHighlighted = highlightedIndex === idx;
+
             return (
               <button
                 type="button"
-                key={item.source_id || item.key || idx}
+                id={`metadata-option-${idx}`}
+                role="option"
+                aria-selected={isHighlighted}
+                key={(item as any).source_id || (item as any).key || idx}
                 onClick={() => handleSelect(item)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 12,
                   padding: '8px 12px',
-                  background: 'transparent',
+                  background: isHighlighted ? 'var(--desk-surface-high)' : 'transparent',
                   border: 'none',
                   borderBottom: '1px solid var(--border-desk-subtle)',
                   textAlign: 'left',
@@ -299,9 +410,9 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
                   color: 'var(--text-desk)',
                   transition: 'background 0.15s',
                   width: '100%',
+                  outline: isHighlighted ? '1px solid var(--border-desk-focus)' : 'none',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--desk-surface-high)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                onMouseEnter={() => setHighlightedIndex(idx)}
               >
                 <div
                   style={{
@@ -347,15 +458,15 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
                       marginTop: 2,
                     }}
                   >
-                    {item.japanese_title && <span>{item.japanese_title}</span>}
-                    {item.author && <span>by {item.author}</span>}
-                    {item.total_episodes && <span>{item.total_episodes} eps</span>}
-                    {item.total_pages && <span>{item.total_pages} pages</span>}
-                    {item.studios && item.studios.length > 0 && <span>· {item.studios[0]}</span>}
+                    {(item as any).japanese_title && <span>{(item as any).japanese_title}</span>}
+                    {(item as any).author && <span>by {(item as any).author}</span>}
+                    {(item as any).total_episodes && <span>{(item as any).total_episodes} eps</span>}
+                    {(item as any).total_pages && <span>{(item as any).total_pages} pages</span>}
+                    {(item as any).studios && (item as any).studios.length > 0 && <span>· {(item as any).studios[0]}</span>}
                   </div>
                 </div>
 
-                {item.score && (
+                {(item as any).score && (
                   <span
                     style={{
                       fontSize: 11,
@@ -368,7 +479,7 @@ export const SmartMetadataSearch: React.FC<SmartMetadataSearchProps> = ({
                       flexShrink: 0,
                     }}
                   >
-                    ★ {item.score}
+                    ★ {(item as any).score}
                   </span>
                 )}
               </button>
