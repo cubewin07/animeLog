@@ -56,6 +56,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children, onOpenExport }) =>
 
   return (
     <div className="lamplight-shell">
+      <a href="#journal-main" className="skip-link">
+        Skip to journal content
+      </a>
       <Sidebar onOpenExport={onOpenExport} />
       <TopBar />
 
