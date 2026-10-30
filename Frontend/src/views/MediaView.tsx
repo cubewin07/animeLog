@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Folder, ImageAsset } from '../types';
 import { folderApi, imageApi } from '../api/client';
+import { Button, EmptyState } from '../ui';
 import {
   UploadCloud,
   Folder as FolderIcon,
@@ -13,6 +14,7 @@ import {
   Loader2,
   FolderPlus,
   ExternalLink,
+  X,
 } from 'lucide-react';
 
 interface MediaViewProps {
@@ -155,7 +157,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
     if (onRequestConfirm) {
       onRequestConfirm({
         title: 'Delete Folder',
-        message: `Delete folder "${folder.name}" and move assets to root?`,
+        message: `Delete folder "${folder.name}"? Images inside will be moved to unorganized.`,
         onConfirm: doDelete,
       });
     } else {
@@ -165,84 +167,115 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
 
   const filteredImages = images.filter((img) => {
     if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
     return (
-      (img.title && img.title.toLowerCase().includes(q)) ||
-      (img.alt_text && img.alt_text.toLowerCase().includes(q)) ||
-      (img.folder_name && img.folder_name.toLowerCase().includes(q))
+      (img.title && img.title.toLowerCase().includes(searchQuery.toLowerCase().trim())) ||
+      img.id.toString() === searchQuery.trim()
     );
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, animation: 'fadeIn var(--dur-base) var(--ease-smooth)' }}>
       {/* Header */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: 16,
           flexWrap: 'wrap',
         }}
       >
         <div>
-          <h2 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 4 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--lamp)',
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: 6,
+            }}
+          >
+            <ImageIcon size={14} />
+            <span>Media Assets & Stills</span>
+          </div>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(28px, 3.2vw, 36px)',
+              color: 'var(--text)',
+              lineHeight: 1.15,
+            }}
+          >
             Media Library
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--text-desk-muted)' }}>
-            Asset management for franchise posters, stills, book covers, and portraits.
+          </h1>
+          <p style={{ color: 'var(--text-2)', fontSize: 15, marginTop: 6, maxWidth: 620, lineHeight: 1.5 }}>
+            Manage uploaded cover art, anime stills, and character portraits across journal entries.
           </p>
         </div>
 
-        <button
-          className="btn btn-secondary"
+        <Button
+          variant="secondary"
+          icon={<FolderPlus size={15} />}
           onClick={() => setShowNewFolder(!showNewFolder)}
-          style={{ fontSize: 13, padding: '6px 14px' }}
         >
-          <FolderPlus size={15} />
-          <span>New Folder</span>
-        </button>
-      </div>
+          New Folder
+        </Button>
+      </header>
 
       {/* New Folder Form */}
       {showNewFolder && (
         <form
           onSubmit={handleCreateFolder}
-          className="desk-card"
           style={{
             padding: 16,
             display: 'flex',
             alignItems: 'center',
             gap: 12,
             flexWrap: 'wrap',
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-md)',
           }}
         >
           <input
             type="text"
-            placeholder="Folder name (e.g. Frieren Stills, Character Portraits)..."
+            placeholder="Folder name (e.g. Frieren Stills, Character Portraits)…"
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
-            className="form-input"
-            style={{ flex: '1', minWidth: '220px' }}
+            style={{
+              flex: '1',
+              minWidth: '220px',
+              height: 38,
+              padding: '0 12px',
+              background: 'var(--surface-sunken)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--r-sm)',
+              color: 'var(--text)',
+              fontSize: 13,
+              outline: 'none',
+            }}
             autoFocus
           />
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowNewFolder(false)}
-              style={{ fontSize: 13 }}
             >
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
               disabled={folderSubmitting || !newFolderName.trim()}
-              style={{ fontSize: 13 }}
+              loading={folderSubmitting}
             >
-              {folderSubmitting ? 'Creating...' : 'Create Folder'}
-            </button>
+              Create Folder
+            </Button>
           </div>
         </form>
       )}
@@ -251,29 +284,33 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '220px 1fr',
+          gridTemplateColumns: '240px 1fr',
           gap: 20,
           minHeight: 520,
+          alignItems: 'start',
         }}
       >
         {/* Left: Folder Navigation Sidebar */}
-        <div
-          className="desk-card"
+        <aside
           style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--line)',
+            borderRadius: 'var(--r-lg)',
             padding: 16,
             display: 'flex',
             flexDirection: 'column',
-            gap: 8,
+            gap: 6,
           }}
         >
           <div
             style={{
               fontSize: 11,
-              fontFamily: 'var(--font-mono)',
+              fontWeight: 700,
               textTransform: 'uppercase',
-              color: 'var(--text-desk-dim)',
-              letterSpacing: '0.06em',
-              marginBottom: 4,
+              color: 'var(--text-3)',
+              letterSpacing: '0.08em',
+              marginBottom: 6,
+              paddingLeft: 4,
             }}
           >
             Folders
@@ -282,16 +319,20 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
           <button
             type="button"
             onClick={() => setActiveFolderId('all')}
-            className="btn btn-ghost"
             style={{
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
               padding: '8px 12px',
               fontSize: 13,
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: activeFolderId === 'all' ? 'var(--desk-surface-high)' : 'transparent',
-              color: activeFolderId === 'all' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-              border: activeFolderId === 'all' ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
+              borderRadius: 'var(--r-md)',
+              backgroundColor: activeFolderId === 'all' ? 'var(--lamp-soft)' : 'transparent',
+              color: activeFolderId === 'all' ? 'var(--lamp)' : 'var(--text-2)',
+              border: `1px solid ${activeFolderId === 'all' ? 'var(--lamp)' : 'transparent'}`,
               fontWeight: activeFolderId === 'all' ? 600 : 400,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all var(--dur-fast) ease',
             }}
           >
             <ImageIcon size={14} />
@@ -301,16 +342,20 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
           <button
             type="button"
             onClick={() => setActiveFolderId('root')}
-            className="btn btn-ghost"
             style={{
-              justifyContent: 'flex-start',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
               padding: '8px 12px',
               fontSize: 13,
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: activeFolderId === 'root' ? 'var(--desk-surface-high)' : 'transparent',
-              color: activeFolderId === 'root' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-              border: activeFolderId === 'root' ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
+              borderRadius: 'var(--r-md)',
+              backgroundColor: activeFolderId === 'root' ? 'var(--lamp-soft)' : 'transparent',
+              color: activeFolderId === 'root' ? 'var(--lamp)' : 'var(--text-2)',
+              border: `1px solid ${activeFolderId === 'root' ? 'var(--lamp)' : 'transparent'}`,
               fontWeight: activeFolderId === 'root' ? 600 : 400,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'all var(--dur-fast) ease',
             }}
           >
             <FolderIcon size={14} />
@@ -326,25 +371,31 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: isCurrent ? 'var(--desk-surface-high)' : 'transparent',
-                  border: isCurrent ? '1px solid var(--border-desk-medium)' : '1px solid transparent',
+                  borderRadius: 'var(--r-md)',
+                  backgroundColor: isCurrent ? 'var(--lamp-soft)' : 'transparent',
+                  border: `1px solid ${isCurrent ? 'var(--lamp)' : 'transparent'}`,
+                  transition: 'all var(--dur-fast) ease',
                 }}
               >
                 <button
                   type="button"
                   onClick={() => setActiveFolderId(folder.id)}
-                  className="btn btn-ghost"
                   style={{
                     flex: 1,
-                    justifyContent: 'flex-start',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
                     padding: '8px 10px',
                     fontSize: 13,
-                    color: isCurrent ? 'var(--text-desk)' : 'var(--text-desk-muted)',
+                    color: isCurrent ? 'var(--lamp)' : 'var(--text-2)',
                     fontWeight: isCurrent ? 600 : 400,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    cursor: 'pointer',
+                    textAlign: 'left',
                   }}
                   title={folder.name}
                 >
@@ -358,13 +409,13 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                     handleDeleteFolder(folder);
                   }}
                   aria-label={`Delete folder ${folder.name}`}
-                  className="btn-icon danger"
                   style={{
+                    background: 'none',
                     border: 'none',
-                    padding: '6px',
-                    minWidth: 'auto',
-                    minHeight: 'auto',
-                    background: 'transparent',
+                    color: 'var(--text-3)',
+                    cursor: 'pointer',
+                    padding: 6,
+                    borderRadius: 4,
                   }}
                 >
                   <Trash2 size={13} />
@@ -372,23 +423,23 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
               </div>
             );
           })}
-        </div>
+        </aside>
 
         {/* Right: Upload Dropzone and Assets Grid */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Upload Dropzone */}
           <div
-            className="desk-card"
             style={{
               padding: 20,
-              border: '1px dashed',
-              borderColor: dragActive ? 'var(--tungsten)' : 'var(--border-desk-medium)',
-              backgroundColor: dragActive ? 'var(--tungsten-dim)' : 'var(--desk-raised)',
+              border: `1px dashed ${dragActive ? 'var(--lamp)' : 'var(--line)'}`,
+              borderRadius: 'var(--r-lg)',
+              backgroundColor: dragActive ? 'var(--lamp-soft)' : 'var(--surface)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 16,
               flexWrap: 'wrap',
+              transition: 'all var(--dur-fast) ease',
             }}
             onDragOver={(e) => {
               e.preventDefault();
@@ -404,11 +455,11 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div
                 style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--desk-surface)',
-                  color: 'var(--tungsten)',
+                  width: 44,
+                  height: 44,
+                  borderRadius: 'var(--r-md)',
+                  backgroundColor: 'var(--surface-sunken)',
+                  color: 'var(--lamp)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -417,10 +468,10 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                 <UploadCloud size={22} />
               </div>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-desk)' }}>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                   Upload Images & Stills
                 </p>
-                <p style={{ fontSize: 12, color: 'var(--text-desk-muted)' }}>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
                   Drag and drop files here, or click Browse to upload.
                 </p>
               </div>
@@ -435,16 +486,16 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                 multiple
                 style={{ display: 'none' }}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="btn btn-primary"
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<Plus size={14} />}
                 disabled={uploading}
-                style={{ fontSize: 13 }}
+                loading={uploading}
+                onClick={() => fileInputRef.current?.click()}
               >
-                <Plus size={14} />
-                <span>{uploading ? 'Uploading...' : 'Browse & Upload'}</span>
-              </button>
+                Browse & Upload
+              </Button>
             </div>
           </div>
 
@@ -458,53 +509,81 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                   left: 10,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--text-desk-dim)',
+                  color: 'var(--text-3)',
                   pointerEvents: 'none',
                 }}
               />
               <input
                 type="text"
-                placeholder="Search media assets..."
+                placeholder="Search media assets…"
                 aria-label="Search media assets"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="form-input"
-                style={{ paddingLeft: 32, paddingTop: 6, paddingBottom: 6, fontSize: 13 }}
+                style={{
+                  width: '100%',
+                  height: 36,
+                  paddingLeft: 32,
+                  paddingRight: searchQuery ? 30 : 12,
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                  borderRadius: 'var(--r-md)',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  outline: 'none',
+                }}
               />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: 8,
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-3)',
+                    cursor: 'pointer',
+                    padding: 2,
+                  }}
+                  aria-label="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
-            <span className="mono" style={{ fontSize: 12, color: 'var(--text-desk-dim)' }}>
-              {filteredImages.length} asset{filteredImages.length === 1 ? '' : 's'}
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+              {filteredImages.length} {filteredImages.length === 1 ? 'asset' : 'assets'}
             </span>
           </div>
 
           {/* Grid */}
-          <div className="desk-card" style={{ flex: 1, padding: 20 }}>
+          <div
+            style={{
+              flex: 1,
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--r-lg)',
+              padding: 20,
+              minHeight: 280,
+            }}
+          >
             {loading ? (
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: 'var(--text-desk-muted)' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 200, color: 'var(--text-3)' }}>
                 <Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} />
-                <span style={{ marginLeft: 10, fontSize: 14 }}>Loading media assets...</span>
+                <span style={{ marginLeft: 10, fontSize: 14 }}>Loading media assets…</span>
               </div>
             ) : filteredImages.length === 0 ? (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: 240,
-                  color: 'var(--text-desk-dim)',
-                  gap: 12,
-                }}
-              >
-                <ImageIcon size={40} opacity={0.3} />
-                <p style={{ fontSize: 15, color: 'var(--text-desk-muted)', fontWeight: 600 }}>
-                  No media found
-                </p>
-                <p style={{ fontSize: 13 }}>
-                  Upload image stills, covers, or portraits to use them across journal entries.
-                </p>
-              </div>
+              <EmptyState
+                icon={<ImageIcon size={32} />}
+                title="No media found"
+                description={
+                  searchQuery
+                    ? `No assets matched "${searchQuery}".`
+                    : 'Upload image stills, covers, or portraits to use them across your journal.'
+                }
+              />
             ) : (
               <div
                 style={{
@@ -516,9 +595,11 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                 {filteredImages.map((img) => (
                   <div
                     key={img.id}
-                    className="desk-panel"
                     style={{
-                      padding: 10,
+                      background: 'var(--surface-raised)',
+                      border: '1px solid var(--line)',
+                      borderRadius: 'var(--r-md)',
+                      padding: 8,
                       display: 'flex',
                       flexDirection: 'column',
                       gap: 8,
@@ -528,11 +609,11 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                     <div
                       style={{
                         width: '100%',
-                        height: 140,
-                        borderRadius: 'var(--radius-sm)',
+                        height: 130,
+                        borderRadius: 'var(--r-sm)',
                         overflow: 'hidden',
                         position: 'relative',
-                        backgroundColor: 'var(--still-well)',
+                        backgroundColor: 'var(--surface-sunken)',
                       }}
                     >
                       <img
@@ -540,7 +621,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                         alt={img.title || 'Asset'}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         width={180}
-                        height={140}
+                        height={130}
                         loading="lazy"
                       />
 
@@ -557,43 +638,57 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                           href={img.url}
                           target="_blank"
                           rel="noreferrer"
-                          className="btn-icon"
-                          aria-label="Open original image"
                           style={{
-                            width: 32,
-                            height: 32,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 'var(--r-sm)',
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: 'var(--text-desk)',
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                           }}
+                          aria-label="Open original image"
                         >
-                          <ExternalLink size={13} />
+                          <ExternalLink size={12} />
                         </a>
                         <button
                           type="button"
                           onClick={() => handleCopyUrl(img)}
-                          className="btn-icon"
-                          aria-label="Copy image URL"
                           style={{
-                            width: 32,
-                            height: 32,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 'var(--r-sm)',
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                            color: copiedId === img.id ? 'var(--spine-text)' : 'var(--text-desk)',
+                            color: copiedId === img.id ? 'var(--green)' : '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: 'none',
+                            cursor: 'pointer',
                           }}
+                          aria-label="Copy image URL"
                         >
-                          {copiedId === img.id ? <Check size={13} /> : <Copy size={13} />}
+                          {copiedId === img.id ? <Check size={12} /> : <Copy size={12} />}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteImage(img.id)}
-                          className="btn-icon danger"
-                          aria-label="Delete image asset"
                           style={{
-                            width: 32,
-                            height: 32,
+                            width: 28,
+                            height: 28,
+                            borderRadius: 'var(--r-sm)',
                             backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                            color: 'var(--red)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: 'none',
+                            cursor: 'pointer',
                           }}
+                          aria-label="Delete image asset"
                         >
-                          <Trash2 size={13} />
+                          <Trash2 size={12} />
                         </button>
                       </div>
                     </div>
@@ -601,9 +696,10 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                     <div>
                       <p
                         style={{
-                          fontSize: 13,
+                          margin: 0,
+                          fontSize: 12.5,
                           fontWeight: 600,
-                          color: 'var(--text-desk)',
+                          color: 'var(--text)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -612,7 +708,7 @@ export const MediaView: React.FC<MediaViewProps> = ({ onNotify, onRequestConfirm
                       >
                         {img.title || `Image #${img.id}`}
                       </p>
-                      <span className="mono" style={{ fontSize: 10, color: 'var(--text-desk-dim)' }}>
+                      <span style={{ fontSize: 10.5, color: 'var(--text-3)' }}>
                         ID: {img.id}
                       </span>
                     </div>
