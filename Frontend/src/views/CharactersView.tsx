@@ -1,11 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { FavoriteCharacter, ImageAsset } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
 import { CharacterDetailModal } from '../components/CharacterDetailModal';
-import { Plus, Sparkles } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { EASING, prefersReducedMotion } from '../utils/animations';
+import { Button, EmptyState } from '../ui';
+import { useJournal } from '../state/JournalContext';
+import { Plus, Search, Sparkles, User, X } from 'lucide-react';
 import { characterApi } from '../api/client';
 
 interface CharactersViewProps {
@@ -25,16 +24,17 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   onOpenAddModal,
   onRefresh,
 }) => {
+  const { openComposer } = useJournal();
   const [selectedCharacter, setSelectedCharacter] = useState<FavoriteCharacter | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const [localQuery, setLocalQuery] = useState(searchQuery || '');
 
-  // Sync selectedCharacter with updated characters list if open
+  // Keep selectedCharacter in sync if list updates
   const activeChar = selectedCharacter
     ? characters.find((c) => c.id === selectedCharacter.id) || selectedCharacter
     : null;
 
+  const q = localQuery.toLowerCase().trim();
   const filtered = characters.filter((c) => {
-    const q = searchQuery.toLowerCase().trim();
     return (
       q === '' ||
       c.name.toLowerCase().includes(q) ||
@@ -43,27 +43,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
     );
   });
 
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !contentRef.current) return;
-      const cards = contentRef.current.querySelectorAll('.desk-card');
-      if (cards.length > 0) {
-        gsap.fromTo(
-          cards,
-          { opacity: 0, y: 12 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.3,
-            stagger: 0.04,
-            ease: EASING.smooth,
-            clearProps: 'transform,opacity',
-          }
-        );
-      }
-    },
-    { scope: contentRef, dependencies: [filtered.length, searchQuery] }
-  );
+  const charactersWithWhyCount = characters.filter((c) => Boolean(c.why?.trim())).length;
 
   const handleSetCoverImage = async (characterId: number, imageId: number) => {
     try {
@@ -121,79 +101,166 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 28, animation: 'fadeIn var(--dur-base) var(--ease-smooth)' }}>
       {/* Header */}
-      <div
+      <header
         style={{
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems: 'flex-start',
           gap: 16,
           flexWrap: 'wrap',
         }}
       >
         <div>
-          <h2 className="display-title" style={{ color: 'var(--text-desk)', marginBottom: 4 }}>
-            Favorite Characters
-          </h2>
-          <p style={{ fontSize: 15, color: 'var(--text-desk-muted)' }}>
-            Characters worth remembering—and the specific virtues, ideals, or lessons they represent.
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              color: 'var(--lamp)',
+              fontSize: 13,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              marginBottom: 6,
+            }}
+          >
+            <User size={14} />
+            <span>People & Virtues</span>
+          </div>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 'clamp(28px, 3.2vw, 36px)',
+              color: 'var(--text)',
+              lineHeight: 1.15,
+            }}
+          >
+            People Remembered
+          </h1>
+          <p style={{ color: 'var(--text-2)', fontSize: 15, marginTop: 6, maxWidth: 620, lineHeight: 1.5 }}>
+            The characters worth remembering—and the specific virtues, philosophies, and lessons they represent.
           </p>
+
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              marginTop: 10,
+              fontSize: 12,
+              color: 'var(--text-3)',
+            }}
+          >
+            <span>{characters.length} {characters.length === 1 ? 'person' : 'people'} logged</span>
+            <span>·</span>
+            <span>{charactersWithWhyCount} with reflections</span>
+          </div>
         </div>
 
-        <button className="btn btn-primary" onClick={onOpenAddModal}>
-          <Plus size={15} />
-          <span>Add Character</span>
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button
+            variant="primary"
+            icon={<Plus size={15} />}
+            onClick={onOpenAddModal}
+          >
+            Add Person
+          </Button>
+        </div>
+      </header>
+
+      {/* Filter / Search Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          paddingBottom: 16,
+          borderBottom: '1px solid var(--line)',
+        }}
+      >
+        <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)' }} />
+          <input
+            type="text"
+            placeholder="Search characters by name, series, or virtue…"
+            value={localQuery}
+            onChange={(e) => setLocalQuery(e.target.value)}
+            style={{
+              width: '100%',
+              height: 36,
+              paddingLeft: 34,
+              paddingRight: localQuery ? 32 : 12,
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--r-md)',
+              color: 'var(--text)',
+              fontSize: 13,
+              outline: 'none',
+              transition: 'border-color var(--dur-fast) var(--ease-smooth)',
+            }}
+          />
+          {localQuery && (
+            <button
+              type="button"
+              onClick={() => setLocalQuery('')}
+              style={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-3)',
+                cursor: 'pointer',
+                padding: 2,
+              }}
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div ref={contentRef}>
-        {filtered.length === 0 ? (
-          <div
-            className="desk-card"
-            style={{
-              padding: '48px 24px',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <Sparkles size={36} color="var(--graphite)" />
-            <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>No characters found</h3>
-            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, color: 'var(--text-desk-muted)', fontStyle: 'italic', maxWidth: 460 }}>
-              {searchQuery
-                ? `No characters match "${searchQuery}".`
-                : 'Remember the characters that made a lasting impression on you.'}
-            </p>
-            {!searchQuery && (
-              <button className="btn btn-primary" onClick={onOpenAddModal} style={{ marginTop: 8 }}>
-                <Plus size={15} />
-                <span>Add first character</span>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-              gap: 22,
-            }}
-          >
-            {filtered.map((character) => (
-              <CharacterCard
-                key={character.id}
-                character={character}
-                onClick={(char) => setSelectedCharacter(char)}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Grid or Empty State */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon={<User size={32} />}
+          title={localQuery ? 'No characters match your search' : 'No people remembered yet'}
+          description={
+            localQuery
+              ? `No characters found matching "${localQuery}".`
+              : 'Remember the figures who challenged your thinking or embodied virtues worth carrying.'
+          }
+          action={
+            !localQuery && (
+              <Button variant="primary" icon={<Plus size={15} />} onClick={onOpenAddModal}>
+                Add first character
+              </Button>
+            )
+          }
+        />
+      ) : (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: 22,
+          }}
+        >
+          {filtered.map((character) => (
+            <CharacterCard
+              key={character.id}
+              character={character}
+              onClick={(char) => setSelectedCharacter(char)}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Character Detail & Stills Modal */}
       {activeChar && (
@@ -210,4 +277,3 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
     </div>
   );
 };
-

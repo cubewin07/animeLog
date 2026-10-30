@@ -3,6 +3,7 @@ import { Rewatch } from '../types';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
+import { Quote } from 'lucide-react';
 import {
   displayTitle,
   formatSpineDate,
@@ -78,7 +79,29 @@ export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({
                       <span aria-hidden="true">·</span>
                       <span>Pass {passNumber}</span>
                     </span>
-                    {hasNotes && <span className="rewatch-timeline-reflection">{rewatch.notes}</span>}
+                    {hasNotes && (
+                      <span
+                        className="rewatch-timeline-reflection"
+                        style={{
+                          display: 'block',
+                          backgroundColor: 'var(--paper)',
+                          color: 'var(--paper-ink)',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--r-md)',
+                          border: '1px solid rgba(0,0,0,0.06)',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                          fontStyle: 'normal',
+                          marginTop: 10,
+                        }}
+                      >
+                        <span style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+                          <Quote size={13} style={{ color: 'var(--lamp)', flexShrink: 0, marginTop: 2, opacity: 0.8 }} />
+                          <span style={{ fontFamily: 'var(--font-serif)', fontSize: 13.5, lineHeight: 1.5, textAlign: 'left' }}>
+                            {rewatch.notes}
+                          </span>
+                        </span>
+                      </span>
+                    )}
                   </span>
                 </button>
               );
