@@ -88,3 +88,4 @@ Each phase can ship on its own, leaves the app working, and gets a desktop and m
 - Model, serializer, or URL changes. If a phase finds a real gap, it stops and raises it rather than changing the backend.
 - New models (quotes, tags, highlights), per root `AGENTS.md`.
 - Stock or mock imagery as default covers. Generated covers replace placeholders.
+

@@ -219,3 +219,4 @@ People  5                         [All series ▾]   [+ Add character]
 ## Catalog forms (EntryModal, RewatchModal, CharacterModal)
 
 - Become sheets with **steps**: 1) Find (MAL search first, big), 2) Basics (title, status, progress, rating), 3) Optional details (romaji/japanese, studios, genres, dates, cover). Lesson field removed from catalog forms by default — after saving, the composer opens on the new title ("Want to write what stayed?"). Existing edit flows keep a "Lesson" field in step 2 for parity.
+

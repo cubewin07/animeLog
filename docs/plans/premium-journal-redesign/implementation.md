@@ -136,3 +136,4 @@ Replace `DashboardView` with `features/today/` (pages.md §Today).
 | Appending to `notes` alters existing text | Append mode is explicit and visible, with an "edit whole note" toggle. The composer shows the existing note before saving. |
 | View Transitions support | Progressive enhancement, falls back to instant navigation. |
 | CSS regression during the split | Legacy stylesheet kept until each page is rebuilt. Screenshots diffed every phase. |
+

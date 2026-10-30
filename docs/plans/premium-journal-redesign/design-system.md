@@ -124,3 +124,4 @@ Located in `src/ui/<Name>/<Name>.tsx + <Name>.css`.
 | `⌘↵` | Save in composer / inline paper |
 | `Esc` | Close sheet / cancel edit |
 | `?` | Shortcut help sheet |
+

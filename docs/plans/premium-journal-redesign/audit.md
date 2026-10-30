@@ -85,3 +85,4 @@ Severity: **H** = blocks understanding/usage, **M** = hurts clarity/polish, **L*
 | Write Entry / EntryModal | 4-tab catalog form, lesson textarea mid-form, status/rating below the fold; long scroll. |
 | Character Reflection | Good paper treatment for `why`, but the big empty avatar and "Memories & Stills" empty box take 60% of the modal. |
 | Return note | Clean. Should become a side sheet and show the original lesson for comparison. |
+
