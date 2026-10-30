@@ -1,6 +1,7 @@
 import React from 'react';
 import { Book } from '../types';
 import { ProgressStepper } from './ProgressStepper';
+import { Cover, StatusMark } from '../ui';
 import { BookOpen, PenLine, Trash2, ArrowRight } from 'lucide-react';
 
 interface BookRowProps {
@@ -46,28 +47,14 @@ export const BookRow: React.FC<BookRowProps> = ({
         style={{ cursor: onOpenDetail ? 'pointer' : 'default' }}
         title={`Open ${book.title}`}
       >
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={book.title}
-            className={`still-poster-list poster-edge-${statusLower}`}
-            width={96}
-            height={144}
-            loading="lazy"
+        <div style={{ width: 96, height: 144 }}>
+          <Cover
+            title={book.title}
+            subtitle={book.author}
+            imageUrl={coverUrl}
+            variant="book"
           />
-        ) : (
-          <div
-            className={`still-poster-list poster-edge-${statusLower}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--graphite)',
-            }}
-          >
-            <BookOpen size={32} />
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Main Column */}
@@ -155,9 +142,7 @@ export const BookRow: React.FC<BookRowProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className={`status-indicator ${statusLower}`}>
-              {book.status}
-            </span>
+            <StatusMark status={book.status} />
             {book.rating && (
               <div className={`rating-mono ${getRatingBandClass(book.rating)}`}>
                 <span>★ {book.rating}</span>

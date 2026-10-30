@@ -1,0 +1,118 @@
+.lamplight-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  font-family: var(--font-body);
+  font-weight: 500;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all var(--dur-fast) var(--ease-smooth);
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.lamplight-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizes */
+.lamplight-btn.size-sm {
+  height: 30px;
+  padding: 0 var(--s-3);
+  font-size: 13px;
+}
+
+.lamplight-btn.size-md {
+  height: 38px;
+  padding: 0 var(--s-4);
+  font-size: 14px;
+}
+
+.lamplight-btn.size-lg {
+  height: 44px;
+  padding: 0 var(--s-5);
+  font-size: 15px;
+}
+
+/* Primary (Tungsten Lamp) */
+.lamplight-btn.variant-primary {
+  background-color: var(--lamp);
+  color: var(--text-inverse);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.lamplight-btn.variant-primary:hover:not(:disabled) {
+  background-color: var(--lamp-hover);
+  transform: translateY(-1px);
+}
+
+.lamplight-btn.variant-primary:active:not(:disabled) {
+  background-color: var(--lamp-active);
+  transform: translateY(0);
+}
+
+/* Secondary (Subtle line) */
+.lamplight-btn.variant-secondary {
+  background-color: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+.lamplight-btn.variant-secondary:hover:not(:disabled) {
+  background-color: var(--surface-hover);
+  border-color: var(--text-3);
+  color: var(--text);
+}
+
+/* Ghost */
+.lamplight-btn.variant-ghost {
+  background-color: transparent;
+  color: var(--text-2);
+}
+
+.lamplight-btn.variant-ghost:hover:not(:disabled) {
+  background-color: var(--surface-hover);
+  color: var(--text);
+}
+
+/* Danger */
+.lamplight-btn.variant-danger {
+  background-color: transparent;
+  color: var(--danger);
+  border-color: var(--danger-soft);
+}
+
+.lamplight-btn.variant-danger:hover:not(:disabled) {
+  background-color: var(--danger-soft);
+  color: var(--danger-hover);
+}
+
+/* Icon Button */
+.lamplight-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-icon-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.lamplight-icon-btn.is-active {
+  background: var(--lamp-soft);
+  color: var(--lamp);
+}

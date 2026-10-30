@@ -1,0 +1,53 @@
+.lamplight-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--lamp);
+  user-select: none;
+}
+
+.lamplight-rating-badge.is-high {
+  color: #E8A856;
+}
+
+.lamplight-rating-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.lamplight-rating-out-of {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* Interactive Input */
+.lamplight-rating-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.lamplight-rating-tick {
+  width: 22px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--line-strong);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--dur-fast) var(--ease-smooth), color var(--dur-fast) var(--ease-smooth);
+  padding: 0;
+}
+
+.lamplight-rating-tick:hover,
+.lamplight-rating-tick.is-filled {
+  color: var(--lamp);
+}
+
+.lamplight-rating-tick:hover {
+  transform: scale(1.15);
+}

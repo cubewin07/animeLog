@@ -1,5 +1,6 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
+import { Cover } from '../ui';
 import { Sparkles, Trash2, PenLine, Image as ImageIcon, BookOpen } from 'lucide-react';
 
 interface CharacterCardProps {
@@ -91,53 +92,28 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         )}
       </div>
 
-      {/* Prominent Large Circular Avatar (168x168px) */}
+      {/* Prominent Large Circular Avatar (168x168px) / Generated Monogram Portrait */}
       <div
         style={{
           position: 'relative',
-          width: 168,
-          height: 168,
+          width: 140,
+          height: 140,
           borderRadius: '50%',
           backgroundColor: 'var(--desk-surface)',
-          padding: 4,
-          boxShadow: '0 0 0 5px var(--desk-surface), var(--shadow-paper), 0 10px 32px rgba(0, 0, 0, 0.45)',
-          border: '3px solid var(--border-desk-medium)',
+          padding: 3,
+          boxShadow: '0 0 0 4px var(--desk-surface), var(--shadow-paper), 0 10px 32px rgba(0, 0, 0, 0.45)',
+          border: '2px solid var(--border-desk-medium)',
           flexShrink: 0,
           overflow: 'hidden',
-          marginBottom: 18,
+          marginBottom: 16,
         }}
       >
-        {charImg ? (
-          <img
-            src={charImg}
-            alt={character.name}
-            style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '50%',
-              objectFit: 'cover',
-              display: 'block',
-              transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-            width={168}
-            height={168}
-            loading="lazy"
-          />
-        ) : (
-          <div
-            style={{
-              width: '100%',
-              height: '100%',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--graphite)',
-            }}
-          >
-            <Sparkles size={48} />
-          </div>
-        )}
+        <Cover
+          title={character.name}
+          imageUrl={charImg}
+          variant="portrait"
+          style={{ width: '100%', height: '100%' }}
+        />
       </div>
 
       {/* Series Eyebrow */}

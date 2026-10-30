@@ -1,5 +1,6 @@
 import React from 'react';
 import { AnimeSeries } from '../types';
+import { Cover } from '../ui';
 import { Tv, Star, RotateCcw } from 'lucide-react';
 
 interface FranchiseCardProps {
@@ -160,23 +161,15 @@ export const FranchiseCard: React.FC<FranchiseCardProps> = ({
       }}
       aria-label={`${series.title}, ${seasonLabel}`}
     >
-      {/* 100% Full Bleed Poster Image */}
+      {/* 100% Full Bleed Poster Image / Generated Cloth Cover */}
       <div className="anime-card-poster-wrap">
-        {coverUrl ? (
-          <img
-            src={coverUrl}
-            alt={series.title}
-            className="anime-card-poster"
-            loading="lazy"
-          />
-        ) : (
-          <div className="anime-card-poster-fallback">
-            <div className="anime-fallback-icon-wrap">
-              <Tv size={32} />
-            </div>
-            <span className="anime-fallback-title-hint">{series.title}</span>
-          </div>
-        )}
+        <Cover
+          title={series.title}
+          imageUrl={coverUrl}
+          variant="poster"
+          showTitle={false}
+          className="anime-card-poster"
+        />
 
         {/* Ambient Bottom Gradient for Title Readability */}
         <div className="anime-card-overlay" />

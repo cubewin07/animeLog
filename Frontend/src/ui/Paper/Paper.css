@@ -1,0 +1,79 @@
+.lamplight-paper {
+  background-color: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--r-md);
+  padding: var(--s-5) var(--s-6);
+  position: relative;
+  box-shadow: var(--shadow-paper);
+  border: 1px solid var(--paper-line);
+  transition: transform var(--dur-base) var(--ease-smooth), box-shadow var(--dur-base) var(--ease-smooth);
+}
+
+.lamplight-paper-rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 4px;
+  background-color: var(--lamp);
+  border-top-left-radius: var(--r-md);
+  border-bottom-left-radius: var(--r-md);
+}
+
+.lamplight-paper-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--paper-ink-2);
+  margin-bottom: var(--s-3);
+}
+
+.lamplight-paper-content {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--paper-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lamplight-paper-quote {
+  font-style: italic;
+}
+
+.lamplight-paper-footer {
+  margin-top: var(--s-4);
+  padding-top: var(--s-3);
+  border-top: 1px dashed var(--paper-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: 13px;
+  color: var(--paper-ink-2);
+}
+
+/* Inline Edit Textarea */
+.lamplight-paper-textarea {
+  width: 100%;
+  min-height: 120px;
+  background: transparent;
+  border: none;
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--paper-ink);
+  resize: vertical;
+  outline: none;
+}
+
+.lamplight-paper-textarea::placeholder {
+  color: var(--paper-ink-3);
+  font-style: italic;
+}

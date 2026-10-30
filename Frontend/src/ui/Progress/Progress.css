@@ -1,0 +1,77 @@
+.lamplight-progress-track {
+  width: 100%;
+  height: 4px;
+  background-color: var(--line-strong);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+  position: relative;
+}
+
+.lamplight-progress-fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  transition: width var(--dur-base) var(--ease-smooth);
+}
+
+.lamplight-progress-fill.tone-watching {
+  background-color: var(--status-watching-color);
+}
+
+.lamplight-progress-fill.tone-reading {
+  background-color: var(--status-reading-color);
+}
+
+.lamplight-progress-fill.tone-completed {
+  background-color: var(--status-completed-color);
+}
+
+/* Stepper group */
+.lamplight-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 2px var(--s-2);
+  border-radius: var(--r-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  user-select: none;
+}
+
+.lamplight-stepper-btn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-stepper-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.lamplight-stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.lamplight-stepper-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 2ch;
+  text-align: center;
+}
+
+.lamplight-stepper-total {
+  color: var(--text-3);
+  font-size: 11px;
+}

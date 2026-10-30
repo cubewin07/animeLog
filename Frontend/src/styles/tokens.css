@@ -1,0 +1,156 @@
+/**
+ * Lamplight Design System — Tokens
+ * Walnut Night, Tea-stained Paper, Tungsten Lamp Accent.
+ * Backward-compatible aliases ensure existing pages continue rendering without breaking.
+ */
+
+:root {
+  /* Surface & Background */
+  --bg: #14110E;
+  --bg-sunken: #0F0D0B;
+  --surface: #1D1915;
+  --surface-hover: #25201B;
+  --surface-raised: #2B241E;
+  --surface-high: #382F27;
+
+  /* Lines & Borders */
+  --line: rgba(236, 226, 210, 0.08);
+  --line-subtle: rgba(236, 226, 210, 0.06);
+  --line-strong: rgba(236, 226, 210, 0.16);
+  --line-focus: var(--lamp);
+
+  /* Typography Colors */
+  --text: #EDE4D6;
+  --text-2: #B3A898;
+  --text-3: #7E7466;
+  --text-inverse: #14110E;
+
+  /* Paper (Reserved for reading/writing reflections) */
+  --paper: #EFE6D4;
+  --paper-muted: #E2D7C3;
+  --paper-sunken: #D8CCB5;
+  --paper-ink: #2A2219;
+  --paper-ink-2: #6A5C4B;
+  --paper-ink-3: #8C7D6A;
+  --paper-line: rgba(42, 34, 25, 0.12);
+
+  /* Accent (Tungsten Lamp) */
+  --lamp: #D9A55B;
+  --lamp-hover: #E5B36C;
+  --lamp-active: #C49045;
+  --lamp-soft: rgba(217, 165, 91, 0.14);
+  --lamp-subtle: rgba(217, 165, 91, 0.08);
+
+  /* Semantic Status Dots & Badges */
+  --status-watching-color: #D9A55B;
+  --status-reading-color: #8FCBAA;
+  --status-completed-color: #C9A090;
+  --status-plan-color: #9BB6D0;
+  --status-hold-color: #C2C87A;
+  --status-dropped-color: #8E827F;
+
+  --danger: #E0806F;
+  --danger-hover: #EC9080;
+  --danger-soft: rgba(224, 128, 111, 0.16);
+
+  /* Typography Stack */
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-body: 'Source Sans 3', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+
+  /* Spacing Scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* Radius Scale */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-pill: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-sheet: 0 24px 64px rgba(0, 0, 0, 0.65);
+  --shadow-paper: 0 1px 0 rgba(0, 0, 0, 0.2), 0 12px 32px rgba(0, 0, 0, 0.25);
+
+  /* Transitions */
+  --ease-smooth: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+
+  /* =====================================================================
+     BACKWARD-COMPATIBILITY ALIASES for legacy components & views
+     ===================================================================== */
+  --desk: var(--bg);
+  --desk-raised: var(--surface);
+  --desk-surface: var(--surface);
+  --desk-surface-high: var(--surface-raised);
+  --desk-surface-highest: var(--surface-high);
+  --still-well: var(--bg-sunken);
+
+  --page: var(--paper);
+  --page-muted: var(--paper-muted);
+  --ink: var(--paper-ink);
+  --ink-muted: var(--paper-ink-2);
+  --ink-dim: var(--paper-ink-3);
+
+  --tungsten: var(--lamp);
+  --tungsten-hover: var(--lamp-hover);
+  --tungsten-dim: var(--lamp-soft);
+
+  --spine: #7A3E38;
+  --spine-hover: #8F4B44;
+  --spine-dim: rgba(122, 62, 56, 0.2);
+  --spine-text: var(--status-completed-color);
+
+  --banker: #2F6B4F;
+  --banker-hover: #3A8260;
+  --banker-text: var(--status-reading-color);
+  --banker-dim: rgba(47, 107, 79, 0.22);
+
+  --night: #3E5F82;
+  --night-hover: #4C729B;
+  --night-text: var(--status-plan-color);
+  --night-dim: rgba(62, 95, 130, 0.22);
+
+  --patina: #6B7348;
+  --patina-hover: #7E8755;
+  --patina-text: var(--status-hold-color);
+  --patina-dim: rgba(107, 115, 72, 0.22);
+
+  --ash: #6E5E5C;
+  --ash-hover: #82706E;
+  --ash-text: var(--status-dropped-color);
+  --ash-dim: rgba(110, 94, 92, 0.22);
+
+  --seal: #B44538;
+  --seal-hover: #C85346;
+  --seal-text: var(--danger);
+  --seal-dim: var(--danger-soft);
+
+  --text-desk: var(--text);
+  --text-desk-muted: var(--text-2);
+  --text-desk-dim: var(--text-3);
+
+  --status-watching: var(--status-watching-color);
+  --status-reading: var(--status-reading-color);
+  --status-completed: var(--status-completed-color);
+  --status-plan: var(--status-plan-color);
+  --status-hold: var(--status-hold-color);
+  --status-dropped: var(--status-dropped-color);
+
+  --border-desk-subtle: var(--line);
+  --border-desk-medium: var(--line-strong);
+  --border-paper: var(--paper-line);
+}
