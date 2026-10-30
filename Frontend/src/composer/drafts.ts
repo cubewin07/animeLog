@@ -42,3 +42,4 @@ export function clearDraft(targetKey: string, kind: string): void {
     console.warn('Failed to clear draft:', err);
   }
 }
+

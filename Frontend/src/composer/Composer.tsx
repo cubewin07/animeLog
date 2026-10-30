@@ -392,3 +392,4 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
     </Sheet>
   );
 };
+

@@ -58,3 +58,4 @@ export function getStatusMeta(status: AnimeStatus | BookStatus | string | undefi
     tone: 'plan',
   };
 }
+

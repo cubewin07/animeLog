@@ -61,3 +61,4 @@ export const Rating: React.FC<RatingProps> = ({
     </div>
   );
 };
+

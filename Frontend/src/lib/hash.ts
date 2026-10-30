@@ -110,3 +110,4 @@ export function getClothTone(seed: string): ClothTone {
   const index = hash % CLOTH_TONES.length;
   return CLOTH_TONES[index];
 }
+

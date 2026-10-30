@@ -47,3 +47,4 @@ export const Paper: React.FC<PaperProps> = ({
     </article>
   );
 };
+

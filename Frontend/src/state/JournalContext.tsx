@@ -778,3 +778,4 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   return <JournalContext.Provider value={value}>{children}</JournalContext.Provider>;
 };
+
