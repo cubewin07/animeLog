@@ -59,8 +59,15 @@ class Command(BaseCommand):
 
         # --- Frieren ---
         frieren_series, _ = AnimeSeries.objects.get_or_create(
-            title="Frieren: Beyond Journey's End"
+            title="Frieren: Beyond Journey's End",
+            defaults={
+                "japanese_title": "葬送のフリーレン",
+                "romaji_title": "Sousou no Frieren",
+            },
         )
+        frieren_series.japanese_title = "葬送のフリーレン"
+        frieren_series.romaji_title = "Sousou no Frieren"
+        frieren_series.save()
         frieren_series.genres.set(
             [genres["Fantasy"], genres["Adventure"], genres["Drama"]]
         )
@@ -114,9 +121,7 @@ class Command(BaseCommand):
             },
         )
 
-        Rewatch.objects.get_or_create(
-            season=frieren_s1,
-            movie=None,
+        frieren_s1.rewatches.get_or_create(
             defaults={
                 "start_date": date(2026, 4, 1),
                 "finish_date": date(2026, 4, 12),
@@ -140,7 +145,16 @@ class Command(BaseCommand):
         )
 
         # --- Attack on Titan ---
-        aot_series, _ = AnimeSeries.objects.get_or_create(title="Attack on Titan")
+        aot_series, _ = AnimeSeries.objects.get_or_create(
+            title="Attack on Titan",
+            defaults={
+                "japanese_title": "進撃の巨人",
+                "romaji_title": "Shingeki no Kyojin",
+            },
+        )
+        aot_series.japanese_title = "進撃の巨人"
+        aot_series.romaji_title = "Shingeki no Kyojin"
+        aot_series.save()
         aot_series.genres.set(
             [genres["Action"], genres["Drama"], genres["Fantasy"], genres["Mystery"]]
         )
@@ -219,8 +233,15 @@ class Command(BaseCommand):
 
         # --- Demon Slayer ---
         ds_series, _ = AnimeSeries.objects.get_or_create(
-            title="Demon Slayer: Kimetsu no Yaiba"
+            title="Demon Slayer: Kimetsu no Yaiba",
+            defaults={
+                "japanese_title": "鬼滅の刃",
+                "romaji_title": "Kimetsu no Yaiba",
+            },
         )
+        ds_series.japanese_title = "鬼滅の刃"
+        ds_series.romaji_title = "Kimetsu no Yaiba"
+        ds_series.save()
         ds_series.genres.set(
             [genres["Action"], genres["Fantasy"], genres["Adventure"]]
         )
@@ -256,9 +277,7 @@ class Command(BaseCommand):
         )
         ds_movie.studios.set([studios["ufotable"]])
 
-        Rewatch.objects.get_or_create(
-            season=None,
-            movie=ds_movie,
+        ds_movie.rewatches.get_or_create(
             defaults={
                 "start_date": date(2025, 1, 15),
                 "finish_date": date(2025, 1, 15),
@@ -284,7 +303,16 @@ class Command(BaseCommand):
         ds_s2.studios.set([studios["ufotable"]])
 
         # --- Steins;Gate ---
-        sg_series, _ = AnimeSeries.objects.get_or_create(title="Steins;Gate")
+        sg_series, _ = AnimeSeries.objects.get_or_create(
+            title="Steins;Gate",
+            defaults={
+                "japanese_title": "シュタインズ・ゲート",
+                "romaji_title": "Steins;Gate",
+            },
+        )
+        sg_series.japanese_title = "シュタインズ・ゲート"
+        sg_series.romaji_title = "Steins;Gate"
+        sg_series.save()
         sg_series.genres.set(
             [genres["Sci-Fi"], genres["Psychological"], genres["Drama"]]
         )
@@ -308,9 +336,7 @@ class Command(BaseCommand):
         )
         sg_s1.studios.set([studios["White Fox"]])
 
-        Rewatch.objects.get_or_create(
-            season=sg_s1,
-            movie=None,
+        sg_s1.rewatches.get_or_create(
             defaults={
                 "start_date": date(2026, 2, 10),
                 "finish_date": date(2026, 2, 18),

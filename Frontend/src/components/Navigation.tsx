@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { ActiveTab } from '../types';
 import {
   BookOpen,
@@ -10,6 +10,7 @@ import {
   Search,
   BookMarked,
   Image as ImageIcon,
+  X,
 } from 'lucide-react';
 
 interface NavigationProps {
@@ -27,176 +28,198 @@ export const Navigation: React.FC<NavigationProps> = ({
   onSearchChange,
   onOpenNewModal,
 }) => {
-  const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; count?: number }[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-    { id: 'anime', label: 'Anime Journal', icon: <Film size={16} /> },
-    { id: 'books', label: 'Book Journal', icon: <BookOpen size={16} /> },
-    { id: 'characters', label: 'Favorite Characters', icon: <Sparkles size={16} /> },
-    { id: 'rewatches', label: 'Rewatches', icon: <RotateCcw size={16} /> },
-    { id: 'media', label: 'Media Library', icon: <ImageIcon size={16} /> },
+  const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'dashboard', label: 'Desk', icon: <LayoutDashboard size={14} /> },
+    { id: 'anime', label: 'Anime', icon: <Film size={14} /> },
+    { id: 'books', label: 'Books', icon: <BookOpen size={14} /> },
+    { id: 'characters', label: 'Characters', icon: <Sparkles size={14} /> },
+    { id: 'rewatches', label: 'Rewatches', icon: <RotateCcw size={14} /> },
+    { id: 'media', label: 'Media', icon: <ImageIcon size={14} /> },
   ];
 
+  const trackRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const tabRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  const [indicatorStyle, setIndicatorStyle] = useState<{
+    left: number;
+    width: number;
+    opacity: number;
+  }>({
+    left: 0,
+    width: 0,
+    opacity: 0,
+  });
+
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Update sliding indicator position
+  const updateIndicator = useCallback(() => {
+    const activeEl = tabRefs.current[activeTab];
+    const trackEl = trackRef.current;
+    if (activeEl && trackEl) {
+      setIndicatorStyle({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+        opacity: 1,
+      });
+
+      // Ensure active tab is visible when track is scrollable
+      if (trackEl.scrollWidth > trackEl.clientWidth) {
+        const scrollLeft =
+          activeEl.offsetLeft - trackEl.clientWidth / 2 + activeEl.offsetWidth / 2;
+        trackEl.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+      }
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    updateIndicator();
+    // Update after any fonts or layout settle
+    const frameId = requestAnimationFrame(updateIndicator);
+    const handleResize = () => updateIndicator();
+    window.addEventListener('resize', handleResize);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [activeTab, updateIndicator]);
+
+  // Global keyboard shortcut for quick search ('/' or Cmd+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable;
+
+      if (!isInput) {
+        if (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k')) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      } else if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        searchInputRef.current?.blur();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
-    <header
-      style={{
-        borderBottom: '1px solid var(--border-subtle)',
-        background: 'rgba(5, 20, 36, 0.85)',
-        backdropFilter: 'blur(16px)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 500,
-      }}
-    >
-      <div
-        style={{
-          maxWidth: '1280px',
-          margin: '0 auto',
-          padding: '12px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-        }}
-      >
-        {/* Top row: Brand + Search + Action */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '16px',
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Logo & Philosophy */}
+    <header className="journal-nav-bar">
+      <a href="#journal-main" className="skip-link">
+        Skip to journal
+      </a>
+
+      <div className="journal-nav-inner">
+        {/* Brand & Pill Track */}
+        <div className="journal-nav-left">
           <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              cursor: 'pointer',
-            }}
+            className="journal-brand-mark"
             onClick={() => onTabChange('dashboard')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') onTabChange('dashboard');
+            }}
+            aria-label="AnimeLog Journal — Return to Desk"
           >
+            <div className="journal-brand-icon">
+              <BookMarked size={16} />
+            </div>
+            <div className="journal-brand-text">
+              <span className="journal-brand-title">AnimeLog</span>
+              <span className="journal-brand-badge">Journal</span>
+            </div>
+          </div>
+
+          {/* Navigation Segmented Pill Track */}
+          <nav
+            className="journal-nav-track"
+            ref={trackRef}
+            aria-label="Journal Sections"
+          >
+            {/* Smooth Sliding Active Pill Background */}
             <div
+              className="journal-nav-indicator"
               style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 0 16px rgba(99, 102, 241, 0.4)',
+                transform: `translateX(${indicatorStyle.left}px)`,
+                width: `${indicatorStyle.width}px`,
+                opacity: indicatorStyle.opacity,
               }}
-            >
-              <BookMarked size={20} color="#ffffff" />
-            </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    fontSize: '18px',
-                    fontWeight: 800,
-                    color: '#ffffff',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  AnimeLog
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    background: 'rgba(99, 102, 241, 0.2)',
-                    color: 'var(--color-primary)',
-                    border: '1px solid var(--border-glow)',
-                  }}
-                >
-                  JOURNAL
-                </span>
-              </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Memories & Lessons Archive
-              </p>
-            </div>
-          </div>
+              aria-hidden="true"
+            />
 
-          {/* Search and Action Button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: '1', maxWidth: '480px', justifyContent: 'flex-end' }}>
-            <div style={{ position: 'relative', width: '100%', maxWidth: '280px' }}>
-              <Search
-                size={15}
-                color="#64748b"
-                style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}
-              />
-              <input
-                type="text"
-                placeholder="Search titles, lessons, authors..."
-                value={searchQuery}
-                onChange={(e) => onSearchChange(e.target.value)}
-                className="form-input"
-                style={{
-                  paddingLeft: '32px',
-                  paddingTop: '7px',
-                  paddingBottom: '7px',
-                  fontSize: '13px',
-                  borderRadius: 'var(--radius-pill)',
-                }}
-              />
-            </div>
-
-            <button onClick={onOpenNewModal} className="btn btn-primary" style={{ whiteSpace: 'nowrap', padding: '8px 14px' }}>
-              <Plus size={16} />
-              <span>Log Entry</span>
-            </button>
-          </div>
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  ref={(el) => {
+                    tabRefs.current[tab.id] = el;
+                  }}
+                  onClick={() => onTabChange(tab.id)}
+                  className={`journal-nav-tab ${isActive ? 'active' : ''}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  type="button"
+                >
+                  <span className="journal-tab-icon">{tab.icon}</span>
+                  <span className="journal-tab-label">{tab.label}</span>
+                </button>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Tab row */}
-        <nav
-          style={{
-            display: 'flex',
-            gap: '6px',
-            overflowX: 'auto',
-            paddingBottom: '2px',
-          }}
-        >
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
+        {/* Search & New Entry Action */}
+        <div className="journal-nav-right">
+          <div className={`journal-search-capsule ${isSearchFocused ? 'focused' : ''}`}>
+            <Search size={14} className="journal-search-icon" aria-hidden="true" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search journal..."
+              aria-label="Search journal entries"
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              className="journal-search-input"
+            />
+            {searchQuery ? (
               <button
-                key={tab.id}
-                onClick={() => onTabChange(tab.id)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: isActive ? 'rgba(99, 102, 241, 0.15)' : 'transparent',
-                  color: isActive ? '#ffffff' : 'var(--text-muted)',
-                  fontSize: '13px',
-                  fontWeight: isActive ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  borderBottom: isActive ? '2px solid var(--color-primary-action)' : '2px solid transparent',
-                  whiteSpace: 'nowrap',
+                type="button"
+                onClick={() => {
+                  onSearchChange('');
+                  searchInputRef.current?.focus();
                 }}
+                className="journal-search-clear"
+                aria-label="Clear search"
               >
-                <span style={{ color: isActive ? 'var(--color-primary)' : 'inherit' }}>
-                  {tab.icon}
-                </span>
-                {tab.label}
+                <X size={13} />
               </button>
-            );
-          })}
-        </nav>
+            ) : (
+              <kbd className="journal-search-shortcut" title="Press '/' to search">
+                /
+              </kbd>
+            )}
+          </div>
+
+          <button
+            onClick={onOpenNewModal}
+            className="journal-action-btn"
+            aria-label="Log new journal entry"
+            type="button"
+          >
+            <Plus size={15} />
+            <span>Write Entry</span>
+          </button>
+        </div>
       </div>
     </header>
   );
 };
+

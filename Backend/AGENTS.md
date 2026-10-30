@@ -19,9 +19,12 @@ Admin: http://127.0.0.1:8000/admin/
 
 ## Current state
 
-Shipped: models, initial migration, admin (inlines for rewatches and favorite characters).
-
-Not shipped: views, URLs besides admin, DRF, CORS, tests (stub only).
+Shipped:
+- Domain models (`AnimeSeries`, `AnimeSeason`, `AnimeMovie`, `EpisodeNote`, `Book`, `Rewatch`, `FavoriteCharacter`, `Genre`, `Studio`, `Folder`, `Image`).
+- DRF ViewSets & REST API under `/api/` (series, seasons, movies, books, rewatches, characters, episode-notes, images, folders, lookup, export, import).
+- Streamable HTTP MCP Server (`Backend/animeLog/mcp/`) with 24 tools, 5 resources, 5 prompts.
+- Cloudinary media integration & local image fallback.
+- Full automated test suite (58 passing tests under `python manage.py test animeLog`).
 
 ## Domain rules
 

@@ -1,481 +1,341 @@
-import React, { useRef } from 'react';
-import { AnimeMovie, AnimeSeason, AnimeSeries, Book, JournalStats } from '../types';
-import { StatsOverview } from '../components/StatsOverview';
-import { BookCard } from '../components/BookCard';
-import { Lightbulb, ArrowRight, Quote, Tv, Clapperboard, Plus, Minus } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import {
+  BookOpen,
+  Check,
+  ChevronRight,
+  Clapperboard,
+  Copy,
+  Download,
+  Film,
+  PenLine,
+  RotateCcw,
+  Star,
+  Tv,
+  UsersRound,
+} from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
+import { AnimeMovie, AnimeSeason, AnimeSeries, Book, FavoriteCharacter, JournalStats, Rewatch } from '../types';
+import { ProgressStepper } from '../components/ProgressStepper';
+import { ExportModal } from '../components/ExportModal';
+import { ReadingRoomModal } from '../components/ReadingRoomModal';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface DashboardViewProps {
   stats: JournalStats;
   seriesList: AnimeSeries[];
   bookList: Book[];
-  onNavigate: (tab: any) => void;
+  characterList?: FavoriteCharacter[];
+  rewatchList?: Rewatch[];
+  onNavigate: (tab: string, id?: number) => void;
   onSeasonProgressDelta: (id: number, delta: number) => void;
   onMovieProgressDelta: (id: number, delta: number) => void;
-  onEditBook: (b: Book) => void;
-  onDeleteBook: (id: number) => void;
   onProgressBook: (id: number, delta: number) => void;
+  onEditSeason?: (series: AnimeSeries, season: AnimeSeason) => void;
+  onEditMovie?: (series: AnimeSeries, movie: AnimeMovie) => void;
+  onEditBook?: (book: Book) => void;
+  onOpenLogModal?: () => void;
+  onToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
+
+type LessonKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
+
+interface Lesson {
+  id: string;
+  kind: LessonKind;
+  title: string;
+  context: string;
+  note: string;
+  rating?: number | null;
+  timestamp: number;
+  open: () => void;
+}
+
+interface CurrentTitle {
+  id: string;
+  format: 'Watching' | 'Reading';
+  title: string;
+  context: string;
+  cover?: string | null;
+  current: number;
+  total?: number | null;
+  unit: string;
+  progress: (delta: number) => void;
+  open: () => void;
+}
+
+const dateLabel = (timestamp: number) => timestamp ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(timestamp) : 'Undated memory';
+const notePreview = (note: string, length = 210) => note.length > length ? `${note.slice(0, length).trimEnd()}…` : note;
+const ratingClass = (rating?: number | null) => rating && rating >= 9 ? 'high' : rating && rating >= 7 ? 'mid' : rating ? 'low' : '';
+const returnDate = (date?: string | null) => {
+  if (!date) return { month: '—', day: '—', year: 'Undated' };
+  const value = new Date(`${date}T00:00:00`);
+  return {
+    month: new Intl.DateTimeFormat(undefined, { month: 'short' }).format(value),
+    day: new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(value),
+    year: new Intl.DateTimeFormat(undefined, { year: 'numeric' }).format(value),
+  };
+};
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   stats,
   seriesList,
   bookList,
+  characterList = [],
+  rewatchList = [],
   onNavigate,
   onSeasonProgressDelta,
   onMovieProgressDelta,
-  onEditBook,
-  onDeleteBook,
   onProgressBook,
+  onEditSeason,
+  onEditMovie,
+  onEditBook,
+  onOpenLogModal,
+  onToast,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Active TV seasons and movies
-  const activeSeasons: { series: AnimeSeries; season: AnimeSeason }[] = [];
-  const activeMovies: { series: AnimeSeries; movie: AnimeMovie }[] = [];
+  const [showReadingRoomModal, setShowReadingRoomModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [copiedFeatured, setCopiedFeatured] = useState(false);
+  const current: CurrentTitle[] = [];
+  const lessons: Lesson[] = [];
 
   seriesList.forEach((series) => {
+    const seriesCover = series.cover_image_url || series.image_url;
     series.seasons.forEach((season) => {
+      const cover = season.cover_image_url || season.image_url || seriesCover;
+      const created = season.created_at ? new Date(season.created_at).getTime() : 0;
       if (season.status === 'WATCHING') {
-        activeSeasons.push({ series, season });
-      }
-    });
-    series.movies.forEach((movie) => {
-      if (movie.status === 'WATCHING') {
-        activeMovies.push({ series, movie });
-      }
-    });
-  });
-
-  const activeBooks = bookList.filter((b) => b.status === 'READING');
-
-  // Lessons spotlight from all journal sources
-  const mediaWithLessons: {
-    type: 'season' | 'movie' | 'episode' | 'rewatch' | 'book';
-    title: string;
-    subTitle?: string;
-    rating?: number | null;
-    notes: string;
-  }[] = [];
-
-  seriesList.forEach((series) => {
-    series.seasons.forEach((season) => {
-      if (season.notes && season.notes.trim().length > 0) {
-        mediaWithLessons.push({
-          type: 'season',
-          title: series.title,
-          subTitle: `Season ${season.season_number}: ${season.title}`,
-          rating: season.rating,
-          notes: season.notes,
+        current.push({
+          id: `season-${season.id}`,
+          format: 'Watching',
+          title: season.title,
+          context: `${series.title} · Season ${season.season_number}`,
+          cover,
+          current: season.progress || 0,
+          total: season.total_episodes,
+          unit: 'eps',
+          progress: (delta) => onSeasonProgressDelta(season.id, delta),
+          open: () => onNavigate('anime', series.id),
         });
       }
-      season.episode_notes?.forEach((ep) => {
-        if (ep.note && ep.note.trim().length > 0) {
-          mediaWithLessons.push({
-            type: 'episode',
-            title: series.title,
-            subTitle: `Ep ${ep.episode_number}${ep.episode_title ? `: ${ep.episode_title}` : ''}`,
-            rating: ep.rating,
-            notes: ep.note,
-          });
-        }
+      if (season.notes?.trim()) lessons.push({ id: `season-${season.id}`, kind: 'season', title: series.title, context: `Season ${season.season_number} · ${season.title}`, note: season.notes, rating: season.rating, timestamp: created, open: () => onNavigate('anime', series.id) });
+      season.episode_notes?.forEach((episode) => {
+        if (episode.note?.trim()) lessons.push({
+          id: `episode-${episode.id}`,
+          kind: 'episode',
+          title: series.title,
+          context: `S${season.season_number} · Ep ${episode.episode_number}${episode.episode_title ? ` · ${episode.episode_title}` : ''}`,
+          note: episode.note,
+          rating: episode.rating,
+          timestamp: episode.created_at ? new Date(episode.created_at).getTime() : created,
+          open: () => onNavigate('anime', series.id),
+        });
       });
-      season.rewatches?.forEach((r) => {
-        if (r.notes && r.notes.trim().length > 0) {
-          mediaWithLessons.push({
-            type: 'rewatch',
-            title: series.title,
-            subTitle: `Rewatch: ${season.title}`,
-            rating: r.rating,
-            notes: r.notes,
-          });
-        }
+      season.rewatches?.forEach((rewatch) => {
+        if (rewatch.notes?.trim()) lessons.push({ id: `season-rewatch-${rewatch.id}`, kind: 'rewatch', title: series.title, context: `Return to ${season.title}`, note: rewatch.notes, rating: rewatch.rating, timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : rewatch.start_date ? new Date(rewatch.start_date).getTime() : created, open: () => onNavigate('rewatches') });
       });
     });
-
     series.movies.forEach((movie) => {
-      if (movie.notes && movie.notes.trim().length > 0) {
-        mediaWithLessons.push({
-          type: 'movie',
-          title: series.title,
-          subTitle: `Film: ${movie.title}`,
-          rating: movie.rating,
-          notes: movie.notes,
-        });
-      }
-      movie.rewatches?.forEach((r) => {
-        if (r.notes && r.notes.trim().length > 0) {
-          mediaWithLessons.push({
-            type: 'rewatch',
-            title: series.title,
-            subTitle: `Rewatch: ${movie.title}`,
-            rating: r.rating,
-            notes: r.notes,
-          });
-        }
+      const created = movie.created_at ? new Date(movie.created_at).getTime() : 0;
+      if (movie.status === 'WATCHING') current.push({ id: `movie-${movie.id}`, format: 'Watching', title: movie.title, context: `${series.title} · Film`, cover: movie.cover_image_url || movie.image_url || seriesCover, current: movie.progress_minutes || 0, total: movie.total_minutes, unit: 'min', progress: (delta) => onMovieProgressDelta(movie.id, delta), open: () => onNavigate('anime', series.id) });
+      if (movie.notes?.trim()) lessons.push({ id: `movie-${movie.id}`, kind: 'film', title: series.title, context: `Film · ${movie.title}`, note: movie.notes, rating: movie.rating, timestamp: created, open: () => onNavigate('anime', series.id) });
+      movie.rewatches?.forEach((rewatch) => {
+        if (rewatch.notes?.trim()) lessons.push({ id: `movie-rewatch-${rewatch.id}`, kind: 'rewatch', title: series.title, context: `Return to ${movie.title}`, note: rewatch.notes, rating: rewatch.rating, timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : rewatch.start_date ? new Date(rewatch.start_date).getTime() : created, open: () => onNavigate('rewatches') });
       });
     });
   });
 
   bookList.forEach((book) => {
-    if (book.notes && book.notes.trim().length > 0) {
-      mediaWithLessons.push({
-        type: 'book',
-        title: book.title,
-        subTitle: book.author || 'Book Reflection',
-        rating: book.rating,
-        notes: book.notes,
-      });
-    }
+    const created = book.created_at ? new Date(book.created_at).getTime() : 0;
+    if (book.status === 'READING') current.push({ id: `book-${book.id}`, format: 'Reading', title: book.title, context: book.author ? `by ${book.author}` : 'Book journal', cover: book.cover_image_url || book.image_url, current: book.progress || 0, total: book.total_pages, unit: 'pages', progress: (delta) => onProgressBook(book.id, delta), open: () => onNavigate('books', book.id) });
+    if (book.notes?.trim()) lessons.push({ id: `book-${book.id}`, kind: 'book', title: book.title, context: book.author ? `Book · ${book.author}` : 'Book journal', note: book.notes, rating: book.rating, timestamp: created, open: () => onNavigate('books', book.id) });
   });
 
-  const spotlightList = mediaWithLessons.slice(0, 3);
+  characterList.forEach((character) => {
+    if (character.why?.trim()) lessons.push({ id: `character-${character.id}`, kind: 'character', title: character.name, context: character.series_title ? `Character · ${character.series_title}` : 'Character note', note: character.why, timestamp: 0, open: () => onNavigate('characters') });
+  });
 
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !containerRef.current) return;
+  lessons.sort((a, b) => b.timestamp - a.timestamp);
+  current.sort((a, b) => a.format.localeCompare(b.format));
+  const featuredLesson = lessons[0];
+  const memoryIndex = lessons.slice(1, 5);
+  const recentReturns = rewatchList.filter((rewatch) => rewatch.notes?.trim()).sort((a, b) => `${b.finish_date || b.start_date || ''}`.localeCompare(`${a.finish_date || a.start_date || ''}`)).slice(0, 3);
+  const rememberedCharacters = characterList.filter((character) => character.why?.trim()).slice(0, 4);
 
-      const activeItems = containerRef.current.querySelectorAll('.dashboard-active-item');
-      if (activeItems.length > 0) {
-        gsap.fromTo(
-          activeItems,
-          { opacity: 0, y: 20 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.45,
-            stagger: 0.08,
-            ease: EASING.smooth,
-            clearProps: 'transform,opacity',
-          }
-        );
-      }
-
-      const lessonItems = containerRef.current.querySelectorAll('.spotlight-card');
-      if (lessonItems.length > 0) {
-        gsap.fromTo(
-          lessonItems,
-          { opacity: 0, y: 24, scale: 0.98 },
-          {
-            opacity: 1,
-            y: 0,
-            scale: 1,
-            duration: 0.5,
-            delay: 0.1,
-            stagger: 0.08,
-            ease: EASING.spring,
-            clearProps: 'transform,opacity',
-          }
-        );
-      }
-    },
-    { scope: containerRef, dependencies: [activeSeasons.length, activeMovies.length, activeBooks.length] }
-  );
+  useGSAP(() => {
+    if (prefersReducedMotion() || !containerRef.current) return;
+    gsap.fromTo(containerRef.current.querySelectorAll('.desk-animate-item'), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.42, stagger: 0.07, ease: EASING.smooth, clearProps: 'transform,opacity' });
+  }, { scope: containerRef, dependencies: [current.length, lessons.length] });
 
   return (
-    <div ref={containerRef}>
-      {/* Metrics Banner */}
-      <StatsOverview stats={stats} />
-
-      {/* Currently In-Progress Grid */}
-      <div style={{ marginBottom: '36px' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: 'var(--color-accent-amber)',
-                boxShadow: '0 0 10px var(--color-accent-amber)',
-              }}
-            />
-            <h2 style={{ fontSize: '20px', color: '#ffffff' }}>Active In-Progress</h2>
-          </div>
-          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-            {activeSeasons.length + activeMovies.length} watching · {activeBooks.length} reading
-          </span>
+    <div ref={containerRef} className="desk-home">
+      <header className="desk-home-header desk-animate-item">
+        <div>
+          <p className="desk-eyebrow"><Clapperboard size={14} /> personal viewing desk</p>
+          <h1>Your stories, still in motion.</h1>
+          <p className="desk-home-intro">A working desk for what you are living with now, and a reading room for the ideas that stayed after the credits.</p>
         </div>
-
-        {activeSeasons.length === 0 && activeMovies.length === 0 && activeBooks.length === 0 ? (
-          <div
-            className="glass-card"
-            style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setShowExportModal(true)}
+            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <p>No active series, movies, or books right now.</p>
-            <p style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '4px' }}>
-              Check your Plan to Watch / Read lists to start a new journey!
-            </p>
+            <Download size={14} />
+            <span>Export Journal</span>
+          </button>
+          <div className="desk-ledger" aria-label="Journal totals">
+            <div><strong>{stats.totalLessons}</strong><span>lessons kept</span></div>
+            <div><strong>{stats.rewatchesCount}</strong><span>returns made</span></div>
+            <div><strong>{stats.totalCompleted}</strong><span>titles finished</span></div>
+          </div>
+        </div>
+      </header>
+
+      <section className="desk-now desk-animate-item" aria-labelledby="now-heading">
+        <div className="desk-section-heading">
+          <div><p className="desk-eyebrow">currently open</p><h2 id="now-heading">On the desk <span>{current.length}</span></h2></div>
+          <button type="button" className="desk-text-action" onClick={() => onNavigate('anime')}>View library <ChevronRight size={15} /></button>
+        </div>
+        {current.length ? (
+          <div className="current-title-grid">
+            {current.slice(0, 3).map((item) => {
+              const percentage = item.total ? Math.min(100, (item.current / item.total) * 100) : 0;
+              return <article key={item.id} className={`current-title ${item.format === 'Reading' ? 'is-reading' : ''}`}>
+                <button type="button" className="current-title-open" onClick={item.open} aria-label={`Open ${item.title}`}>
+                  {item.cover ? <img src={item.cover} alt="" /> : <span className="current-title-placeholder">{item.format === 'Reading' ? <BookOpen size={22} /> : <Tv size={22} />}</span>}
+                  <span className="current-title-copy"><span className="current-format">{item.format}</span><strong>{item.title}</strong><small>{item.context}</small></span>
+                </button>
+                <div className="current-progress">
+                  <div><ProgressStepper current={item.current} total={item.total} unit={item.unit} step={item.unit === 'pages' || item.unit === 'min' ? 10 : 1} tone={item.format === 'Reading' ? 'reading' : 'watching'} onDelta={item.progress} ariaLabelPrefix={item.title} /></div>
+                  {item.total && <span className="current-progress-line"><i style={{ width: `${percentage}%` }} /></span>}
+                </div>
+              </article>;
+            })}
           </div>
         ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-              gap: '16px',
-            }}
-          >
-            {/* Active Seasons */}
-            {activeSeasons.map(({ series, season }) => {
-              const progressPct =
-                season.total_episodes && season.total_episodes > 0
-                  ? Math.min(100, Math.round((season.progress / season.total_episodes) * 100))
-                  : season.progress > 0
-                  ? 50
-                  : 0;
-
-              return (
-                <div key={`active-season-${season.id}`} className="glass-card dashboard-active-item" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-primary)', textTransform: 'uppercase', fontWeight: 600 }}>
-                        {series.title}
-                      </span>
-                      <h4 style={{ fontSize: '15px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Tv size={14} color="var(--color-primary)" />
-                        Season {season.season_number}: {season.title}
-                      </h4>
-                    </div>
-                    {season.rating && (
-                      <span className="rating-pill" style={{ padding: '1px 5px', fontSize: '11px' }}>
-                        ★ {season.rating}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Progress bar + stepper */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
-                      {season.progress} / {season.total_episodes ?? '??'} eps
-                    </span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => onSeasonProgressDelta(season.id, -1)}
-                        disabled={season.progress <= 0}
-                        title="Subtract 1 episode"
-                      >
-                        <Minus size={11} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => onSeasonProgressDelta(season.id, 1)}
-                        disabled={season.total_episodes !== null && season.progress >= season.total_episodes}
-                        title="Add 1 episode"
-                        style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--color-primary)' }}
-                      >
-                        <Plus size={11} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="progress-track" style={{ height: '4px' }}>
-                    <div className="progress-fill" style={{ width: `${progressPct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Active Movies */}
-            {activeMovies.map(({ series, movie }) => {
-              const progressPct =
-                movie.total_minutes && movie.total_minutes > 0
-                  ? Math.min(100, Math.round((movie.progress_minutes / movie.total_minutes) * 100))
-                  : movie.progress_minutes > 0
-                  ? 50
-                  : 0;
-
-              return (
-                <div key={`active-movie-${movie.id}`} className="glass-card dashboard-active-item" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--color-accent-cyan)', textTransform: 'uppercase', fontWeight: 600 }}>
-                        {series.title}
-                      </span>
-                      <h4 style={{ fontSize: '15px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Clapperboard size={14} color="var(--color-accent-cyan)" />
-                        Film: {movie.title}
-                      </h4>
-                    </div>
-                    {movie.rating && (
-                      <span className="rating-pill" style={{ padding: '1px 5px', fontSize: '11px' }}>
-                        ★ {movie.rating}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="mono" style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
-                      {movie.progress_minutes} / {movie.total_minutes ?? '??'} min
-                    </span>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button
-                        className="btn-icon"
-                        onClick={() => onMovieProgressDelta(movie.id, -Math.min(10, movie.progress_minutes))}
-                        disabled={movie.progress_minutes <= 0}
-                        title="Subtract 10 minutes"
-                      >
-                        <Minus size={11} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        onClick={() => onMovieProgressDelta(
-                          movie.id,
-                          movie.total_minutes === null
-                            ? 10
-                            : Math.min(10, movie.total_minutes - movie.progress_minutes)
-                        )}
-                        disabled={movie.total_minutes !== null && movie.progress_minutes >= movie.total_minutes}
-                        title="Add 10 minutes"
-                        style={{ background: 'rgba(56, 189, 248, 0.15)', color: 'var(--color-accent-cyan)' }}
-                      >
-                        <Plus size={11} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="progress-track" style={{ height: '4px' }}>
-                    <div className="progress-fill" style={{ width: `${progressPct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Active Books */}
-            {activeBooks.map((b) => (
-              <div key={b.id} className="dashboard-active-item">
-                <BookCard
-                  book={b}
-                  onEdit={onEditBook}
-                  onDelete={onDeleteBook}
-                  onProgressDelta={onProgressBook}
-                />
-              </div>
-            ))}
-          </div>
+          <div className="desk-empty-state"><div><Film size={20} /><p>Nothing is in progress. Start something worth returning to.</p></div>{onOpenLogModal && <button type="button" className="btn btn-primary" onClick={onOpenLogModal}>Log a title</button>}</div>
         )}
-      </div>
+      </section>
 
-      {/* Featured Lessons & Reflections Spotlight */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Lightbulb size={20} color="var(--color-primary)" />
-            <h2 style={{ fontSize: '20px', color: '#ffffff' }}>Lessons & Reflections Spotlight</h2>
+      <section className="desk-reading-room desk-animate-item" aria-labelledby="reading-room-heading">
+        <div className="desk-section-heading">
+          <div>
+            <p className="desk-eyebrow">the reading room</p>
+            <h2 id="reading-room-heading">What stayed with you</h2>
           </div>
           <button
-            onClick={() => onNavigate('anime')}
-            className="btn btn-ghost"
-            style={{ fontSize: '13px', color: 'var(--color-primary)' }}
+            type="button"
+            className="desk-text-action"
+            onClick={() => setShowReadingRoomModal(true)}
           >
-            <span>Explore All Journals</span>
-            <ArrowRight size={14} />
+            Browse reading room ({lessons.length}) <ChevronRight size={15} />
           </button>
         </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: '16px',
-          }}
-        >
-          {spotlightList.map((item, i) => (
-            <div
-              key={i}
-              className="glass-card spotlight-card"
-              style={{
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                gap: '12px',
-                background: 'linear-gradient(160deg, rgba(18, 33, 49, 0.8), rgba(99, 102, 241, 0.08))',
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontFamily: 'var(--font-mono)',
-                      color:
-                        item.type === 'book'
-                          ? 'var(--color-accent-cyan)'
-                          : item.type === 'episode'
-                          ? 'var(--color-accent-emerald)'
-                          : item.type === 'rewatch'
-                          ? 'var(--color-secondary)'
-                          : 'var(--color-primary)',
-                      textTransform: 'uppercase',
-                      fontWeight: 600,
+        {featuredLesson ? (
+          <div className="lesson-layout">
+            <article className="featured-lesson">
+              <div className="featured-lesson-rule" />
+              <div className="featured-lesson-meta"><span>{featuredLesson.kind}</span><time>{dateLabel(featuredLesson.timestamp)}</time></div>
+              <button type="button" className="featured-lesson-open" onClick={featuredLesson.open}>
+                <h3>{featuredLesson.title}</h3><p>{featuredLesson.context}</p>
+              </button>
+              <blockquote>“{notePreview(featuredLesson.note, 440)}”</blockquote>
+              <div className="featured-lesson-footer">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>Latest entry</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const text = `“${featuredLesson.note}”\n— ${featuredLesson.title} (${featuredLesson.context})`;
+                      navigator.clipboard.writeText(text);
+                      setCopiedFeatured(true);
+                      if (onToast) onToast('Copied lesson quote to clipboard');
+                      setTimeout(() => setCopiedFeatured(false), 2000);
                     }}
+                    style={{ fontSize: 11, padding: '2px 6px', height: 22 }}
+                    aria-label="Copy featured lesson quote"
                   >
-                    {item.type === 'book'
-                      ? 'Book Insight'
-                      : item.type === 'episode'
-                      ? 'Standout Episode'
-                      : item.type === 'rewatch'
-                      ? 'Rewatch Pass'
-                      : item.type === 'movie'
-                      ? 'Film Memory'
-                      : 'Season Lesson'}
+                    {copiedFeatured ? <Check size={12} color="var(--spine-text)" /> : <Copy size={12} />}
+                    <span>{copiedFeatured ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+                {featuredLesson.rating && (
+                  <span className={`lesson-score ${ratingClass(featuredLesson.rating)}`}>
+                    <Star size={13} fill="currentColor" /> {featuredLesson.rating}/10
                   </span>
-                  {item.rating && (
-                    <span className="rating-pill">★ {item.rating}/10</span>
-                  )}
-                </div>
-
-                <h4 style={{ fontSize: '16px', color: '#ffffff', marginBottom: '2px' }}>
-                  {item.title}
-                </h4>
-                {item.subTitle && (
-                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    {item.subTitle}
-                  </p>
                 )}
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '6px',
-                    fontSize: '13px',
-                    color: '#d4e4fa',
-                    lineHeight: '1.6',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  <Quote size={18} style={{ flexShrink: 0, opacity: 0.6, color: 'var(--color-primary)' }} />
-                  <p>{item.notes}</p>
-                </div>
               </div>
+            </article>
+            <div className="memory-index">
+              <div className="memory-index-heading"><span>Memory index</span><span>{memoryIndex.length.toString().padStart(2, '0')}</span></div>
+              {memoryIndex.length ? memoryIndex.map((lesson) => <button type="button" key={lesson.id} className="memory-index-item" onClick={lesson.open}><span className="memory-index-type">{lesson.kind}</span><span><strong>{lesson.title}</strong><small>{lesson.context}</small></span>{lesson.rating && <span className={`lesson-score ${ratingClass(lesson.rating)}`}>{lesson.rating}</span>}<ChevronRight size={15} /></button>) : <p className="memory-index-empty">Your next note will join this index.</p>}
             </div>
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="lesson-empty"><PenLine size={22} /><div><strong>The reading room is waiting.</strong><p>Write a lesson on any title to make this a journal instead of a list.</p></div>{onOpenLogModal && <button type="button" className="desk-text-action" onClick={onOpenLogModal}>Log a title <ChevronRight size={15} /></button>}</div>
+        )}
+      </section>
+
+      <div className="desk-lower-grid desk-animate-item">
+        <section className="desk-side-section" aria-labelledby="returns-heading">
+          <div className="desk-section-heading">
+            <div>
+              <p className="desk-eyebrow"><RotateCcw size={13} /> return shelf</p>
+              <h2 id="returns-heading">Seen again</h2>
+            </div>
+            <button type="button" className="desk-text-action" onClick={() => onNavigate('rewatches')}>
+              All returns <ChevronRight size={15} />
+            </button>
+          </div>
+          {recentReturns.length ? (
+            <div className="desk-return-timeline">
+              {recentReturns.map((rewatch) => {
+                const date = returnDate(rewatch.finish_date || rewatch.start_date);
+                return (
+                  <button
+                    type="button"
+                    key={rewatch.id}
+                    className="desk-return-timeline-item"
+                    onClick={() => onNavigate('rewatches')}
+                  >
+                    <time className="desk-return-timeline-date">
+                      <span>{date.month}</span>
+                      <strong>{date.day}</strong>
+                      <small>{date.year}</small>
+                    </time>
+                    <span className="desk-return-timeline-node" />
+                    <span className="desk-return-timeline-copy">
+                      <strong>{rewatch.release_title || rewatch.series_title || 'A remembered title'}</strong>
+                      <small>{notePreview(rewatch.notes || '', 78)}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="desk-quiet-copy">Rewatches become a record of how a story changes with you.</p>
+          )}
+        </section>
+        <section className="desk-side-section" aria-labelledby="characters-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><UsersRound size={13} /> character shelf</p><h2 id="characters-heading">People remembered</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('characters')}>All characters <ChevronRight size={15} /></button></div>{rememberedCharacters.length ? <div className="character-memory-deck">{rememberedCharacters.map((character) => { const image = character.cover_image_url || character.image_url || character.images?.[0]?.url || character.images?.[0]?.file; return <button type="button" className="character-memory-card" key={character.id} onClick={() => onNavigate('characters')}><span className="character-memory-portrait">{image ? <img src={image} alt="" /> : character.name.slice(0, 1)}</span><span className="character-memory-copy"><small>{character.series_title || 'Favorite character'}</small><strong>{character.name}</strong><em>“{notePreview(character.why || '', 88)}”</em></span></button>; })}</div> : <p className="desk-quiet-copy">Keep the characters whose choices gave you something to think about.</p>}</section>
       </div>
+
+      {/* Reader & Export Modals */}
+      <ReadingRoomModal
+        isOpen={showReadingRoomModal}
+        onClose={() => setShowReadingRoomModal(false)}
+        lessons={lessons}
+        onToast={onToast}
+      />
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        onToast={onToast}
+      />
     </div>
   );
 };

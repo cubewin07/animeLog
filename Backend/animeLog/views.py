@@ -1,4 +1,5 @@
 from datetime import date
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Length, Trim
@@ -117,6 +118,24 @@ class ImageViewSet(viewsets.ModelViewSet):
     queryset = Image.objects.select_related("folder").all().order_by("-created_at")
     serializer_class = ImageSerializer
 
+    @action(detail=False, methods=["post"], url_path="import-url")
+    def import_url(self, request):
+        url = request.data.get("url")
+        if not url:
+            return Response(
+                {"url": "Image URL is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        title = request.data.get("title", "")
+        folder_name = request.data.get("folder", "Imported Media")
+        try:
+            from .services.metadata_lookup import import_remote_image
+
+            image = import_remote_image(url=url, title=title, folder_name=folder_name)
+            return Response(self.get_serializer(image).data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
     def get_queryset(self):
         queryset = super().get_queryset()
         folder_param = self.request.query_params.get("folder")
@@ -155,10 +174,13 @@ class SeriesViewSet(viewsets.ModelViewSet):
             AnimeSeries.objects.select_related("cover_image")
             .prefetch_related(
                 "genres",
+                "favorite_characters__cover_image",
                 "favorite_characters__images",
+                "rewatches",
                 "seasons__studios",
                 "seasons__cover_image",
                 "seasons__episode_notes__cover_image",
+                "seasons__episode_notes__rewatches",
                 "seasons__rewatches",
                 "movies__studios",
                 "movies__cover_image",
@@ -203,6 +225,7 @@ class SeasonViewSet(viewsets.ModelViewSet):
             .prefetch_related(
                 "studios",
                 "episode_notes__cover_image",
+                "episode_notes__rewatches",
                 "rewatches",
             )
             .all()
@@ -293,6 +316,7 @@ class EpisodeNoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = (
             EpisodeNote.objects.select_related("season", "season__series", "cover_image")
+            .prefetch_related("rewatches")
             .all()
             .order_by("episode_number", "id")
         )
@@ -316,25 +340,71 @@ class RewatchViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            Rewatch.objects.select_related("season", "movie", "season__series", "movie__series")
+            Rewatch.objects.select_related("content_type")
+            .prefetch_related("content_object")
             .all()
             .order_by("-start_date", "-id")
         )
 
+        target_type_param = self.request.query_params.get("target_type")
+        target_id_param = self.request.query_params.get("target_id")
+        if target_type_param:
+            t_norm = target_type_param.lower().strip()
+            if t_norm == "episode":
+                queryset = queryset.filter(episode_number__isnull=False)
+            elif t_norm == "season":
+                queryset = queryset.filter(content_type__model="animeseason", episode_number__isnull=True)
+            elif t_norm == "movie":
+                queryset = queryset.filter(content_type__model="animemovie")
+            elif t_norm == "series":
+                queryset = queryset.filter(content_type__model="animeseries")
+
+        if target_id_param and target_id_param.isdigit():
+            queryset = queryset.filter(object_id=int(target_id_param))
+
         season_param = self.request.query_params.get("season")
         if season_param and season_param.isdigit():
-            queryset = queryset.filter(season_id=int(season_param))
+            queryset = queryset.filter(
+                content_type__model="animeseason", object_id=int(season_param)
+            )
 
         movie_param = self.request.query_params.get("movie")
         if movie_param and movie_param.isdigit():
-            queryset = queryset.filter(movie_id=int(movie_param))
+            queryset = queryset.filter(
+                content_type__model="animemovie", object_id=int(movie_param)
+            )
+
+        episode_param = self.request.query_params.get("episode")
+        if episode_param and episode_param.isdigit():
+            queryset = queryset.filter(
+                content_type__model="animeseason", episode_number=int(episode_param)
+            )
 
         series_param = self.request.query_params.get("series")
         if series_param and series_param.isdigit():
             s_id = int(series_param)
-            queryset = queryset.filter(
-                Q(season__series_id=s_id) | Q(movie__series_id=s_id)
+            season_ids = list(
+                AnimeSeason.objects.filter(series_id=s_id).values_list("id", flat=True)
             )
+            movie_ids = list(
+                AnimeMovie.objects.filter(series_id=s_id).values_list("id", flat=True)
+            )
+
+            series_ct = ContentType.objects.get_for_model(AnimeSeries)
+            season_ct = ContentType.objects.get_for_model(AnimeSeason)
+            movie_ct = ContentType.objects.get_for_model(AnimeMovie)
+
+            q = Q(content_type=series_ct, object_id=s_id)
+            if season_ids:
+                q |= Q(content_type=season_ct, object_id__in=season_ids)
+            if movie_ids:
+                q |= Q(content_type=movie_ct, object_id__in=movie_ids)
+
+            queryset = queryset.filter(q)
+
+        search_param = self.request.query_params.get("search")
+        if search_param:
+            queryset = queryset.filter(notes__icontains=search_param)
 
         return queryset
 
@@ -344,7 +414,7 @@ class FavoriteCharacterViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = (
-            FavoriteCharacter.objects.select_related("series")
+            FavoriteCharacter.objects.select_related("series", "cover_image")
             .prefetch_related("images")
             .all()
             .order_by("name")
@@ -452,3 +522,181 @@ class StatsView(APIView):
 
         serializer = JournalStatsSerializer(data)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MetadataLookupView(APIView):
+    """
+    Unified metadata lookup against Jikan (MyAnimeList) and OpenLibrary.
+    Query params:
+      - type: 'anime', 'character', or 'book'
+      - q: Search string
+    """
+
+    def get(self, request):
+        from .services.metadata_lookup import (
+            ExternalServiceError,
+            search_anime_metadata,
+            search_book_metadata,
+            search_character_metadata,
+        )
+
+        media_type = request.query_params.get("type", "anime").lower().strip()
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return Response({"results": []}, status=status.HTTP_200_OK)
+
+        try:
+            if media_type == "anime":
+                results = search_anime_metadata(query)
+            elif media_type == "character":
+                results = search_character_metadata(query)
+            elif media_type == "book":
+                results = search_book_metadata(query)
+            else:
+                return Response(
+                    {"error": f"Invalid type '{media_type}'. Must be 'anime', 'character', or 'book'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response({"results": results}, status=status.HTTP_200_OK)
+        except ExternalServiceError as exc:
+            return Response(
+                {"error": str(exc), "status_code": exc.status_code},
+                status=exc.status_code if exc.status_code in (429, 502) else status.HTTP_502_BAD_GATEWAY,
+            )
+
+
+class JournalExportView(APIView):
+    """
+    Export the full personal journal in JSON or Obsidian-ready Markdown.
+    Query params:
+      - export_format: 'json' (default) or 'markdown'
+    """
+
+    def get(self, request):
+        from .services.export import generate_journal_markdown
+
+        export_format = (
+            request.query_params.get("export_format")
+            or request.query_params.get("format_type")
+            or request.query_params.get("style")
+            or "json"
+        ).lower().strip()
+        series_qs = (
+            AnimeSeries.objects.select_related("cover_image")
+            .prefetch_related(
+                "genres",
+                "seasons__studios",
+                "seasons__episode_notes",
+                "movies__studios",
+                "favorite_characters",
+                "rewatches",
+            )
+            .all()
+            .order_by("-created_at")
+        )
+        books_qs = (
+            Book.objects.select_related("cover_image")
+            .prefetch_related("genres")
+            .all()
+            .order_by("-created_at")
+        )
+        rewatches_qs = Rewatch.objects.all().order_by("-start_date", "-id")
+        characters_qs = (
+            FavoriteCharacter.objects.select_related("series")
+            .all()
+            .order_by("name")
+        )
+
+        if export_format == "markdown":
+            markdown_text = generate_journal_markdown(
+                series_qs=series_qs,
+                books_qs=books_qs,
+                rewatches_qs=rewatches_qs,
+                characters_qs=characters_qs,
+            )
+            return Response(
+                {"content": markdown_text, "format": "markdown"},
+                status=status.HTTP_200_OK,
+            )
+
+        # JSON format
+        series_data = AnimeSeriesSerializer(series_qs, many=True).data
+        books_data = BookSerializer(books_qs, many=True).data
+        rewatches_data = RewatchSerializer(rewatches_qs, many=True).data
+        characters_data = FavoriteCharacterSerializer(characters_qs, many=True).data
+
+        return Response(
+            {
+                "version": "1.0",
+                "exported_at": date.today().isoformat(),
+                "series": series_data,
+                "books": books_data,
+                "rewatches": rewatches_data,
+                "characters": characters_data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class MALImportView(APIView):
+    """
+    Import public anime list for a MyAnimeList username.
+    Query / body params:
+      - username: MAL username
+      - limit: Maximum titles to fetch (default: 50)
+    """
+
+    def post(self, request):
+        from .services.importer import import_mal_username
+        from .services.metadata_lookup import ExternalServiceError
+
+        username = (
+            request.data.get("username")
+            or request.query_params.get("username", "")
+        ).strip()
+        if not username:
+            return Response(
+                {"error": "MyAnimeList username is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        limit = request.data.get("limit") or request.query_params.get("limit", 50)
+        try:
+            limit = int(limit)
+        except (ValueError, TypeError):
+            limit = 50
+
+        try:
+            result = import_mal_username(username=username, limit=limit)
+            return Response(result, status=status.HTTP_200_OK)
+        except ExternalServiceError as exc:
+            return Response(
+                {"error": str(exc)},
+                status=exc.status_code if exc.status_code in (404, 429, 502) else status.HTTP_502_BAD_GATEWAY,
+            )
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class JournalImportView(APIView):
+    """
+    Restore or merge journal entries from an AnimeLog JSON backup.
+    Body: JSON object with { series, books, rewatches, characters }
+    """
+
+    def post(self, request):
+        from .services.importer import import_journal_json
+
+        data = request.data
+        if not isinstance(data, dict):
+            return Response(
+                {"error": "Expected JSON object containing journal data."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = import_journal_json(data)
+            return Response(result, status=status.HTTP_200_OK)
+        except Exception as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+

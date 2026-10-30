@@ -56,11 +56,22 @@ export interface EpisodeNote {
   created_at: string;
 }
 
+export type RewatchTargetType = 'series' | 'season' | 'movie' | 'episode';
+
 export interface Rewatch {
   id: number;
-  season: number | null;
-  movie: number | null;
+  target_type: RewatchTargetType;
+  target_id: number;
   release_title?: string;
+  series_title?: string;
+  episode_number?: number | null;
+  episode_title?: string | null;
+  series_id?: number | null;
+  season_id?: number | null;
+  movie_id?: number | null;
+  // Legacy / convenience optional fields
+  season?: number | null;
+  movie?: number | null;
   start_date: string | null;
   finish_date: string | null;
   rating: number | null;
@@ -73,6 +84,8 @@ export interface FavoriteCharacter {
   series_title?: string;
   name: string;
   why: string | null;
+  cover_image?: number | null;
+  cover_image_url?: string | null;
   images?: ImageAsset[];
   image_url?: string | null;
 }
@@ -122,6 +135,8 @@ export interface AnimeMovie {
 export interface AnimeSeries {
   id: number;
   title: string;
+  japanese_title?: string | null;
+  romaji_title?: string | null;
   cover_image?: number | null;
   cover_image_url?: string | null;
   image_url?: string | null;
@@ -131,6 +146,7 @@ export interface AnimeSeries {
   seasons: AnimeSeason[];
   movies: AnimeMovie[];
   favorite_characters?: FavoriteCharacter[];
+  rewatches?: Rewatch[];
 }
 
 export interface Book {

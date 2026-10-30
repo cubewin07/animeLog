@@ -59,7 +59,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           fontSize: '11px',
           fontFamily: 'var(--font-mono)',
           fontWeight: 700,
-          color: 'var(--text-muted)',
+          color: 'var(--text-desk-muted)',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
         }}
@@ -76,8 +76,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             gap: '14px',
             padding: '10px 14px',
             borderRadius: 'var(--radius-md)',
-            background: 'rgba(13, 28, 48, 0.7)',
-            border: '1px solid var(--border-subtle)',
+            background: 'var(--desk-surface)',
+            border: '1px solid var(--border-desk-subtle)',
           }}
         >
           <img
@@ -88,19 +88,19 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
               height: '72px',
               objectFit: 'cover',
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-medium)',
-              background: '#040d18',
+              border: '1px solid var(--border-desk-medium)',
+              background: 'var(--still-well)',
             }}
           />
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-desk)' }}>
               Cover Image Selected
             </p>
             <p
               style={{
                 fontSize: '11px',
-                color: 'var(--text-dim)',
+                color: 'var(--text-desk-dim)',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -121,11 +121,12 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
               </button>
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn-icon danger"
                 onClick={handleRemove}
-                style={{ padding: '3px 8px', fontSize: '11px', color: '#fb7185' }}
+                style={{ padding: '3px 8px', fontSize: '11px' }}
+                title="Remove image"
               >
-                <X size={12} /> Remove
+                <X size={12} /> <span>Remove</span>
               </button>
             </div>
           </div>
@@ -136,8 +137,8 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
           style={{
             padding: '14px',
             borderRadius: 'var(--radius-md)',
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px dashed var(--border-medium)',
+            background: 'var(--desk-surface)',
+            border: '1px dashed var(--border-desk-medium)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -150,9 +151,9 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
               style={{
                 width: '36px',
                 height: '36px',
-                borderRadius: '8px',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--color-primary)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--desk-surface-high)',
+                color: 'var(--text-desk)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -161,10 +162,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
               {uploading ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}
             </div>
             <div>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: '#ffffff' }}>
+              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-desk)' }}>
                 {uploading ? 'Uploading to Cloudinary...' : 'Upload cover or select from library'}
               </p>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-desk-muted)' }}>
                 PNG, JPG, WebP
               </p>
             </div>

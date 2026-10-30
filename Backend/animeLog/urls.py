@@ -8,6 +8,10 @@ from .views import (
     FolderViewSet,
     GenreViewSet,
     ImageViewSet,
+    JournalExportView,
+    JournalImportView,
+    MALImportView,
+    MetadataLookupView,
     MovieViewSet,
     RewatchViewSet,
     SeasonViewSet,
@@ -31,5 +35,9 @@ router.register(r"books", BookViewSet, basename="book")
 
 urlpatterns = [
     path("stats/", StatsView.as_view(), name="journal-stats"),
+    path("lookup/", MetadataLookupView.as_view(), name="metadata-lookup"),
+    path("export/", JournalExportView.as_view(), name="journal-export"),
+    path("import/mal/", MALImportView.as_view(), name="mal-import"),
+    path("import/json/", JournalImportView.as_view(), name="journal-import"),
     path("", include(router.urls)),
 ]

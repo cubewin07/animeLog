@@ -1,0 +1,79 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, feature/*, design/*]
+  pull_request:
+    branches: [main, feature/*, design/*]
+
+jobs:
+  backend-tests:
+    name: Backend Tests (Django 6.1 + DRF)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirement.txt
+
+      - name: Run Django test suite
+        run: |
+          python manage.py test animeLog
+
+  frontend-build:
+    name: Frontend Build (Vite + React + TS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Vite production build
+        run: npm run build
+
+  cli-smoke-test:
+    name: Agensi CLI Smoke Test (Zero-Dependency)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test CLI help and offline commands
+        run: |
+          python3 skills/animelog-journal/scripts/animelog_cli.py --help
+          python3 skills/animelog-journal/scripts/animelog_cli.py reflect --title "Frieren" --genre slice-of-life
+          python3 skills/animelog-journal/scripts/animelog_cli.py --offline status
+          python3 skills/animelog-journal/scripts/animelog_cli.py --offline log-anime "Frieren" --rating 10 --notes "A masterclass on time."
+          python3 skills/animelog-journal/scripts/animelog_cli.py --offline log-character "Himmel" --series "Frieren" --why "Because it is what a hero would do."
+          python3 skills/animelog-journal/scripts/animelog_cli.py --offline export-obsidian --out /tmp/vault
+          test -f "/tmp/vault/Anime/Frieren.md"
+          test -f "/tmp/vault/Characters/Himmel.md"

@@ -182,7 +182,38 @@ All endpoints return and consume DRF standard JSON objects:
 | `/api/studios/` | `GET`, `POST`, `DELETE` | Production studios |
 | `/api/folders/` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | Nested folder hierarchy for media organization |
 | `/api/images/` | `GET`, `POST`, `DELETE` | Image uploads, metadata, and folder assignments |
+| `/api/images/import-url/` | `POST` | Safely download and ingest remote artwork from trusted CDNs |
+| `/api/lookup/` | `GET` | Zero-key search against MyAnimeList (Jikan v4) & OpenLibrary |
+| `/api/export/` | `GET` | Full journal export in JSON or Obsidian-ready Markdown with `[[wikilinks]]` |
+| `/api/import/mal/` | `POST` | Import user history from public MyAnimeList profile |
+| `/api/import/json/` | `POST` | Merge or restore from structured JSON backup |
 | `/api/stats/` | `GET` | Aggregated journal stats & overview analytics |
+
+---
+
+## 🤖 AI Agent & Agensi.io Companion Skill
+
+AnimeLog includes a standalone, commercial-grade AI Agent skill compatible with **Claude Code, Cursor, Windsurf, Copilot, and 20+ agents** under [`skills/animelog-journal/`](skills/animelog-journal/):
+
+- **Dual-Mode Architecture:** Connects automatically to the running local Django/React desk (`http://127.0.0.1:8000`), or operates 100% offline via local storage (`~/.animelog/journal.json`).
+- **Zero Third-Party Dependencies:** `scripts/animelog_cli.py` uses standard library Python only, with zero security attack surface.
+- **Socratic Reflection Prompts:** Genre-specific 3-question reflection protocols for shonen, seinen, slice-of-life, and literature.
+- **Linked Obsidian Vault Export:** Exports titles, characters, rewatches, and books into linked Obsidian `.md` notes connected with `[[wikilinks]]`.
+
+```bash
+# In Claude Code, Cursor, or terminal:
+python3 skills/animelog-journal/scripts/animelog_cli.py lookup-anime "Frieren"
+python3 skills/animelog_cli.py reflect --title "Frieren" --genre slice-of-life
+python3 skills/animelog_cli.py log-anime "Frieren: Beyond Journey's End" --status COMPLETED --rating 10 --notes "A masterclass on the passage of time."
+python3 skills/animelog_cli.py export-obsidian --out ./my-obsidian-vault
+```
+
+---
+
+## ⚙️ Environment & Production Notes
+
+- **Local Development:** Defaults to `DEBUG=True` with `ALLOWED_HOSTS=[]` and `AllowAny` permissions for smooth paired React SPA development.
+- **Production Deployment:** Set `DEBUG=False`, configure explicit `ALLOWED_HOSTS` (e.g. `ALLOWED_HOSTS=yourdomain.com`), provide a strong `SECRET_KEY`, and enable authentication in `REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES']` as appropriate.
 
 ---
 

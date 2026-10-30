@@ -1,170 +1,93 @@
 import React, { useRef } from 'react';
 import { Rewatch } from '../types';
-import { RotateCcw, Star, Calendar, Trash2, Quote, Tv, Clapperboard } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
+import {
+  displayTitle,
+  formatSpineDate,
+  groupByYear,
+  passNumbers,
+  scopeLabel,
+  targetType,
+} from '../views/rewatchSpine';
 
 interface RewatchTimelineProps {
   rewatches: Rewatch[];
-  onDelete: (id: number) => void;
+  allRewatches?: Rewatch[];
+  selectedRewatchId?: number | null;
+  onSelectRewatch?: (rewatch: Rewatch) => void;
 }
 
-export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({ rewatches, onDelete }) => {
-  const listRef = useRef<HTMLDivElement>(null);
+export const RewatchTimeline: React.FC<RewatchTimelineProps> = ({
+  rewatches,
+  allRewatches,
+  selectedRewatchId,
+  onSelectRewatch,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const passMap = passNumbers(allRewatches?.length ? allRewatches : rewatches);
 
   useGSAP(
     () => {
-      if (prefersReducedMotion() || !listRef.current) return;
-
-      const items = listRef.current.querySelectorAll('.rewatch-timeline-item');
-      if (items.length > 0) {
-        gsap.fromTo(
-          items,
-          { opacity: 0, x: -16 },
-          {
-            opacity: 1,
-            x: 0,
-            duration: 0.4,
-            stagger: 0.06,
-            ease: EASING.smooth,
-            clearProps: 'transform,opacity',
-          }
-        );
-      }
+      if (prefersReducedMotion() || !containerRef.current) return;
+      gsap.fromTo(
+        containerRef.current.querySelectorAll('.rewatch-timeline-item'),
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: 0.25, stagger: 0.04, ease: EASING.smooth, clearProps: 'transform,opacity' }
+      );
     },
-    { scope: listRef, dependencies: [rewatches.length] }
+    { scope: containerRef, dependencies: [rewatches.length] }
   );
 
-  if (rewatches.length === 0) {
-    return (
-      <div
-        className="glass-card"
-        style={{
-          padding: '40px 20px',
-          textAlign: 'center',
-          color: 'var(--text-muted)',
-        }}
-      >
-        <RotateCcw size={32} color="var(--color-secondary)" style={{ margin: '0 auto 12px' }} />
-        <h3 style={{ fontSize: '16px', color: '#ffffff', marginBottom: '4px' }}>
-          No Rewatches Logged Yet
-        </h3>
-        <p style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
-          Rewatching is how lessons deepen. Log your second or third passes through anime seasons or movies to record how your perspective evolved.
-        </p>
-      </div>
-    );
-  }
-
   return (
-    <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {rewatches.map((r) => (
-        <div
-          key={r.id}
-          className="glass-card rewatch-timeline-item"
-          style={{
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            borderLeft: '4px solid var(--color-secondary)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {r.movie ? (
-                  <Clapperboard size={16} color="var(--color-accent-cyan)" />
-                ) : (
-                  <Tv size={16} color="var(--color-primary)" />
-                )}
-                <h3 style={{ fontSize: '17px', color: '#ffffff' }}>
-                  {r.release_title || 'Rewatch Target'}
-                </h3>
-                <span
-                  style={{
-                    fontSize: '10px',
-                    fontFamily: 'var(--font-mono)',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    background: r.movie ? 'rgba(56, 189, 248, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-                    color: r.movie ? 'var(--color-accent-cyan)' : 'var(--color-primary)',
-                    fontWeight: 600,
-                  }}
-                >
-                  {r.movie ? 'FILM REWATCH' : 'TV SEASON REWATCH'}
-                </span>
-              </div>
+    <div ref={containerRef} className="rewatch-timeline">
+      {groupByYear(rewatches).map((group) => (
+        <section key={group.year} className="rewatch-timeline-group" aria-labelledby={`rewatch-year-${group.year}`}>
+          <h3 id={`rewatch-year-${group.year}`} className="rewatch-timeline-year">{group.year}</h3>
+          <div className="rewatch-timeline-items">
+            {group.items.map((rewatch) => {
+              const title = displayTitle(rewatch);
+              const passNumber = passMap.get(rewatch.id) ?? 1;
+              const type = targetType(rewatch);
+              const hasNotes = Boolean(rewatch.notes?.trim());
 
-              {(r.start_date || r.finish_date) && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    color: 'var(--text-muted)',
-                    marginTop: '4px',
-                  }}
+              return (
+                <button
+                  key={rewatch.id}
+                  type="button"
+                  className={`rewatch-timeline-item target-${type} ${selectedRewatchId === rewatch.id ? 'selected' : ''}`}
+                  aria-haspopup="dialog"
+                  aria-expanded={selectedRewatchId === rewatch.id}
+                  aria-label={`Rewatch of ${title}, ${scopeLabel(rewatch)}, Pass ${passNumber}`}
+                  onClick={() => onSelectRewatch?.(rewatch)}
                 >
-                  <Calendar size={13} />
-                  <span>
-                    {r.start_date || 'Started'} → {r.finish_date || 'Finished'}
+                  <span className="rewatch-timeline-rail" aria-hidden="true">
+                    <span className="rewatch-timeline-node" />
                   </span>
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {r.rating && (
-                <div className="rating-pill">
-                  <Star size={13} fill="#fbbf24" color="#fbbf24" />
-                  <span>{r.rating}/10</span>
-                </div>
-              )}
-              <button
-                className="btn-icon"
-                onClick={() => onDelete(r.id)}
-                title="Delete rewatch entry"
-                style={{ color: '#fb7185' }}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+                  <span className="rewatch-timeline-card">
+                    <span className="rewatch-timeline-card-header">
+                      <span>
+                        <span className="rewatch-timeline-date">{formatSpineDate(rewatch, true)}</span>
+                        <span className="rewatch-timeline-title">{title}</span>
+                      </span>
+                      <span className="rewatch-timeline-score">{rewatch.rating == null ? '—' : `${rewatch.rating}/10`}</span>
+                    </span>
+                    <span className="rewatch-timeline-meta">
+                      <span className="rewatch-timeline-scope">{scopeLabel(rewatch)}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>Pass {passNumber}</span>
+                    </span>
+                    {hasNotes && <span className="rewatch-timeline-reflection">{rewatch.notes}</span>}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-
-          {r.notes && (
-            <div
-              style={{
-                background: 'rgba(13, 28, 45, 0.85)',
-                padding: '14px 16px',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-subtle)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <Quote size={13} color="var(--color-secondary)" />
-                <span
-                  style={{
-                    fontSize: '11px',
-                    fontFamily: 'var(--font-mono)',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    fontWeight: 600,
-                    color: 'var(--color-secondary)',
-                  }}
-                >
-                  Deepened Takeaways & Perspective
-                </span>
-              </div>
-              <p style={{ fontSize: '13px', color: '#d4e4fa', lineHeight: '1.6', fontStyle: 'italic' }}>
-                "{r.notes}"
-              </p>
-            </div>
-          )}
-        </div>
+        </section>
       ))}
     </div>
   );
 };
+
+export const RewatchSpine = RewatchTimeline;

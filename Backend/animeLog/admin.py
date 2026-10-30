@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.contenttypes.admin import GenericTabularInline
 from django.utils.html import format_html
 
 from .models import (
@@ -74,15 +75,8 @@ class EpisodeNoteInline(admin.TabularInline):
     extra = 1
 
 
-class SeasonRewatchInline(admin.TabularInline):
+class RewatchInline(GenericTabularInline):
     model = Rewatch
-    fk_name = "season"
-    extra = 1
-
-
-class MovieRewatchInline(admin.TabularInline):
-    model = Rewatch
-    fk_name = "movie"
     extra = 1
 
 
@@ -100,10 +94,10 @@ class StudioAdmin(admin.ModelAdmin):
 
 @admin.register(AnimeSeries)
 class AnimeSeriesAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "cover_image", "created_at")
-    search_fields = ("title",)
+    list_display = ("id", "title", "romaji_title", "japanese_title", "cover_image", "created_at")
+    search_fields = ("title", "romaji_title", "japanese_title")
     filter_horizontal = ("genres",)
-    inlines = [AnimeSeasonInline, AnimeMovieInline, FavoriteCharacterInline]
+    inlines = [AnimeSeasonInline, AnimeMovieInline, FavoriteCharacterInline, RewatchInline]
 
 
 @admin.register(AnimeSeason)
@@ -124,7 +118,7 @@ class AnimeSeasonAdmin(admin.ModelAdmin):
     list_filter = ("status", "rating", "series", "studios")
     search_fields = ("title", "series__title", "notes")
     filter_horizontal = ("studios",)
-    inlines = [EpisodeNoteInline, SeasonRewatchInline]
+    inlines = [EpisodeNoteInline, RewatchInline]
 
 
 @admin.register(AnimeMovie)
@@ -144,7 +138,7 @@ class AnimeMovieAdmin(admin.ModelAdmin):
     list_filter = ("status", "rating", "series", "studios")
     search_fields = ("title", "series__title", "notes")
     filter_horizontal = ("studios",)
-    inlines = [MovieRewatchInline]
+    inlines = [RewatchInline]
 
 
 @admin.register(EpisodeNote)
@@ -156,17 +150,18 @@ class EpisodeNoteAdmin(admin.ModelAdmin):
 
 @admin.register(Rewatch)
 class RewatchAdmin(admin.ModelAdmin):
-    list_display = ("id", "season", "movie", "rating", "start_date", "finish_date")
-    list_filter = ("rating",)
-    search_fields = ("season__title", "movie__title", "notes")
+    list_display = ("id", "target_type", "release_title", "episode_number", "series_title", "rating", "start_date", "finish_date")
+    list_filter = ("rating", "content_type")
+    search_fields = ("notes", "episode_title")
 
 
 @admin.register(FavoriteCharacter)
 class FavoriteCharacterAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "series")
+    list_display = ("id", "name", "series", "cover_image")
     search_fields = ("name", "series__title", "why")
     list_filter = ("series",)
     filter_horizontal = ("images",)
+    raw_id_fields = ("cover_image",)
 
 
 @admin.register(Book)

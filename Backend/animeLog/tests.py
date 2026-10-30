@@ -102,31 +102,37 @@ class ModelConstraintTests(TestCase):
             note.full_clean()
         self.assertIn("episode_number", ctx.exception.message_dict)
 
-    def test_rewatch_requires_exactly_one_target(self):
+    def test_rewatch_polymorphic_targets(self):
         season = AnimeSeason.objects.create(series=self.series, season_number=1, title="S1")
         movie = AnimeMovie.objects.create(series=self.series, title="Film")
 
-        # Neither target
-        neither = Rewatch(notes="No target")
-        with self.assertRaises(ValidationError):
-            neither.full_clean()
-
-        # Both targets
-        both = Rewatch(season=season, movie=movie, notes="Both targets")
-        with self.assertRaises(ValidationError):
-            both.full_clean()
-
-        # Season only -> valid
-        season_rewatch = Rewatch(season=season, notes="Season valid")
+        # Season rewatch
+        season_rewatch = Rewatch(content_object=season, notes="Season valid")
         season_rewatch.full_clean()
         season_rewatch.save()
         self.assertEqual(season_rewatch.release_title, "S1")
+        self.assertEqual(season_rewatch.target_type, "season")
 
-        # Movie only -> valid
-        movie_rewatch = Rewatch(movie=movie, notes="Movie valid")
+        # Movie rewatch
+        movie_rewatch = Rewatch(content_object=movie, notes="Movie valid")
         movie_rewatch.full_clean()
         movie_rewatch.save()
         self.assertEqual(movie_rewatch.release_title, "Film")
+        self.assertEqual(movie_rewatch.target_type, "movie")
+
+        # Series rewatch
+        series_rewatch = Rewatch(content_object=self.series, notes="Series valid")
+        series_rewatch.full_clean()
+        series_rewatch.save()
+        self.assertEqual(series_rewatch.release_title, self.series.title)
+        self.assertEqual(series_rewatch.target_type, "series")
+
+        # Episode rewatch
+        ep_rewatch = Rewatch(content_object=season, episode_number=5, episode_title="The Battle", notes="Episode valid")
+        ep_rewatch.full_clean()
+        ep_rewatch.save()
+        self.assertEqual(ep_rewatch.release_title, "S1 — Ep 5: The Battle")
+        self.assertEqual(ep_rewatch.target_type, "episode")
 
     def test_genre_name_is_unique(self):
         with self.assertRaises(IntegrityError):
@@ -202,7 +208,12 @@ class MediaModelTests(TestCase):
             notes="Book notes",
         )
 
-        char = FavoriteCharacter.objects.create(series=series, name="Himmel", why="Kindness")
+        char = FavoriteCharacter.objects.create(
+            series=series,
+            name="Himmel",
+            why="Kindness",
+            cover_image=img,
+        )
         char.images.add(img)
 
         # Verify initial linking
@@ -211,6 +222,7 @@ class MediaModelTests(TestCase):
         self.assertEqual(movie.cover_image, img)
         self.assertEqual(ep.cover_image, img)
         self.assertEqual(book.cover_image, img)
+        self.assertEqual(char.cover_image, img)
         self.assertEqual(list(char.images.all()), [img])
 
         # Delete image: entities and their journal notes must be preserved!
@@ -232,6 +244,7 @@ class MediaModelTests(TestCase):
         self.assertEqual(ep.note, "Ep 1 note")
         self.assertIsNone(book.cover_image)
         self.assertEqual(book.notes, "Book notes")
+        self.assertIsNone(char.cover_image)
         self.assertEqual(char.images.count(), 0)
         self.assertEqual(char.why, "Kindness")
 
@@ -292,7 +305,7 @@ class JournalAPIFixtureMixin:
         )
 
         self.rewatch = Rewatch.objects.create(
-            season=self.season,
+            content_object=self.season,
             rating=10,
             notes="Second viewing deepened the emotional resonance.",
         )
@@ -301,6 +314,7 @@ class JournalAPIFixtureMixin:
             series=self.series,
             name="Himmel",
             why="Demonstrated how small acts of kindness leave an eternal footprint.",
+            cover_image=self.image_frieren,
         )
         self.character.images.add(self.image_frieren)
 
@@ -620,33 +634,116 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
     def test_create_rewatch_for_season_and_movie(self):
         # Season rewatch
         season_payload = {
-            "season": self.season.id,
+            "target_type": "season",
+            "target_id": self.season.id,
             "rating": 10,
             "notes": "Third time viewing.",
         }
         s_res = self.client.post("/api/rewatches/", season_payload, format="json")
         self.assertEqual(s_res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(s_res.data["release_title"], "Season 1")
+        self.assertEqual(s_res.data["target_type"], "season")
 
         # Movie rewatch
         movie = AnimeMovie.objects.create(series=self.series, title="Mugen Train")
         movie_payload = {
-            "movie": movie.id,
+            "target_type": "movie",
+            "target_id": movie.id,
             "rating": 10,
             "notes": "Movie rewatch pass.",
         }
         m_res = self.client.post("/api/rewatches/", movie_payload, format="json")
         self.assertEqual(m_res.status_code, status.HTTP_201_CREATED)
         self.assertEqual(m_res.data["release_title"], "Mugen Train")
+        self.assertEqual(m_res.data["target_type"], "movie")
 
-        # Reject both targets
+        # Series rewatch
+        series_payload = {
+            "target_type": "series",
+            "target_id": self.series.id,
+            "rating": 10,
+            "notes": "Series rewatch pass.",
+        }
+        series_res = self.client.post("/api/rewatches/", series_payload, format="json")
+        self.assertEqual(series_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(series_res.data["target_type"], "series")
+
+        # Episode rewatch
+        ep_payload = {
+            "target_type": "episode",
+            "target_id": self.season.id,
+            "episode_number": 8,
+            "episode_title": "Draht",
+            "rating": 10,
+            "notes": "Episode rewatch pass.",
+        }
+        ep_res = self.client.post("/api/rewatches/", ep_payload, format="json")
+        self.assertEqual(ep_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(ep_res.data["target_type"], "episode")
+        self.assertEqual(ep_res.data["episode_number"], 8)
+        self.assertIn("Ep 8", ep_res.data["release_title"])
+
+        # Legacy payload with "season": id
+        legacy_res = self.client.post(
+            "/api/rewatches/",
+            {"season": self.season.id, "rating": 9, "notes": "Legacy pass"},
+            format="json",
+        )
+        self.assertEqual(legacy_res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(legacy_res.data["target_type"], "season")
+
+        # Invalid target type
         invalid_payload = {
-            "season": self.season.id,
-            "movie": movie.id,
-            "notes": "Invalid dual target",
+            "target_type": "invalid",
+            "target_id": self.season.id,
+            "notes": "Invalid type",
         }
         inv_res = self.client.post("/api/rewatches/", invalid_payload, format="json")
         self.assertEqual(inv_res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_favorite_character_cover_image_crud_and_serialization(self):
+        image_fern = Image.objects.create(
+            file="anime_log/images/fern.jpg",
+            title="Fern Portrait",
+            folder=self.folder_covers,
+        )
+        # Create character with cover_image and gallery images
+        create_payload = {
+            "series": self.series.id,
+            "name": "Fern",
+            "why": "Unwavering loyalty and maturity beyond her years.",
+            "cover_image": self.image_frieren.id,
+            "images": [self.image_frieren.id, image_fern.id],
+        }
+        res = self.client.post("/api/characters/", create_payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res.data["cover_image"], self.image_frieren.id)
+        self.assertEqual(res.data["cover_image_url"], self.image_frieren.url)
+        self.assertEqual(res.data["image_url"], self.image_frieren.url)
+        self.assertEqual(len(res.data["images"]), 2)
+        char_id = res.data["id"]
+
+        # Update cover_image to Fern's image
+        patch_res = self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"cover_image": image_fern.id},
+            format="json",
+        )
+        self.assertEqual(patch_res.status_code, status.HTTP_200_OK)
+        self.assertEqual(patch_res.data["cover_image"], image_fern.id)
+        self.assertEqual(patch_res.data["cover_image_url"], image_fern.url)
+        self.assertEqual(patch_res.data["image_url"], image_fern.url)
+
+        # Clear cover_image to null -> image_url falls back to first image in gallery
+        patch_null = self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"cover_image": None},
+            format="json",
+        )
+        self.assertEqual(patch_null.status_code, status.HTTP_200_OK)
+        self.assertIsNone(patch_null.data["cover_image"])
+        self.assertIsNone(patch_null.data["cover_image_url"])
+        self.assertIsNotNone(patch_null.data["image_url"])
 
     def test_delete_series_cascades_properly(self):
         series_id = self.series.id
@@ -726,8 +823,8 @@ class QueryOptimizationTests(JournalAPIFixtureMixin, APITestCase):
             EpisodeNote.objects.create(
                 season=season, episode_number=1, note=f"Ep note {index}", cover_image=self.image_frieren
             )
-            Rewatch.objects.create(season=season, notes=f"Rewatch S {index}")
-            Rewatch.objects.create(movie=movie, notes=f"Rewatch M {index}")
+            Rewatch.objects.create(content_object=season, notes=f"Rewatch S {index}")
+            Rewatch.objects.create(content_object=movie, notes=f"Rewatch M {index}")
             char = FavoriteCharacter.objects.create(
                 series=series, name=f"Hero {index}", why=f"Why {index}"
             )
@@ -738,3 +835,176 @@ class QueryOptimizationTests(JournalAPIFixtureMixin, APITestCase):
         response = self.client.get("/api/series/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 5)
+
+
+class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
+    from unittest.mock import patch
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_lookup_anime_metadata(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "mal_id": 52991,
+                    "title": "Sousou no Frieren",
+                    "title_japanese": "葬送のフリーレン",
+                    "type": "TV",
+                    "episodes": 28,
+                    "duration": "24 min per ep",
+                    "score": 9.35,
+                    "status": "Finished Airing",
+                    "synopsis": "During their decade-long quest...",
+                    "studios": [{"name": "Madhouse"}],
+                    "genres": [{"name": "Adventure"}, {"name": "Fantasy"}],
+                    "images": {"jpg": {"large_image_url": "https://example.com/frieren.jpg"}},
+                }
+            ]
+        }
+
+        res = self.client.get("/api/lookup/?type=anime&q=Frieren")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("results", res.data)
+        self.assertEqual(len(res.data["results"]), 1)
+        item = res.data["results"][0]
+        self.assertEqual(item["title"], "Sousou no Frieren")
+        self.assertEqual(item["total_episodes"], 28)
+        self.assertEqual(item["studios"], ["Madhouse"])
+        self.assertEqual(item["genres"], ["Adventure", "Fantasy"])
+        self.assertEqual(item["cover_url"], "https://example.com/frieren.jpg")
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_lookup_book_metadata(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "docs": [
+                {
+                    "key": "/works/OL123W",
+                    "title": "Man's Search for Meaning",
+                    "author_name": ["Viktor E. Frankl"],
+                    "number_of_pages_median": 165,
+                    "subject": ["Psychology", "Philosophy"],
+                    "first_publish_year": 1946,
+                    "cover_i": 98765,
+                }
+            ]
+        }
+
+        res = self.client.get("/api/lookup/?type=book&q=Frankl")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data["results"]), 1)
+        item = res.data["results"][0]
+        self.assertEqual(item["title"], "Man's Search for Meaning")
+        self.assertEqual(item["author"], "Viktor E. Frankl")
+        self.assertEqual(item["total_pages"], 165)
+        self.assertIn("covers.openlibrary.org", item["cover_url"])
+
+    @patch("animeLog.services.metadata_lookup.requests.get")
+    def test_import_image_from_url(self, mock_get):
+        mock_get.return_value.status_code = 200
+        gif_bytes = (
+            b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+        )
+        mock_get.return_value.content = gif_bytes
+        mock_get.return_value.iter_content.return_value = [gif_bytes]
+        mock_get.return_value.headers = {"Content-Type": "image/gif", "Content-Length": str(len(gif_bytes))}
+
+        res = self.client.post(
+            "/api/images/import-url/",
+            {"url": "https://cdn.myanimelist.net/images/anime/1015/138006l.gif", "title": "Imported Poster"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", res.data)
+        self.assertEqual(res.data["title"], "Imported Poster")
+        self.assertEqual(res.data["folder_name"], "Imported Media")
+
+        # Test deduplication: importing again returns the existing image without error
+        res_dup = self.client.post(
+            "/api/images/import-url/",
+            {"url": "https://cdn.myanimelist.net/images/anime/1015/138006l.gif", "title": "Imported Poster"},
+            format="json",
+        )
+        self.assertEqual(res_dup.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(res_dup.data["id"], res.data["id"])
+
+    def test_import_image_ssrf_rejection(self):
+        res = self.client.post(
+            "/api/images/import-url/",
+            {"url": "http://169.254.169.254/latest/meta-data/", "title": "Evil URL"},
+            format="json",
+        )
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("not in the trusted image sources allowlist", res.data.get("error", ""))
+
+    def test_export_journal_json_and_markdown(self):
+        res_json = self.client.get("/api/export/?export_format=json")
+        self.assertEqual(res_json.status_code, status.HTTP_200_OK)
+        self.assertIn("series", res_json.data)
+        self.assertIn("books", res_json.data)
+        self.assertIn("rewatches", res_json.data)
+        self.assertIn("characters", res_json.data)
+
+        res_md = self.client.get("/api/export/?export_format=markdown")
+        self.assertEqual(res_md.status_code, status.HTTP_200_OK)
+        self.assertIn("content", res_md.data)
+        content = res_md.data["content"]
+        self.assertIn("[[Frieren: Beyond Journey's End]]", content)
+        self.assertIn("[[Meditations]]", content)
+        self.assertIn("Himmel", content)
+        self.assertIn("obsidian_compat: true", content)
+
+    @patch("animeLog.services.importer.requests.get")
+    def test_mal_user_import(self, mock_get):
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "entry": {"mal_id": 52991, "title": "Sousou no Frieren (Imported)"},
+                    "score": 10,
+                    "status": "completed",
+                    "episodes_seen": 28,
+                    "episodes_total": 28,
+                }
+            ]
+        }
+        res = self.client.post("/api/import/mal/", {"username": "otaku_user"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["imported_count"], 1)
+
+        # Verify created in DB
+        imported_series = AnimeSeries.objects.filter(title="Sousou no Frieren (Imported)").first()
+        self.assertIsNotNone(imported_series)
+        season = imported_series.seasons.first()
+        self.assertEqual(season.status, AnimeStatus.COMPLETED)
+        self.assertEqual(season.rating, 10)
+
+    def test_journal_json_import(self):
+        payload = {
+            "version": "1.0",
+            "series": [
+                {
+                    "title": "Neon Genesis Evangelion",
+                    "seasons": [{"season_number": 1, "title": "TV Series", "status": "COMPLETED", "rating": 10, "notes": "Hedgehog dilemma."}],
+                }
+            ],
+            "books": [
+                {
+                    "title": "Thus Spoke Zarathustra",
+                    "author": "Friedrich Nietzsche",
+                    "status": "COMPLETED",
+                    "rating": 9,
+                    "notes": "Become who you are.",
+                }
+            ],
+            "characters": [],
+            "rewatches": [],
+        }
+        res = self.client.post("/api/import/json/", payload, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["imported"]["series"], 1)
+        self.assertEqual(res.data["imported"]["books"], 1)
+
+        self.assertTrue(AnimeSeries.objects.filter(title="Neon Genesis Evangelion").exists())
+        self.assertTrue(Book.objects.filter(title="Thus Spoke Zarathustra").exists())
+

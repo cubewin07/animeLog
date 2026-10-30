@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate, useLocation, Routes, Route, useParams } from 'react-router-dom';
 import {
   ActiveTab,
   AnimeMovie,
   AnimeSeason,
   AnimeSeries,
   Book,
+  EpisodeNote,
   FavoriteCharacter,
   Genre,
   JournalStats,
   Rewatch,
+  RewatchTargetType,
   Studio,
 } from './types';
 import {
@@ -25,25 +28,103 @@ import {
 } from './api/client';
 import { Navigation } from './components/Navigation';
 import { ToastContainer, ToastMessage } from './components/Toast';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { EntryModal, EntryModalMode } from './components/EntryModal';
 import { EpisodeNoteModal } from './components/EpisodeNoteModal';
 import { CharacterModal, RewatchModal } from './components/QuickModals';
 import { DashboardView } from './views/DashboardView';
 import { AnimeView } from './views/AnimeView';
+import { FranchiseDetailView } from './views/FranchiseDetailView';
 import { BookView } from './views/BookView';
+import { BookDetailView } from './views/BookDetailView';
 import { CharactersView } from './views/CharactersView';
 import { RewatchesView } from './views/RewatchesView';
 import { MediaView } from './views/MediaView';
 import { Loader2 } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { EASING, prefersReducedMotion } from './utils/animations';
+
+// Wrapper for FranchiseDetailView to extract route params
+const FranchiseDetailRouteWrapper: React.FC<{
+  seriesList: AnimeSeries[];
+  allRewatches: Rewatch[];
+  onBack: () => void;
+  onEditSeries: (series: AnimeSeries) => void;
+  onDeleteSeries: (id: number) => void;
+  onAddSeason: (series: AnimeSeries) => void;
+  onAddMovie: (series: AnimeSeries) => void;
+  onEditSeason: (season: AnimeSeason) => void;
+  onDeleteSeason: (id: number) => void;
+  onSeasonProgressDelta: (id: number, delta: number) => void;
+  onEditMovie: (movie: AnimeMovie) => void;
+  onDeleteMovie: (id: number) => void;
+  onMovieProgressDelta: (id: number, delta: number) => void;
+  onOpenEpisodeNotes: (season: AnimeSeason, note?: EpisodeNote) => void;
+  onAddRewatchSeries?: (series: AnimeSeries) => void;
+  onAddRewatchSeason: (season: AnimeSeason) => void;
+  onAddRewatchMovie: (movie: AnimeMovie) => void;
+  onAddRewatchEpisode?: (season: AnimeSeason, episodeNumber: number) => void;
+  onEditRewatch?: (rewatch: Rewatch) => void;
+  onDeleteRewatch?: (id: number) => void;
+  onAddCharacter: (series: AnimeSeries) => void;
+  onEditCharacter?: (character: FavoriteCharacter) => void;
+  onDeleteCharacter?: (id: number) => void;
+  onRefresh?: () => Promise<void>;
+}> = (props) => {
+  const { seriesId } = useParams<{ seriesId: string }>();
+  const idNum = Number(seriesId);
+  const series = props.seriesList.find((s) => s.id === idNum);
+
+  if (!series) {
+    return (
+      <div className="desk-card" style={{ padding: 40, textAlign: 'center' }}>
+        <h3 style={{ fontSize: 18, color: 'var(--text-desk)', marginBottom: 8 }}>Franchise Not Found</h3>
+        <p style={{ color: 'var(--text-desk-muted)', marginBottom: 16 }}>
+          The requested franchise entry could not be found.
+        </p>
+        <button onClick={props.onBack} className="btn btn-secondary">
+          Return to Anime Journal
+        </button>
+      </div>
+    );
+  }
+
+  return <FranchiseDetailView series={series} {...props} />;
+};
+
+// Wrapper for BookDetailView to extract route params
+const BookDetailRouteWrapper: React.FC<{
+  bookList: Book[];
+  onBack: () => void;
+  onEdit: (book: Book) => void;
+  onDelete: (id: number) => void;
+  onProgressDelta: (id: number, delta: number) => void;
+}> = (props) => {
+  const { bookId } = useParams<{ bookId: string }>();
+  const idNum = Number(bookId);
+  const book = props.bookList.find((b) => b.id === idNum);
+
+  if (!book) {
+    return (
+      <div className="desk-card" style={{ padding: 40, textAlign: 'center' }}>
+        <h3 style={{ fontSize: 18, color: 'var(--text-desk)', marginBottom: 8 }}>Book Not Found</h3>
+        <p style={{ color: 'var(--text-desk-muted)', marginBottom: 16 }}>
+          The requested book journal entry could not be found.
+        </p>
+        <button onClick={props.onBack} className="btn btn-secondary">
+          Return to Book Journal
+        </button>
+      </div>
+    );
+  }
+
+  return <BookDetailView book={book} {...props} />;
+};
 
 export const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  const viewContainerRef = useRef<HTMLDivElement>(null);
 
   // Data states
   const [seriesList, setSeriesList] = useState<AnimeSeries[]>([]);
@@ -76,6 +157,38 @@ export const App: React.FC = () => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
+  // In-Page Confirm Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
+
+  const requestConfirm = (options: {
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    onConfirm: () => void;
+  }) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: options.title,
+      message: options.message,
+      confirmLabel: options.confirmLabel,
+      onConfirm: () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        options.onConfirm();
+      },
+    });
+  };
+
   // Modals state
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryModalMode, setEntryModalMode] = useState<EntryModalMode>('new-franchise');
@@ -87,13 +200,55 @@ export const App: React.FC = () => {
 
   const [episodeNoteModalOpen, setEpisodeNoteModalOpen] = useState(false);
   const [targetSeasonForNotes, setTargetSeasonForNotes] = useState<AnimeSeason | null>(null);
+  const [targetNoteForEpisodeModal, setTargetNoteForEpisodeModal] = useState<EpisodeNote | null>(null);
 
   const [rewatchModalOpen, setRewatchModalOpen] = useState(false);
+  const [rewatchTargetSeries, setRewatchTargetSeries] = useState<AnimeSeries | null>(null);
   const [rewatchTargetSeason, setRewatchTargetSeason] = useState<AnimeSeason | null>(null);
   const [rewatchTargetMovie, setRewatchTargetMovie] = useState<AnimeMovie | null>(null);
+  const [rewatchTargetEpisodeNumber, setRewatchTargetEpisodeNumber] = useState<number | null>(null);
+  const [editRewatchTarget, setEditRewatchTarget] = useState<Rewatch | null>(null);
 
   const [characterModalOpen, setCharacterModalOpen] = useState(false);
   const [characterTargetSeries, setCharacterTargetSeries] = useState<AnimeSeries | null>(null);
+  const [editCharacterTarget, setEditCharacterTarget] = useState<FavoriteCharacter | null>(null);
+
+  // Determine active tab from URL path
+  const getActiveTabFromPath = (path: string): ActiveTab => {
+    if (path.startsWith('/anime')) return 'anime';
+    if (path.startsWith('/books')) return 'books';
+    if (path.startsWith('/characters')) return 'characters';
+    if (path.startsWith('/rewatches')) return 'rewatches';
+    if (path.startsWith('/media')) return 'media';
+    return 'dashboard';
+  };
+
+  const activeTab = getActiveTabFromPath(location.pathname);
+
+  // Handle Tab Change via Router
+  const handleTabChange = (tab: ActiveTab) => {
+    switch (tab) {
+      case 'dashboard':
+        navigate('/');
+        break;
+      case 'anime':
+        navigate('/anime');
+        break;
+      case 'books':
+        navigate('/books');
+        break;
+      case 'characters':
+        navigate('/characters');
+        break;
+      case 'rewatches':
+        navigate('/rewatches');
+        break;
+      case 'media':
+        navigate('/media');
+        break;
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Fetch all initial data
   const loadData = useCallback(async () => {
@@ -127,26 +282,6 @@ export const App: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  // Tab View Transition Animation
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !viewContainerRef.current) return;
-
-      gsap.fromTo(
-        viewContainerRef.current,
-        { opacity: 0, y: 14 },
-        {
-          opacity: 1,
-          y: 0,
-          duration: 0.35,
-          ease: EASING.smooth,
-          clearProps: 'transform,opacity',
-        }
-      );
-    },
-    { scope: viewContainerRef, dependencies: [activeTab, loading] }
-  );
-
   const refreshStats = async () => {
     try {
       const st = await statsApi.getStats();
@@ -177,7 +312,14 @@ export const App: React.FC = () => {
 
   // --- Series Handlers ---
   const handleSaveSeries = async (
-    data: { title: string; cover_image?: number | null; genres: number[]; initial_season?: any },
+    data: {
+      title: string;
+      japanese_title?: string | null;
+      romaji_title?: string | null;
+      cover_image?: number | null;
+      genres: number[];
+      initial_season?: any;
+    },
     id?: number
   ) => {
     try {
@@ -195,16 +337,25 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteSeries = async (id: number) => {
-    if (!window.confirm('Delete this anime franchise and all its seasons, movies, and notes?')) return;
-    try {
-      await seriesApi.delete(id);
-      addToast('Franchise removed');
-      await refreshAll();
-    } catch (err) {
-      console.error(err);
-      addToast('Error deleting franchise', 'error');
-    }
+  const handleDeleteSeries = (id: number) => {
+    requestConfirm({
+      title: 'Delete Franchise',
+      message: 'Delete this anime franchise and all its seasons, movies, and notes?',
+      confirmLabel: 'Delete Franchise',
+      onConfirm: async () => {
+        try {
+          await seriesApi.delete(id);
+          addToast('Franchise removed');
+          await refreshAll();
+          if (location.pathname.startsWith('/anime/')) {
+            navigate('/anime');
+          }
+        } catch (err) {
+          console.error(err);
+          addToast('Error deleting franchise', 'error');
+        }
+      },
+    });
   };
 
   // --- Season Handlers ---
@@ -224,16 +375,22 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteSeason = async (id: number) => {
-    if (!window.confirm('Delete this TV season and its notes?')) return;
-    try {
-      await seasonApi.delete(id);
-      addToast('Season removed');
-      await refreshAll();
-    } catch (err) {
-      console.error(err);
-      addToast('Error deleting season', 'error');
-    }
+  const handleDeleteSeason = (id: number) => {
+    requestConfirm({
+      title: 'Delete Season',
+      message: 'Delete this TV season and all its episode memories?',
+      confirmLabel: 'Delete Season',
+      onConfirm: async () => {
+        try {
+          await seasonApi.delete(id);
+          addToast('Season removed');
+          await refreshAll();
+        } catch (err) {
+          console.error(err);
+          addToast('Error deleting season', 'error');
+        }
+      },
+    });
   };
 
   const handleSeasonProgressDelta = async (id: number, delta: number) => {
@@ -263,16 +420,22 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteMovie = async (id: number) => {
-    if (!window.confirm('Delete this anime film entry?')) return;
-    try {
-      await movieApi.delete(id);
-      addToast('Movie removed');
-      await refreshAll();
-    } catch (err) {
-      console.error(err);
-      addToast('Error deleting movie', 'error');
-    }
+  const handleDeleteMovie = (id: number) => {
+    requestConfirm({
+      title: 'Delete Film',
+      message: 'Delete this anime film entry and its takeaways?',
+      confirmLabel: 'Delete Film',
+      onConfirm: async () => {
+        try {
+          await movieApi.delete(id);
+          addToast('Film removed');
+          await refreshAll();
+        } catch (err) {
+          console.error(err);
+          addToast('Error deleting movie', 'error');
+        }
+      },
+    });
   };
 
   const handleMovieProgressDelta = async (id: number, delta: number) => {
@@ -281,7 +444,7 @@ export const App: React.FC = () => {
       await refreshAll();
     } catch (err) {
       console.error(err);
-      addToast('Could not update movie progress.', 'error');
+      addToast('Could not update film progress.', 'error');
     }
   };
 
@@ -293,13 +456,12 @@ export const App: React.FC = () => {
     try {
       if (noteId) {
         await episodeNoteApi.update(noteId, data);
-        addToast(`Updated Ep ${data.episode_number} standout note`);
+        addToast(`Updated Ep ${data.episode_number} memory`);
       } else {
         await episodeNoteApi.create(data);
         addToast(`Recorded Ep ${data.episode_number} memory`);
       }
       await refreshAll();
-      // Update targetSeasonForNotes if open
       if (targetSeasonForNotes) {
         const freshSeason = await seasonApi.get(targetSeasonForNotes.id);
         setTargetSeasonForNotes(freshSeason);
@@ -313,7 +475,7 @@ export const App: React.FC = () => {
   const handleDeleteEpisodeNote = async (noteId: number) => {
     try {
       await episodeNoteApi.delete(noteId);
-      addToast('Episode note deleted');
+      addToast('Episode memory deleted');
       await refreshAll();
       if (targetSeasonForNotes) {
         const freshSeason = await seasonApi.get(targetSeasonForNotes.id);
@@ -326,17 +488,27 @@ export const App: React.FC = () => {
   };
 
   // --- Rewatch Handlers ---
-  const handleSaveRewatch = async (data: {
-    season?: number | null;
-    movie?: number | null;
-    start_date?: string | null;
-    finish_date?: string | null;
-    rating?: number | null;
-    notes?: string | null;
-  }) => {
+  const handleSaveRewatch = async (
+    data: {
+      target_type: RewatchTargetType;
+      target_id: number;
+      episode_number?: number | null;
+      episode_title?: string | null;
+      start_date?: string | null;
+      finish_date?: string | null;
+      rating?: number | null;
+      notes?: string | null;
+    },
+    rewatchId?: number
+  ) => {
     try {
-      const created = await rewatchApi.create(data);
-      addToast(`Recorded rewatch pass for "${created.release_title}"`);
+      if (rewatchId) {
+        const updated = await rewatchApi.update(rewatchId, data);
+        addToast(`Updated rewatch reflection for "${updated.release_title || 'entry'}"`);
+      } else {
+        const created = await rewatchApi.create(data);
+        addToast(`Recorded rewatch pass for "${created.release_title || 'entry'}"`);
+      }
       await refreshAll();
     } catch (err) {
       console.error(err);
@@ -344,22 +516,36 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteRewatch = async (id: number) => {
-    if (!window.confirm('Delete this rewatch reflection?')) return;
-    try {
-      await rewatchApi.delete(id);
-      addToast('Rewatch pass deleted');
-      await refreshAll();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteRewatch = (id: number) => {
+    requestConfirm({
+      title: 'Delete Rewatch Pass',
+      message: 'Delete this rewatch reflection entry?',
+      confirmLabel: 'Delete Pass',
+      onConfirm: async () => {
+        try {
+          await rewatchApi.delete(id);
+          addToast('Rewatch pass deleted');
+          await refreshAll();
+        } catch (err) {
+          console.error(err);
+        }
+      },
+    });
   };
 
   // --- Character Handlers ---
-  const handleSaveCharacter = async (data: { series: number; name: string; why?: string | null; images?: number[] }) => {
+  const handleSaveCharacter = async (
+    data: { series: number; name: string; why?: string | null; cover_image?: number | null; images?: number[] },
+    characterId?: number
+  ) => {
     try {
-      const created = await characterApi.create(data);
-      addToast(`Added "${created.name}" to memorable characters`);
+      if (characterId) {
+        const updated = await characterApi.update(characterId, data);
+        addToast(`Updated "${updated.name}" reflection`);
+      } else {
+        const created = await characterApi.create(data);
+        addToast(`Added "${created.name}" to memorable characters`);
+      }
       await refreshAll();
     } catch (err) {
       console.error(err);
@@ -367,15 +553,21 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteCharacter = async (id: number) => {
-    if (!window.confirm('Remove this character from memory log?')) return;
-    try {
-      await characterApi.delete(id);
-      addToast('Character removed');
-      await refreshAll();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeleteCharacter = (id: number) => {
+    requestConfirm({
+      title: 'Remove Character',
+      message: 'Remove this character from your memory log?',
+      confirmLabel: 'Remove Character',
+      onConfirm: async () => {
+        try {
+          await characterApi.delete(id);
+          addToast('Character removed');
+          await refreshAll();
+        } catch (err) {
+          console.error(err);
+        }
+      },
+    });
   };
 
   // --- Book Handlers ---
@@ -397,17 +589,26 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteBook = async (id: number) => {
-    if (!window.confirm('Delete this book journal entry?')) return;
-    try {
-      await bookApi.delete(id);
-      setBookList((prev) => prev.filter((b) => b.id !== id));
-      addToast('Book entry removed');
-      refreshStats();
-    } catch (err) {
-      console.error(err);
-      addToast('Error deleting book entry', 'error');
-    }
+  const handleDeleteBook = (id: number) => {
+    requestConfirm({
+      title: 'Delete Book Journal',
+      message: 'Delete this book journal entry and all its reflections?',
+      confirmLabel: 'Delete Book',
+      onConfirm: async () => {
+        try {
+          await bookApi.delete(id);
+          setBookList((prev) => prev.filter((b) => b.id !== id));
+          addToast('Book entry removed');
+          refreshStats();
+          if (location.pathname.startsWith('/books/')) {
+            navigate('/books');
+          }
+        } catch (err) {
+          console.error(err);
+          addToast('Error deleting book entry', 'error');
+        }
+      },
+    });
   };
 
   const handleBookProgressDelta = async (id: number, delta: number) => {
@@ -473,25 +674,66 @@ export const App: React.FC = () => {
     setEntryModalOpen(true);
   };
 
-  const openEpisodeNotesModal = (season: AnimeSeason) => {
+  const openEpisodeNotesModal = (season: AnimeSeason, note?: EpisodeNote) => {
     setTargetSeasonForNotes(season);
+    setTargetNoteForEpisodeModal(note || null);
     setEpisodeNoteModalOpen(true);
   };
 
+  const openAddRewatchSeries = (series: AnimeSeries) => {
+    setRewatchTargetSeries(series);
+    setRewatchTargetSeason(null);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
+  };
+
   const openAddRewatchSeason = (season: AnimeSeason) => {
+    setRewatchTargetSeries(null);
     setRewatchTargetSeason(season);
     setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
     setRewatchModalOpen(true);
   };
 
   const openAddRewatchMovie = (movie: AnimeMovie) => {
+    setRewatchTargetSeries(null);
     setRewatchTargetSeason(null);
     setRewatchTargetMovie(movie);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
+  };
+
+  const openAddRewatchEpisode = (season: AnimeSeason, episodeNumber?: number) => {
+    setRewatchTargetSeries(null);
+    setRewatchTargetSeason(season);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(episodeNumber || 1);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
+  };
+
+  const openEditRewatchModal = (rewatch: Rewatch) => {
+    setRewatchTargetSeries(null);
+    setRewatchTargetSeason(null);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(rewatch);
     setRewatchModalOpen(true);
   };
 
   const openAddCharacterModal = (series?: AnimeSeries) => {
     setCharacterTargetSeries(series || seriesList[0] || null);
+    setEditCharacterTarget(null);
+    setCharacterModalOpen(true);
+  };
+
+  const openEditCharacterModal = (character: FavoriteCharacter) => {
+    setCharacterTargetSeries(null);
+    setEditCharacterTarget(character);
     setCharacterModalOpen(true);
   };
 
@@ -500,13 +742,20 @@ export const App: React.FC = () => {
       {/* Toast Feedback */}
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
 
+      {/* Accessible Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
       {/* Navigation */}
       <Navigation
         activeTab={activeTab}
-        onTabChange={(tab) => {
-          setActiveTab(tab);
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
+        onTabChange={handleTabChange}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenNewModal={() => {
@@ -519,102 +768,185 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="main-content">
+      <main id="journal-main" className="main-content">
         {loading ? (
           <div
             style={{
-              minHeight: '400px',
+              minHeight: 400,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '12px',
-              color: 'var(--text-muted)',
+              gap: 12,
+              color: 'var(--text-desk-muted)',
             }}
           >
-            <Loader2 size={32} className="animate-spin" color="var(--color-primary)" />
-            <p style={{ fontSize: '14px' }}>Loading your reflections & journal...</p>
+            <Loader2 size={32} style={{ animation: 'spin 1s linear infinite' }} color="var(--tungsten)" />
+            <p style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontStyle: 'italic' }}>
+              Preparing the desk and reflections...
+            </p>
           </div>
         ) : (
-          <div ref={viewContainerRef}>
-            {activeTab === 'dashboard' && (
-              <DashboardView
-                stats={stats}
-                seriesList={seriesList}
-                bookList={bookList}
-                onNavigate={setActiveTab}
-                onSeasonProgressDelta={handleSeasonProgressDelta}
-                onMovieProgressDelta={handleMovieProgressDelta}
-                onEditBook={openEditBookModal}
-                onDeleteBook={handleDeleteBook}
-                onProgressBook={handleBookProgressDelta}
-              />
-            )}
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <DashboardView
+                  stats={stats}
+                  seriesList={seriesList}
+                  bookList={bookList}
+                  characterList={characterList}
+                  rewatchList={rewatchList}
+                  onNavigate={(tab, id) => {
+                    if (tab === 'anime' && id) {
+                      navigate(`/anime/${id}`);
+                    } else if (tab === 'books' && id) {
+                      navigate(`/books/${id}`);
+                    } else {
+                      handleTabChange(tab);
+                    }
+                  }}
+                  onSeasonProgressDelta={handleSeasonProgressDelta}
+                  onMovieProgressDelta={handleMovieProgressDelta}
+                  onProgressBook={handleBookProgressDelta}
+                  onEditSeason={(series, season) => openEditSeasonModal(season)}
+                  onEditMovie={(series, movie) => openEditMovieModal(movie)}
+                  onEditBook={openEditBookModal}
+                  onOpenLogModal={openNewFranchiseModal}
+                  onToast={addToast}
+                />
+              }
+            />
 
-            {activeTab === 'anime' && (
-              <AnimeView
-                seriesList={seriesList}
-                searchQuery={searchQuery}
-                onEditSeries={openEditSeriesModal}
-                onDeleteSeries={handleDeleteSeries}
-                onAddSeason={openAddSeasonModal}
-                onAddMovie={openAddMovieModal}
-                onEditSeason={openEditSeasonModal}
-                onDeleteSeason={handleDeleteSeason}
-                onSeasonProgressDelta={handleSeasonProgressDelta}
-                onEditMovie={openEditMovieModal}
-                onDeleteMovie={handleDeleteMovie}
-                onMovieProgressDelta={handleMovieProgressDelta}
-                onOpenEpisodeNotes={openEpisodeNotesModal}
-                onAddRewatchSeason={openAddRewatchSeason}
-                onAddRewatchMovie={openAddRewatchMovie}
-                onAddCharacter={openAddCharacterModal}
-                onOpenNewFranchiseModal={openNewFranchiseModal}
-              />
-            )}
+            <Route
+              path="/anime"
+              element={
+                <AnimeView
+                  seriesList={seriesList}
+                  searchQuery={searchQuery}
+                  onOpenDetail={(seriesId) => navigate(`/anime/${seriesId}`)}
+                  onEditSeries={openEditSeriesModal}
+                  onDeleteSeries={handleDeleteSeries}
+                  onAddSeason={openAddSeasonModal}
+                  onAddMovie={openAddMovieModal}
+                  onEditSeason={openEditSeasonModal}
+                  onDeleteSeason={handleDeleteSeason}
+                  onSeasonProgressDelta={handleSeasonProgressDelta}
+                  onEditMovie={openEditMovieModal}
+                  onDeleteMovie={handleDeleteMovie}
+                  onMovieProgressDelta={handleMovieProgressDelta}
+                  onOpenEpisodeNotes={openEpisodeNotesModal}
+                  onAddRewatchSeason={openAddRewatchSeason}
+                  onAddRewatchMovie={openAddRewatchMovie}
+                  onAddCharacter={openAddCharacterModal}
+                  onOpenNewFranchiseModal={openNewFranchiseModal}
+                />
+              }
+            />
 
-            {activeTab === 'books' && (
-              <BookView
-                bookList={bookList}
-                searchQuery={searchQuery}
-                onEdit={openEditBookModal}
-                onDelete={handleDeleteBook}
-                onProgressDelta={handleBookProgressDelta}
-                onOpenNewModal={openNewBookModal}
-              />
-            )}
+            <Route
+              path="/anime/:seriesId"
+              element={
+                <FranchiseDetailRouteWrapper
+                  seriesList={seriesList}
+                  allRewatches={rewatchList}
+                  onBack={() => navigate('/anime')}
+                  onEditSeries={openEditSeriesModal}
+                  onDeleteSeries={handleDeleteSeries}
+                  onAddSeason={openAddSeasonModal}
+                  onAddMovie={openAddMovieModal}
+                  onEditSeason={openEditSeasonModal}
+                  onDeleteSeason={handleDeleteSeason}
+                  onSeasonProgressDelta={handleSeasonProgressDelta}
+                  onEditMovie={openEditMovieModal}
+                  onDeleteMovie={handleDeleteMovie}
+                  onMovieProgressDelta={handleMovieProgressDelta}
+                  onOpenEpisodeNotes={openEpisodeNotesModal}
+                  onAddRewatchSeries={openAddRewatchSeries}
+                  onAddRewatchSeason={openAddRewatchSeason}
+                  onAddRewatchMovie={openAddRewatchMovie}
+                  onAddRewatchEpisode={openAddRewatchEpisode}
+                  onEditRewatch={openEditRewatchModal}
+                  onDeleteRewatch={handleDeleteRewatch}
+                  onAddCharacter={openAddCharacterModal}
+                  onEditCharacter={openEditCharacterModal}
+                  onDeleteCharacter={handleDeleteCharacter}
+                  onRefresh={refreshAll}
+                />
+              }
+            />
 
-            {activeTab === 'characters' && (
-              <CharactersView
-                characters={characterList}
-                searchQuery={searchQuery}
-                onDelete={handleDeleteCharacter}
-                onOpenAddModal={() => openAddCharacterModal()}
-              />
-            )}
+            <Route
+              path="/books"
+              element={
+                <BookView
+                  bookList={bookList}
+                  searchQuery={searchQuery}
+                  onOpenDetail={(bookId) => navigate(`/books/${bookId}`)}
+                  onEdit={openEditBookModal}
+                  onDelete={handleDeleteBook}
+                  onProgressDelta={handleBookProgressDelta}
+                  onOpenNewModal={openNewBookModal}
+                />
+              }
+            />
 
-            {activeTab === 'rewatches' && (
-              <RewatchesView
-                rewatches={rewatchList}
-                seriesList={seriesList}
-                searchQuery={searchQuery}
-                onDelete={handleDeleteRewatch}
-                onOpenRewatchModal={() => {
-                  setRewatchTargetSeason(null);
-                  setRewatchTargetMovie(null);
-                  setRewatchModalOpen(true);
-                }}
-              />
-            )}
+            <Route
+              path="/books/:bookId"
+              element={
+                <BookDetailRouteWrapper
+                  bookList={bookList}
+                  onBack={() => navigate('/books')}
+                  onEdit={openEditBookModal}
+                  onDelete={handleDeleteBook}
+                  onProgressDelta={handleBookProgressDelta}
+                />
+              }
+            />
 
-            {activeTab === 'media' && (
-              <MediaView onNotify={addToast} />
-            )}
-          </div>
+            <Route
+              path="/characters"
+              element={
+                <CharactersView
+                  characters={characterList}
+                  searchQuery={searchQuery}
+                  onEdit={openEditCharacterModal}
+                  onDelete={handleDeleteCharacter}
+                  onOpenAddModal={() => openAddCharacterModal()}
+                  onRefresh={refreshAll}
+                />
+              }
+            />
+
+            <Route
+              path="/rewatches"
+              element={
+                <RewatchesView
+                  rewatches={rewatchList}
+                  seriesList={seriesList}
+                  searchQuery={searchQuery}
+                  onEdit={openEditRewatchModal}
+                  onDelete={handleDeleteRewatch}
+                  onOpenRewatchModal={() => {
+                    setRewatchTargetSeason(null);
+                    setRewatchTargetMovie(null);
+                    setEditRewatchTarget(null);
+                    setRewatchModalOpen(true);
+                  }}
+                  onNavigateSeries={(seriesId) => navigate(`/anime/${seriesId}`)}
+                />
+              }
+            />
+
+            <Route
+              path="/media"
+              element={<MediaView onNotify={addToast} onRequestConfirm={requestConfirm} />}
+            />
+          </Routes>
         )}
       </main>
 
-      {/* Entry Modal */}
+      {/* Global Modals */}
       <EntryModal
         isOpen={entryModalOpen}
         onClose={() => setEntryModalOpen(false)}
@@ -630,31 +962,36 @@ export const App: React.FC = () => {
         onSaveBook={handleSaveBook}
       />
 
-      {/* Standout Episode Note Modal */}
       <EpisodeNoteModal
         isOpen={episodeNoteModalOpen}
-        onClose={() => setEpisodeNoteModalOpen(false)}
+        onClose={() => {
+          setEpisodeNoteModalOpen(false);
+          setTargetNoteForEpisodeModal(null);
+        }}
         season={targetSeasonForNotes}
+        initialNote={targetNoteForEpisodeModal}
         onSaveNote={handleSaveEpisodeNote}
         onDeleteNote={handleDeleteEpisodeNote}
       />
 
-      {/* Rewatch Modal */}
       <RewatchModal
         isOpen={rewatchModalOpen}
         onClose={() => setRewatchModalOpen(false)}
+        targetSeries={rewatchTargetSeries}
         targetSeason={rewatchTargetSeason}
         targetMovie={rewatchTargetMovie}
+        targetEpisodeNumber={rewatchTargetEpisodeNumber}
+        editRewatch={editRewatchTarget}
         seriesList={seriesList}
         onSave={handleSaveRewatch}
       />
 
-      {/* Character Modal */}
       <CharacterModal
         isOpen={characterModalOpen}
         onClose={() => setCharacterModalOpen(false)}
         seriesList={seriesList}
         preselectedSeries={characterTargetSeries}
+        editCharacter={editCharacterTarget}
         onSave={handleSaveCharacter}
       />
     </div>

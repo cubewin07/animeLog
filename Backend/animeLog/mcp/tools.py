@@ -1,0 +1,1478 @@
+"""
+MCP Tools for AnimeLog.
+
+Enables an AI agent to search, log, update, and manage:
+- Anime Series, Seasons, Movies
+- Episode Notes and reflections
+- Books and reading progress
+- Rewatch passes
+- Favorite Characters with life lessons/reasons
+"""
+
+from datetime import date
+from typing import Any
+from asgiref.sync import sync_to_async
+from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
+from django.db.models import Q
+
+from animeLog.models import (
+    AnimeMovie,
+    AnimeSeason,
+    AnimeSeries,
+    AnimeStatus,
+    Book,
+    BookStatus,
+    EpisodeNote,
+    FavoriteCharacter,
+    Folder,
+    Genre,
+    Image,
+    Rewatch,
+    Studio,
+)
+
+
+def _get_or_create_genres(genre_names: list[str] | None) -> list[Genre]:
+    if not genre_names:
+        return []
+    genres = []
+    for name in genre_names:
+        clean_name = str(name).strip()
+        if clean_name:
+            genre, _ = Genre.objects.get_or_create(name=clean_name)
+            genres.append(genre)
+    return genres
+
+
+def _get_or_create_studios(studio_names: list[str] | None) -> list[Studio]:
+    if not studio_names:
+        return []
+    studios = []
+    for name in studio_names:
+        clean_name = str(name).strip()
+        if clean_name:
+            studio, _ = Studio.objects.get_or_create(name=clean_name)
+            studios.append(studio)
+    return studios
+
+
+# ---------------------------------------------------------------------------
+# 1. Exploration & Search Tools
+# ---------------------------------------------------------------------------
+
+@sync_to_async
+def search_journal(query: str = "", media_type: str = "all") -> list[dict[str, Any]]:
+    """
+    Search across all anime series, seasons, movies, books, episode notes, rewatches,
+    and favorite characters by title, notes, character name, or author.
+
+    Args:
+        query: Keyword to search for in titles, notes, character names, why reasons, etc.
+        media_type: One of 'all', 'anime', 'books', 'characters', 'rewatches'.
+    """
+    results: list[dict[str, Any]] = []
+    q = query.strip()
+
+    # Anime Series
+    if media_type in ("all", "anime"):
+        series_qs = AnimeSeries.objects.all()
+        if q:
+            series_qs = series_qs.filter(
+                Q(title__icontains=q)
+                | Q(japanese_title__icontains=q)
+                | Q(romaji_title__icontains=q)
+                | Q(seasons__notes__icontains=q)
+                | Q(movies__notes__icontains=q)
+            ).distinct()
+        for s in series_qs[:20]:
+            results.append({
+                "type": "anime_series",
+                "id": s.id,
+                "title": s.title,
+                "seasons_count": s.seasons.count(),
+                "movies_count": s.movies.count(),
+                "genres": [g.name for g in s.genres.all()],
+            })
+
+    # Books
+    if media_type in ("all", "books"):
+        book_qs = Book.objects.all()
+        if q:
+            book_qs = book_qs.filter(
+                Q(title__icontains=q) | Q(author__icontains=q) | Q(notes__icontains=q)
+            ).distinct()
+        for b in book_qs[:20]:
+            results.append({
+                "type": "book",
+                "id": b.id,
+                "title": b.title,
+                "author": b.author,
+                "status": b.status,
+                "progress": b.progress,
+                "total_pages": b.total_pages,
+                "rating": b.rating,
+                "notes": b.notes,
+            })
+
+    # Favorite Characters
+    if media_type in ("all", "characters"):
+        char_qs = FavoriteCharacter.objects.select_related("series").all()
+        if q:
+            char_qs = char_qs.filter(Q(name__icontains=q) | Q(why__icontains=q)).distinct()
+        for c in char_qs[:20]:
+            results.append({
+                "type": "favorite_character",
+                "id": c.id,
+                "name": c.name,
+                "series_id": c.series_id,
+                "series_title": c.series.title if c.series else "",
+                "why": c.why,
+            })
+
+    # Rewatches
+    if media_type in ("all", "rewatches"):
+        rewatch_qs = Rewatch.objects.all()
+        if q:
+            rewatch_qs = rewatch_qs.filter(Q(notes__icontains=q) | Q(episode_title__icontains=q)).distinct()
+        for r in rewatch_qs[:20]:
+            results.append({
+                "type": "rewatch",
+                "id": r.id,
+                "release_title": r.release_title,
+                "series_title": r.series_title,
+                "target_type": r.target_type,
+                "rating": r.rating,
+                "notes": r.notes,
+            })
+
+    # Episode Notes
+    if media_type in ("all", "episodes", "notes"):
+        ep_qs = EpisodeNote.objects.select_related("season", "season__series").all()
+        if q:
+            ep_qs = ep_qs.filter(Q(note__icontains=q) | Q(episode_title__icontains=q)).distinct()
+        for en in ep_qs[:20]:
+            results.append({
+                "type": "episode_note",
+                "id": en.id,
+                "series_title": en.season.series.title if en.season and en.season.series else "",
+                "season_title": en.season.title if en.season else "",
+                "episode_number": en.episode_number,
+                "episode_title": en.episode_title,
+                "rating": en.rating,
+                "note": en.note,
+            })
+
+    return results
+
+
+@sync_to_async
+def get_journal_overview() -> dict[str, Any]:
+    """
+    Get high-level summary statistics and currently active anime and books.
+    """
+    active_anime_seasons = AnimeSeason.objects.filter(status=AnimeStatus.WATCHING).select_related("series")
+    active_anime_movies = AnimeMovie.objects.filter(status=AnimeStatus.WATCHING).select_related("series")
+    active_books = Book.objects.filter(status=BookStatus.READING)
+
+    completed_seasons = AnimeSeason.objects.filter(status=AnimeStatus.COMPLETED).count()
+    completed_movies = AnimeMovie.objects.filter(status=AnimeStatus.COMPLETED).count()
+    completed_books = Book.objects.filter(status=BookStatus.COMPLETED).count()
+
+    lessons_count = (
+        AnimeSeason.objects.exclude(notes__isnull=True).exclude(notes="").count()
+        + AnimeMovie.objects.exclude(notes__isnull=True).exclude(notes="").count()
+        + Book.objects.exclude(notes__isnull=True).exclude(notes="").count()
+        + Rewatch.objects.exclude(notes__isnull=True).exclude(notes="").count()
+        + EpisodeNote.objects.exclude(note="").count()
+    )
+
+    return {
+        "stats": {
+            "active_watching_count": active_anime_seasons.count() + active_anime_movies.count(),
+            "active_reading_count": active_books.count(),
+            "total_completed": completed_seasons + completed_movies + completed_books,
+            "total_lessons_count": lessons_count,
+            "rewatches_count": Rewatch.objects.count(),
+            "favorite_characters_count": FavoriteCharacter.objects.count(),
+        },
+        "active_watching": [
+            {
+                "id": s.id,
+                "type": "season",
+                "series_title": s.series.title,
+                "title": s.title,
+                "progress": s.progress,
+                "total_episodes": s.total_episodes,
+                "rating": s.rating,
+            }
+            for s in active_anime_seasons[:10]
+        ] + [
+            {
+                "id": m.id,
+                "type": "movie",
+                "series_title": m.series.title,
+                "title": m.title,
+                "progress_minutes": m.progress_minutes,
+                "total_minutes": m.total_minutes,
+                "rating": m.rating,
+            }
+            for m in active_anime_movies[:10]
+        ],
+        "active_reading": [
+            {
+                "id": b.id,
+                "title": b.title,
+                "author": b.author,
+                "progress": b.progress,
+                "total_pages": b.total_pages,
+                "rating": b.rating,
+            }
+            for b in active_books[:10]
+        ],
+    }
+
+
+@sync_to_async
+def get_series_detail(series_id: int) -> dict[str, Any]:
+    """
+    Get full detailed hierarchy of an anime series by ID, including its seasons,
+    movies, episode notes, rewatches, and favorite characters.
+    """
+    try:
+        series = AnimeSeries.objects.prefetch_related(
+            "genres",
+            "seasons__studios",
+            "seasons__episode_notes",
+            "movies__studios",
+            "favorite_characters",
+        ).get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"error": f"Anime series with ID {series_id} not found."}
+
+    seasons_data = []
+    for s in series.seasons.all():
+        seasons_data.append({
+            "id": s.id,
+            "title": s.title,
+            "season_number": s.season_number,
+            "status": s.status,
+            "progress": s.progress,
+            "total_episodes": s.total_episodes,
+            "rating": s.rating,
+            "notes": s.notes,
+            "studios": [st.name for st in s.studios.all()],
+            "episode_notes": [
+                {
+                    "id": en.id,
+                    "episode_number": en.episode_number,
+                    "episode_title": en.episode_title,
+                    "note": en.note,
+                    "rating": en.rating,
+                }
+                for en in s.episode_notes.all()
+            ],
+        })
+
+    movies_data = [
+        {
+            "id": m.id,
+            "title": m.title,
+            "status": m.status,
+            "progress_minutes": m.progress_minutes,
+            "total_minutes": m.total_minutes,
+            "rating": m.rating,
+            "notes": m.notes,
+            "studios": [st.name for st in m.studios.all()],
+        }
+        for m in series.movies.all()
+    ]
+
+    characters_data = [
+        {"id": c.id, "name": c.name, "why": c.why}
+        for c in series.favorite_characters.all()
+    ]
+
+    return {
+        "id": series.id,
+        "title": series.title,
+        "japanese_title": series.japanese_title,
+        "romaji_title": series.romaji_title,
+        "genres": [g.name for g in series.genres.all()],
+        "seasons": seasons_data,
+        "movies": movies_data,
+        "favorite_characters": characters_data,
+    }
+
+
+@sync_to_async
+def get_book_detail(book_id: int) -> dict[str, Any]:
+    """
+    Get full detail of a book entry by ID.
+    """
+    try:
+        book = Book.objects.prefetch_related("genres").get(pk=book_id)
+    except Book.DoesNotExist:
+        return {"error": f"Book with ID {book_id} not found."}
+
+    return {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "status": book.status,
+        "rating": book.rating,
+        "progress": book.progress,
+        "total_pages": book.total_pages,
+        "start_date": str(book.start_date) if book.start_date else None,
+        "finish_date": str(book.finish_date) if book.finish_date else None,
+        "notes": book.notes,
+        "genres": [g.name for g in book.genres.all()],
+    }
+
+
+@sync_to_async
+def list_genres_and_studios() -> dict[str, Any]:
+    """
+    List all registered genres and anime production studios to help choose standard names.
+    """
+    return {
+        "genres": list(Genre.objects.values_list("name", flat=True)),
+        "studios": list(Studio.objects.values_list("name", flat=True)),
+    }
+
+
+@sync_to_async
+def add_genre(name: str) -> dict[str, Any]:
+    """
+    Create a new Genre tag for anime and books (or retrieve if it already exists).
+
+    Args:
+        name: Name of the genre (e.g. 'Cyberpunk', 'Slice of Life', 'Psychological', 'Philosophy')
+    """
+    clean_name = str(name).strip()
+    if not clean_name:
+        return {"success": False, "error": "Genre name cannot be empty."}
+
+    genre, created = Genre.objects.get_or_create(name=clean_name)
+    action = "Created new" if created else "Found existing"
+    return {
+        "success": True,
+        "message": f"{action} genre '{genre.name}'.",
+        "genre_id": genre.id,
+        "name": genre.name,
+        "created": created,
+    }
+
+
+@sync_to_async
+def add_studio(name: str) -> dict[str, Any]:
+    """
+    Create a new anime production Studio (or retrieve if it already exists).
+
+    Args:
+        name: Name of the studio (e.g. 'Kyoto Animation', 'MAPPA', 'Ufotable', 'Bones', 'CloverWorks')
+    """
+    clean_name = str(name).strip()
+    if not clean_name:
+        return {"success": False, "error": "Studio name cannot be empty."}
+
+    studio, created = Studio.objects.get_or_create(name=clean_name)
+    action = "Created new" if created else "Found existing"
+    return {
+        "success": True,
+        "message": f"{action} studio '{studio.name}'.",
+        "studio_id": studio.id,
+        "name": studio.name,
+        "created": created,
+    }
+
+
+
+# ---------------------------------------------------------------------------
+# 2. Anime & Franchise Creation Tools
+# ---------------------------------------------------------------------------
+
+@sync_to_async
+def log_anime_series(
+    title: str,
+    japanese_title: str | None = None,
+    romaji_title: str | None = None,
+    genres: list[str] | None = None,
+    initial_season_title: str = "Season 1",
+    initial_season_episodes: int | None = None,
+    initial_season_status: str = "PLAN_TO_WATCH",
+    initial_season_rating: int | None = None,
+    initial_season_notes: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Create a new Anime Series franchise and automatically create its initial Season 1.
+
+    Args:
+        title: Title of the anime series (e.g. 'Frieren: Beyond Journey's End')
+        japanese_title: Japanese native title (optional)
+        romaji_title: Romaji title (optional)
+        genres: List of genre names (e.g. ['Fantasy', 'Adventure', 'Drama'])
+        initial_season_title: Title for Season 1 (default: 'Season 1')
+        initial_season_episodes: Total episode count if known (e.g. 28)
+        initial_season_status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        initial_season_rating: Rating 1-10 (optional)
+        initial_season_notes: Personal lesson/reflection/memory note (optional)
+        studios: List of studio names (e.g. ['Madhouse'])
+    """
+    status_val = initial_season_status.upper().strip()
+    if status_val not in AnimeStatus.values:
+        status_val = AnimeStatus.PLAN_TO_WATCH
+
+    with transaction.atomic():
+        series = AnimeSeries.objects.create(
+            title=title.strip(),
+            japanese_title=japanese_title.strip() if japanese_title else None,
+            romaji_title=romaji_title.strip() if romaji_title else None,
+        )
+        if genres:
+            genre_objs = _get_or_create_genres(genres)
+            series.genres.set(genre_objs)
+
+        season = AnimeSeason.objects.create(
+            series=series,
+            title=initial_season_title.strip() or "Season 1",
+            season_number=1,
+            status=status_val,
+            total_episodes=initial_season_episodes,
+            progress=initial_season_episodes if status_val == AnimeStatus.COMPLETED and initial_season_episodes else 0,
+            rating=initial_season_rating,
+            notes=initial_season_notes.strip() if initial_season_notes else None,
+            finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+        )
+        if studios:
+            studio_objs = _get_or_create_studios(studios)
+            season.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Successfully created anime series '{series.title}' with {season.title}.",
+        "series_id": series.id,
+        "season_id": season.id,
+        "status": season.status,
+    }
+
+
+@sync_to_async
+def add_anime_season(
+    series_id: int,
+    title: str,
+    season_number: int,
+    status: str = "PLAN_TO_WATCH",
+    total_episodes: int | None = None,
+    progress: int = 0,
+    rating: int | None = None,
+    notes: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Add a new season (e.g. Season 2, Season 3) to an existing anime series.
+
+    Args:
+        series_id: ID of the parent AnimeSeries
+        title: Season title (e.g. 'Season 2' or 'Entertainment District Arc')
+        season_number: Numeric season number (must be >= 1 and unique within the series)
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_episodes: Total episode count
+        progress: Current episode progress
+        rating: Rating 1-10
+        notes: Personal reflection or lessons
+        studios: Studio names producing this season
+    """
+    try:
+        series = AnimeSeries.objects.get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"success": False, "error": f"Anime series with ID {series_id} does not exist."}
+
+    status_val = status.upper().strip()
+    if status_val not in AnimeStatus.values:
+        status_val = AnimeStatus.PLAN_TO_WATCH
+
+    with transaction.atomic():
+        season = AnimeSeason.objects.create(
+            series=series,
+            title=title.strip(),
+            season_number=season_number,
+            status=status_val,
+            total_episodes=total_episodes,
+            progress=progress,
+            rating=rating,
+            notes=notes.strip() if notes else None,
+            finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+        )
+        if studios:
+            studio_objs = _get_or_create_studios(studios)
+            season.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Added season '{season.title}' (Season {season.season_number}) to series '{series.title}'.",
+        "season_id": season.id,
+        "series_id": series.id,
+    }
+
+
+@sync_to_async
+def add_anime_movie(
+    series_id: int,
+    title: str,
+    status: str = "PLAN_TO_WATCH",
+    total_minutes: int | None = None,
+    progress_minutes: int = 0,
+    rating: int | None = None,
+    notes: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Add an anime movie release to an existing anime series.
+
+    Args:
+        series_id: ID of the parent AnimeSeries
+        title: Movie title (e.g. 'Mugen Train')
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_minutes: Movie runtime in minutes (e.g. 117)
+        progress_minutes: Progress in minutes watched
+        rating: Rating 1-10
+        notes: Personal reflection or lessons
+        studios: Production studios
+    """
+    try:
+        series = AnimeSeries.objects.get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"success": False, "error": f"Anime series with ID {series_id} does not exist."}
+
+    status_val = status.upper().strip()
+    if status_val not in AnimeStatus.values:
+        status_val = AnimeStatus.PLAN_TO_WATCH
+
+    with transaction.atomic():
+        movie = AnimeMovie.objects.create(
+            series=series,
+            title=title.strip(),
+            status=status_val,
+            total_minutes=total_minutes,
+            progress_minutes=progress_minutes,
+            rating=rating,
+            notes=notes.strip() if notes else None,
+            finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+        )
+        if studios:
+            studio_objs = _get_or_create_studios(studios)
+            movie.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Added movie '{movie.title}' to series '{series.title}'.",
+        "movie_id": movie.id,
+        "series_id": series.id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 3. Progress, Updates & Episode Reflections
+# ---------------------------------------------------------------------------
+
+@sync_to_async
+def update_anime_progress(
+    target_type: str,
+    target_id: int,
+    progress: int,
+    status: str | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update watch progress (episodes or minutes), rating, and notes on an anime season or movie.
+    Automatically handles status transitions (e.g. PLAN_TO_WATCH -> WATCHING, or WATCHING -> COMPLETED).
+
+    Args:
+        target_type: 'season' or 'movie'
+        target_id: ID of the season or movie
+        progress: New progress count (episodes for season, minutes for movie)
+        status: Optional explicit status override ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        rating: Optional rating 1-10
+        notes: Optional lesson / reflection notes update
+    """
+    norm_type = target_type.lower().strip()
+    if norm_type == "season":
+        try:
+            item = AnimeSeason.objects.get(pk=target_id)
+        except AnimeSeason.DoesNotExist:
+            return {"success": False, "error": f"Season with ID {target_id} not found."}
+
+        item.progress = progress
+        if status:
+            s_val = status.upper().strip()
+            if s_val in AnimeStatus.values:
+                item.status = s_val
+        else:
+            if item.status == AnimeStatus.PLAN_TO_WATCH and progress > 0:
+                item.status = AnimeStatus.WATCHING
+            if item.total_episodes and progress >= item.total_episodes and item.status == AnimeStatus.WATCHING:
+                item.status = AnimeStatus.COMPLETED
+                if not item.finish_date:
+                    item.finish_date = date.today()
+
+        if rating is not None:
+            item.rating = rating
+        if notes is not None:
+            item.notes = notes.strip()
+        item.save()
+
+        return {
+            "success": True,
+            "message": f"Updated season '{item.title}' progress to {item.progress}/{item.total_episodes or '?'}.",
+            "status": item.status,
+            "progress": item.progress,
+            "rating": item.rating,
+        }
+
+    elif norm_type == "movie":
+        try:
+            movie = AnimeMovie.objects.get(pk=target_id)
+        except AnimeMovie.DoesNotExist:
+            return {"success": False, "error": f"Movie with ID {target_id} not found."}
+
+        movie.progress_minutes = progress
+        if status:
+            s_val = status.upper().strip()
+            if s_val in AnimeStatus.values:
+                movie.status = s_val
+        else:
+            if movie.status == AnimeStatus.PLAN_TO_WATCH and progress > 0:
+                movie.status = AnimeStatus.WATCHING
+            if movie.total_minutes and progress >= movie.total_minutes and movie.status == AnimeStatus.WATCHING:
+                movie.status = AnimeStatus.COMPLETED
+                if not movie.finish_date:
+                    movie.finish_date = date.today()
+
+        if rating is not None:
+            movie.rating = rating
+        if notes is not None:
+            movie.notes = notes.strip()
+        movie.save()
+
+        return {
+            "success": True,
+            "message": f"Updated movie '{movie.title}' progress to {movie.progress_minutes}/{movie.total_minutes or '?'} mins.",
+            "status": movie.status,
+            "progress_minutes": movie.progress_minutes,
+            "rating": movie.rating,
+        }
+    else:
+        return {"success": False, "error": f"Invalid target_type '{target_type}'. Must be 'season' or 'movie'."}
+
+
+@sync_to_async
+def add_episode_note(
+    season_id: int,
+    episode_number: int,
+    note: str,
+    episode_title: str | None = None,
+    rating: int | None = None,
+) -> dict[str, Any]:
+    """
+    Log an episode-specific memory, thought, or reflection.
+
+    Args:
+        season_id: ID of the AnimeSeason
+        episode_number: Episode number (e.g. 10)
+        note: The lesson, memory, or reflection for this specific episode
+        episode_title: Optional episode title
+        rating: Optional episode rating (1-10)
+    """
+    try:
+        season = AnimeSeason.objects.get(pk=season_id)
+    except AnimeSeason.DoesNotExist:
+        return {"success": False, "error": f"Season with ID {season_id} not found."}
+
+    ep_note, created = EpisodeNote.objects.update_or_create(
+        season=season,
+        episode_number=episode_number,
+        defaults={
+            "note": note.strip(),
+            "episode_title": episode_title.strip() if episode_title else None,
+            "rating": rating,
+        },
+    )
+
+    action = "Created" if created else "Updated"
+    return {
+        "success": True,
+        "message": f"{action} episode note for {season.title} Episode {episode_number}.",
+        "episode_note_id": ep_note.id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 4. Rewatches & Favorite Characters
+# ---------------------------------------------------------------------------
+
+@sync_to_async
+def log_rewatch(
+    target_type: str,
+    target_id: int,
+    rating: int | None = None,
+    notes: str | None = None,
+    episode_number: int | None = None,
+    episode_title: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+) -> dict[str, Any]:
+    """
+    Log a rewatch pass for a series, season, movie, or specific episode.
+    Rewatches capture how life lessons deepen over time.
+
+    Args:
+        target_type: 'series', 'season', 'movie', or 'episode'
+        target_id: ID of the series, season, or movie (for 'episode', target_id is the season ID)
+        rating: Optional rewatch rating (1-10)
+        notes: Lessons or new thoughts discovered upon rewatching
+        episode_number: Optional episode number if rewatching a single episode
+        episode_title: Optional episode title
+        start_date: 'YYYY-MM-DD' (defaults to today if finish_date is set or not provided)
+        finish_date: 'YYYY-MM-DD'
+    """
+    norm_type = target_type.lower().strip()
+    target_map = {
+        "series": AnimeSeries,
+        "season": AnimeSeason,
+        "movie": AnimeMovie,
+        "episode": AnimeSeason,
+    }
+    if norm_type not in target_map:
+        return {"success": False, "error": f"Invalid target_type '{target_type}'. Must be series, season, movie, or episode."}
+
+    model_cls = target_map[norm_type]
+    try:
+        target_obj = model_cls.objects.get(pk=target_id)
+    except model_cls.DoesNotExist:
+        return {"success": False, "error": f"{model_cls._meta.verbose_name} with ID {target_id} does not exist."}
+
+    content_type = ContentType.objects.get_for_model(model_cls)
+
+    rewatch = Rewatch.objects.create(
+        content_type=content_type,
+        object_id=target_id,
+        episode_number=episode_number if norm_type == "episode" else None,
+        episode_title=episode_title.strip() if episode_title else None,
+        rating=rating,
+        notes=notes.strip() if notes else None,
+        start_date=start_date or (date.today() if not finish_date else None),
+        finish_date=finish_date,
+    )
+
+    return {
+        "success": True,
+        "message": f"Logged rewatch pass for '{rewatch.release_title}'.",
+        "rewatch_id": rewatch.id,
+    }
+
+
+@sync_to_async
+def add_favorite_character(series_id: int, name: str, why: str) -> dict[str, Any]:
+    """
+    Add a memorable favorite character and the core reason / lesson why they inspired you.
+
+    Args:
+        series_id: ID of the AnimeSeries this character belongs to
+        name: Name of the character (e.g. 'Himmel the Hero')
+        why: The reason / lesson why this character is memorable to you
+    """
+    try:
+        series = AnimeSeries.objects.get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"success": False, "error": f"Series with ID {series_id} not found."}
+
+    char = FavoriteCharacter.objects.create(
+        series=series,
+        name=name.strip(),
+        why=why.strip() if why else None,
+    )
+
+    return {
+        "success": True,
+        "message": f"Added favorite character '{char.name}' for series '{series.title}'.",
+        "character_id": char.id,
+    }
+
+
+@sync_to_async
+def update_anime_series(
+    series_id: int,
+    title: str | None = None,
+    japanese_title: str | None = None,
+    romaji_title: str | None = None,
+    genres: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update metadata and genres for an Anime Series franchise.
+
+    Args:
+        series_id: ID of the AnimeSeries
+        title: Optional new series title
+        japanese_title: Optional Japanese title
+        romaji_title: Optional Romaji title
+        genres: Optional list of genre names to set
+    """
+    try:
+        series = AnimeSeries.objects.get(pk=series_id)
+    except AnimeSeries.DoesNotExist:
+        return {"success": False, "error": f"Anime series with ID {series_id} not found."}
+
+    if title is not None:
+        series.title = title.strip()
+    if japanese_title is not None:
+        series.japanese_title = japanese_title.strip() if japanese_title else None
+    if romaji_title is not None:
+        series.romaji_title = romaji_title.strip() if romaji_title else None
+    series.save()
+
+    if genres is not None:
+        genre_objs = _get_or_create_genres(genres)
+        series.genres.set(genre_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated anime series '{series.title}'.",
+        "series_id": series.id,
+    }
+
+
+@sync_to_async
+def update_anime_season(
+    season_id: int,
+    title: str | None = None,
+    season_number: int | None = None,
+    status: str | None = None,
+    total_episodes: int | None = None,
+    progress: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update any fields on an Anime Season (title, episodes, rating, status, notes, dates, studios).
+
+    Args:
+        season_id: ID of the AnimeSeason
+        title: Season title (e.g. 'Season 2' or 'Swordsmith Village Arc')
+        season_number: Season number
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_episodes: Total episode count
+        progress: Current episode progress
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        studios: Studio names producing this season
+    """
+    try:
+        season = AnimeSeason.objects.get(pk=season_id)
+    except AnimeSeason.DoesNotExist:
+        return {"success": False, "error": f"Season with ID {season_id} not found."}
+
+    if title is not None:
+        season.title = title.strip()
+    if season_number is not None:
+        season.season_number = season_number
+    if total_episodes is not None:
+        season.total_episodes = total_episodes
+    if progress is not None:
+        season.progress = progress
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in AnimeStatus.values:
+            season.status = s_val
+    if rating is not None:
+        season.rating = rating
+    if notes is not None:
+        season.notes = notes.strip() if notes else None
+    if start_date is not None:
+        season.start_date = start_date or None
+    if finish_date is not None:
+        season.finish_date = finish_date or None
+
+    season.save()
+
+    if studios is not None:
+        studio_objs = _get_or_create_studios(studios)
+        season.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated season '{season.title}' (ID: {season.id}).",
+        "season_id": season.id,
+        "status": season.status,
+        "progress": season.progress,
+    }
+
+
+@sync_to_async
+def update_anime_movie(
+    movie_id: int,
+    title: str | None = None,
+    status: str | None = None,
+    total_minutes: int | None = None,
+    progress_minutes: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    studios: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update any fields on an Anime Movie release.
+
+    Args:
+        movie_id: ID of the AnimeMovie
+        title: Movie title
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        total_minutes: Movie runtime in minutes
+        progress_minutes: Current progress in minutes
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        studios: Production studios
+    """
+    try:
+        movie = AnimeMovie.objects.get(pk=movie_id)
+    except AnimeMovie.DoesNotExist:
+        return {"success": False, "error": f"Movie with ID {movie_id} not found."}
+
+    if title is not None:
+        movie.title = title.strip()
+    if total_minutes is not None:
+        movie.total_minutes = total_minutes
+    if progress_minutes is not None:
+        movie.progress_minutes = progress_minutes
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in AnimeStatus.values:
+            movie.status = s_val
+    if rating is not None:
+        movie.rating = rating
+    if notes is not None:
+        movie.notes = notes.strip() if notes else None
+    if start_date is not None:
+        movie.start_date = start_date or None
+    if finish_date is not None:
+        movie.finish_date = finish_date or None
+
+    movie.save()
+
+    if studios is not None:
+        studio_objs = _get_or_create_studios(studios)
+        movie.studios.set(studio_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated movie '{movie.title}' (ID: {movie.id}).",
+        "movie_id": movie.id,
+        "status": movie.status,
+    }
+
+
+@sync_to_async
+def update_rewatch(
+    rewatch_id: int,
+    rating: int | None = None,
+    notes: str | None = None,
+    episode_number: int | None = None,
+    episode_title: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update rating, reflection notes, episode details, or dates on an existing Rewatch record.
+
+    Args:
+        rewatch_id: ID of the Rewatch entry
+        rating: Optional rating 1-10
+        notes: Lessons or reflections
+        episode_number: Optional episode number
+        episode_title: Optional episode title
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+    """
+    try:
+        rewatch = Rewatch.objects.get(pk=rewatch_id)
+    except Rewatch.DoesNotExist:
+        return {"success": False, "error": f"Rewatch with ID {rewatch_id} not found."}
+
+    if rating is not None:
+        rewatch.rating = rating
+    if notes is not None:
+        rewatch.notes = notes.strip() if notes else None
+    if episode_number is not None:
+        rewatch.episode_number = episode_number
+    if episode_title is not None:
+        rewatch.episode_title = episode_title.strip() if episode_title else None
+    if start_date is not None:
+        rewatch.start_date = start_date or None
+    if finish_date is not None:
+        rewatch.finish_date = finish_date or None
+
+    rewatch.save()
+
+    return {
+        "success": True,
+        "message": f"Updated rewatch for '{rewatch.release_title}'.",
+        "rewatch_id": rewatch.id,
+        "rating": rewatch.rating,
+    }
+
+
+@sync_to_async
+def update_favorite_character(
+    character_id: int,
+    name: str | None = None,
+    why: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update the name or the reason / life lesson why a character is meaningful to you.
+
+    Args:
+        character_id: ID of the FavoriteCharacter
+        name: Optional character name
+        why: Optional reason / lesson
+    """
+    try:
+        char = FavoriteCharacter.objects.get(pk=character_id)
+    except FavoriteCharacter.DoesNotExist:
+        return {"success": False, "error": f"Favorite character with ID {character_id} not found."}
+
+    if name is not None:
+        char.name = name.strip()
+    if why is not None:
+        char.why = why.strip() if why else None
+
+    char.save()
+
+    return {
+        "success": True,
+        "message": f"Updated favorite character '{char.name}'.",
+        "character_id": char.id,
+    }
+
+
+
+# ---------------------------------------------------------------------------
+# 5. Book Journaling Tools
+# ---------------------------------------------------------------------------
+
+@sync_to_async
+def log_book(
+    title: str,
+    author: str | None = None,
+    status: str = "PLAN_TO_READ",
+    total_pages: int | None = None,
+    progress: int = 0,
+    rating: int | None = None,
+    notes: str | None = None,
+    genres: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Log a new book in your reading journal.
+
+    Args:
+        title: Title of the book
+        author: Author of the book
+        status: Status ('READING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_READ')
+        total_pages: Total page count
+        progress: Current page progress
+        rating: Rating 1-10
+        notes: Personal reflections, quotes, or key takeaways
+        genres: Genre tags
+    """
+    status_val = status.upper().strip()
+    if status_val not in BookStatus.values:
+        status_val = BookStatus.PLAN_TO_READ
+
+    with transaction.atomic():
+        book = Book.objects.create(
+            title=title.strip(),
+            author=author.strip() if author else None,
+            status=status_val,
+            total_pages=total_pages,
+            progress=progress,
+            rating=rating,
+            notes=notes.strip() if notes else None,
+            finish_date=date.today() if status_val == BookStatus.COMPLETED else None,
+        )
+        if genres:
+            genre_objs = _get_or_create_genres(genres)
+            book.genres.set(genre_objs)
+
+    return {
+        "success": True,
+        "message": f"Logged book '{book.title}' by {book.author or 'Unknown'}.",
+        "book_id": book.id,
+        "status": book.status,
+    }
+
+
+@sync_to_async
+def update_book_progress(
+    book_id: int,
+    progress: int,
+    status: str | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """
+    Update reading progress, status, rating, or lesson notes on a book.
+
+    Args:
+        book_id: ID of the Book
+        progress: Current page / chapter progress
+        status: Optional explicit status ('READING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_READ')
+        rating: Optional rating 1-10
+        notes: Optional reflection / notes update
+    """
+    try:
+        book = Book.objects.get(pk=book_id)
+    except Book.DoesNotExist:
+        return {"success": False, "error": f"Book with ID {book_id} not found."}
+
+    book.progress = progress
+    if status:
+        s_val = status.upper().strip()
+        if s_val in BookStatus.values:
+            book.status = s_val
+    else:
+        if book.status == BookStatus.PLAN_TO_READ and progress > 0:
+            book.status = BookStatus.READING
+        if book.total_pages and progress >= book.total_pages and book.status == BookStatus.READING:
+            book.status = BookStatus.COMPLETED
+            if not book.finish_date:
+                book.finish_date = date.today()
+
+    if rating is not None:
+        book.rating = rating
+    if notes is not None:
+        book.notes = notes.strip()
+    book.save()
+
+    return {
+        "success": True,
+        "message": f"Updated book '{book.title}' progress to {book.progress}/{book.total_pages or '?'}.",
+        "status": book.status,
+        "progress": book.progress,
+        "rating": book.rating,
+    }
+
+
+@sync_to_async
+def update_book(
+    book_id: int,
+    title: str | None = None,
+    author: str | None = None,
+    status: str | None = None,
+    total_pages: int | None = None,
+    progress: int | None = None,
+    rating: int | None = None,
+    notes: str | None = None,
+    start_date: str | None = None,
+    finish_date: str | None = None,
+    genres: list[str] | None = None,
+) -> dict[str, Any]:
+    """
+    Update details, metadata, status, rating, or reflections on a book.
+
+    Args:
+        book_id: ID of the Book
+        title: Optional new title
+        author: Optional author name
+        status: Status ('READING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_READ')
+        total_pages: Total page count
+        progress: Current page count
+        rating: Rating 1-10
+        notes: Personal reflection or lesson notes
+        start_date: 'YYYY-MM-DD'
+        finish_date: 'YYYY-MM-DD'
+        genres: Genre tags
+    """
+    try:
+        book = Book.objects.get(pk=book_id)
+    except Book.DoesNotExist:
+        return {"success": False, "error": f"Book with ID {book_id} not found."}
+
+    if title is not None:
+        book.title = title.strip()
+    if author is not None:
+        book.author = author.strip() if author else None
+    if total_pages is not None:
+        book.total_pages = total_pages
+    if progress is not None:
+        book.progress = progress
+    if status is not None:
+        s_val = status.upper().strip()
+        if s_val in BookStatus.values:
+            book.status = s_val
+    if rating is not None:
+        book.rating = rating
+    if notes is not None:
+        book.notes = notes.strip() if notes else None
+    if start_date is not None:
+        book.start_date = start_date or None
+    if finish_date is not None:
+        book.finish_date = finish_date or None
+
+    book.save()
+
+    if genres is not None:
+        genre_objs = _get_or_create_genres(genres)
+        book.genres.set(genre_objs)
+
+    return {
+        "success": True,
+        "message": f"Updated book '{book.title}'.",
+        "book_id": book.id,
+        "status": book.status,
+    }
+
+
+@sync_to_async
+def delete_journal_entry(target_type: str, target_id: int) -> dict[str, Any]:
+    """
+    Delete an entry from your journal by type and ID.
+    Supports: series, season, movie, episode_note, rewatch, character, book.
+
+    Args:
+        target_type: One of 'series', 'season', 'movie', 'episode_note', 'rewatch', 'character', 'book'
+        target_id: ID of the record to delete
+    """
+    norm_type = target_type.lower().strip()
+    type_map = {
+        "series": AnimeSeries,
+        "season": AnimeSeason,
+        "movie": AnimeMovie,
+        "episode_note": EpisodeNote,
+        "rewatch": Rewatch,
+        "character": FavoriteCharacter,
+        "book": Book,
+    }
+    if norm_type not in type_map:
+        return {
+            "success": False,
+            "error": f"Invalid target_type '{target_type}'. Must be one of: {', '.join(type_map.keys())}.",
+        }
+
+    model_cls = type_map[norm_type]
+    try:
+        obj = model_cls.objects.get(pk=target_id)
+        name = str(obj)
+        obj.delete()
+        return {
+            "success": True,
+            "message": f"Successfully deleted {norm_type} '{name}' (ID: {target_id}).",
+        }
+    except model_cls.DoesNotExist:
+        return {
+            "success": False,
+            "error": f"{norm_type} with ID {target_id} not found.",
+        }
+
+
+@sync_to_async
+def lookup_external_metadata(query: str, media_type: str = "anime") -> list[dict[str, Any]]:
+    """
+    Look up external metadata from MyAnimeList (via Jikan) or OpenLibrary without leaving the agent.
+
+    Args:
+        query: Search term (e.g. 'Frieren', 'Steins;Gate', 'Marcus Aurelius')
+        media_type: 'anime', 'character', or 'book'
+    """
+    from animeLog.services.metadata_lookup import (
+        search_anime_metadata,
+        search_book_metadata,
+        search_character_metadata,
+    )
+
+    m_norm = media_type.lower().strip()
+    if m_norm == "anime":
+        return search_anime_metadata(query)
+    elif m_norm == "character":
+        return search_character_metadata(query)
+    elif m_norm == "book":
+        return search_book_metadata(query)
+    return []
+
+
+@sync_to_async
+def smart_log_anime(
+    query: str,
+    status: str = "WATCHING",
+    rating: int | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """
+    Search MyAnimeList via Jikan, fetch official metadata, download the high-res poster artwork,
+    and create the anime franchise with Season 1 in a single call.
+
+    Args:
+        query: Anime title to look up on MyAnimeList (e.g. 'Frieren', 'Vinland Saga')
+        status: Status ('WATCHING', 'COMPLETED', 'ON_HOLD', 'DROPPED', 'PLAN_TO_WATCH')
+        rating: Optional rating score 1-10
+        notes: Personal reflection, memory, or life lesson
+    """
+    from animeLog.services.metadata_lookup import import_remote_image, search_anime_metadata
+
+    matches = search_anime_metadata(query, limit=1)
+    if not matches:
+        return {"success": False, "error": f"No anime matches found on MyAnimeList for '{query}'."}
+
+    match = matches[0]
+    cover_image_obj = None
+    if match.get("cover_url"):
+        try:
+            cover_image_obj = import_remote_image(
+                url=match["cover_url"],
+                title=match["title"],
+                folder_name="Anime Covers",
+            )
+        except Exception:
+            pass
+
+    status_val = status.upper().strip()
+    if status_val not in AnimeStatus.values:
+        status_val = AnimeStatus.WATCHING
+
+    with transaction.atomic():
+        series = AnimeSeries.objects.create(
+            title=match["title"],
+            japanese_title=match.get("japanese_title"),
+            romaji_title=match.get("romaji_title"),
+            cover_image=cover_image_obj,
+        )
+        if match.get("genres"):
+            genres = _get_or_create_genres(match["genres"])
+            series.genres.set(genres)
+
+        if match.get("media_type") == "movie":
+            movie = AnimeMovie.objects.create(
+                series=series,
+                title=match["title"],
+                cover_image=cover_image_obj,
+                status=status_val,
+                total_minutes=match.get("total_minutes"),
+                progress_minutes=match.get("total_minutes") if status_val == AnimeStatus.COMPLETED and match.get("total_minutes") else 0,
+                rating=rating or (int(round(match["score"])) if match.get("score") else None),
+                notes=notes.strip() if notes else match.get("synopsis"),
+                finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+            )
+            if match.get("studios"):
+                studios = _get_or_create_studios(match["studios"])
+                movie.studios.set(studios)
+            release_id = movie.id
+            release_type = "movie"
+        else:
+            season = AnimeSeason.objects.create(
+                series=series,
+                title="Season 1",
+                season_number=1,
+                cover_image=cover_image_obj,
+                status=status_val,
+                total_episodes=match.get("total_episodes"),
+                progress=match.get("total_episodes") if status_val == AnimeStatus.COMPLETED and match.get("total_episodes") else 0,
+                rating=rating or (int(round(match["score"])) if match.get("score") else None),
+                notes=notes.strip() if notes else match.get("synopsis"),
+                finish_date=date.today() if status_val == AnimeStatus.COMPLETED else None,
+            )
+            if match.get("studios"):
+                studios = _get_or_create_studios(match["studios"])
+                season.studios.set(studios)
+            release_id = season.id
+            release_type = "season"
+
+    return {
+        "success": True,
+        "message": f"Successfully auto-logged '{series.title}' from MyAnimeList with cover artwork.",
+        "series_id": series.id,
+        "release_type": release_type,
+        "release_id": release_id,
+        "status": status_val,
+    }
+
+
+@sync_to_async
+def get_taste_and_lessons_synthesis() -> dict[str, Any]:
+    """
+    Synthesize user's taste profile, studio affinities, top genres, rating distribution,
+    and all philosophical reflection notes across anime and literature.
+    """
+    from django.db.models import Avg, Count, F
+
+    top_genres = list(
+        Genre.objects.annotate(
+            anime_count=Count("anime_series", distinct=True),
+            book_count=Count("books", distinct=True),
+        )
+        .annotate(total_usage=F("anime_count") + F("book_count"))
+        .order_by("-total_usage")[:8]
+        .values("name", "anime_count", "book_count")
+    )
+
+    top_studios = list(
+        Studio.objects.annotate(
+            season_count=Count("anime_seasons", distinct=True),
+            movie_count=Count("anime_movies", distinct=True),
+        )
+        .annotate(total_usage=F("season_count") + F("movie_count"))
+        .order_by("-total_usage")[:6]
+        .values("name", "season_count", "movie_count")
+    )
+
+    avg_season_rating = AnimeSeason.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+    avg_book_rating = Book.objects.filter(rating__isnull=False).aggregate(Avg("rating"))["rating__avg"]
+
+    all_lessons = []
+    for s in AnimeSeason.objects.exclude(notes__isnull=True).exclude(notes="").select_related("series"):
+        all_lessons.append({"source": f"{s.series.title} - {s.title}", "rating": s.rating, "takeaway": s.notes})
+    for m in AnimeMovie.objects.exclude(notes__isnull=True).exclude(notes="").select_related("series"):
+        all_lessons.append({"source": f"{m.series.title} - Film", "rating": m.rating, "takeaway": m.notes})
+    for en in EpisodeNote.objects.exclude(note="").select_related("season__series"):
+        all_lessons.append({
+            "source": f"{en.season.series.title} S{en.season.season_number} Ep {en.episode_number}",
+            "rating": en.rating,
+            "takeaway": en.note,
+        })
+    for b in Book.objects.exclude(notes__isnull=True).exclude(notes=""):
+        all_lessons.append({"source": f"Book: {b.title} by {b.author or 'Unknown'}", "rating": b.rating, "takeaway": b.notes})
+    for r in Rewatch.objects.exclude(notes__isnull=True).exclude(notes=""):
+        all_lessons.append({"source": f"Rewatch: {r.release_title}", "rating": r.rating, "takeaway": r.notes})
+    for c in FavoriteCharacter.objects.exclude(why__isnull=True).exclude(why="").select_related("series"):
+        all_lessons.append({"source": f"Character: {c.name} ({c.series_title})", "takeaway": c.why})
+
+    return {
+        "taste_profile": {
+            "top_genres": top_genres,
+            "top_studios": top_studios,
+            "average_season_rating": round(avg_season_rating, 2) if avg_season_rating else None,
+            "average_book_rating": round(avg_book_rating, 2) if avg_book_rating else None,
+            "total_titles": AnimeSeries.objects.count() + Book.objects.count(),
+            "total_rewatch_passes": Rewatch.objects.count(),
+            "total_characters_kept": FavoriteCharacter.objects.count(),
+        },
+        "lessons_count": len(all_lessons),
+        "lessons": all_lessons,
+    }
+
+
+@sync_to_async
+def export_journal_markdown() -> str:
+    """
+    Generate an Obsidian-ready Markdown export of the entire journal with YAML frontmatter.
+    """
+    from animeLog.services.export import generate_journal_markdown
+
+    return generate_journal_markdown()

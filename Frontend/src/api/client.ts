@@ -10,6 +10,7 @@ import {
   ImageAsset,
   JournalStats,
   Rewatch,
+  RewatchTargetType,
   Studio,
 } from '../types';
 
@@ -144,6 +145,13 @@ export const imageApi = {
       method: 'DELETE',
     });
   },
+
+  async importUrl(url: string, title?: string, folder?: string): Promise<ImageAsset> {
+    return fetchJson<ImageAsset>(`${API_BASE}/images/import-url/`, {
+      method: 'POST',
+      body: JSON.stringify({ url, title, folder }),
+    });
+  },
 };
 
 export const seriesApi = {
@@ -157,6 +165,8 @@ export const seriesApi = {
 
   async create(data: {
     title: string;
+    japanese_title?: string | null;
+    romaji_title?: string | null;
     cover_image?: number | null;
     genres?: number[] | Genre[];
     initial_season?: any;
@@ -386,13 +396,27 @@ export const bookApi = {
 };
 
 export const rewatchApi = {
-  async list(params?: { series?: number; season?: number; movie?: number }): Promise<Rewatch[]> {
+  async list(params?: {
+    series?: number;
+    season?: number;
+    movie?: number;
+    episode?: number;
+    target_type?: string;
+    target_id?: number;
+    search?: string;
+  }): Promise<Rewatch[]> {
     return fetchJson<Rewatch[]>(`${API_BASE}/rewatches/${withQuery(params)}`);
   },
 
   async create(data: {
+    target_type?: RewatchTargetType;
+    target_id?: number;
+    episode_number?: number | null;
+    episode_title?: string | null;
     season?: number | null;
     movie?: number | null;
+    series?: number | null;
+    episode?: number | null;
     start_date?: string | null;
     finish_date?: string | null;
     rating?: number | null;
@@ -400,6 +424,29 @@ export const rewatchApi = {
   }): Promise<Rewatch> {
     return fetchJson<Rewatch>(`${API_BASE}/rewatches/`, {
       method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async update(
+    id: number,
+    data: Partial<{
+      target_type?: RewatchTargetType;
+      target_id?: number;
+      episode_number?: number | null;
+      episode_title?: string | null;
+      season?: number | null;
+      movie?: number | null;
+      series?: number | null;
+      episode?: number | null;
+      start_date?: string | null;
+      finish_date?: string | null;
+      rating?: number | null;
+      notes?: string | null;
+    }>
+  ): Promise<Rewatch> {
+    return fetchJson<Rewatch>(`${API_BASE}/rewatches/${id}/`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -420,6 +467,7 @@ export const characterApi = {
     series: number;
     name: string;
     why?: string | null;
+    cover_image?: number | null;
     images?: number[];
   }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/`, {
@@ -428,7 +476,7 @@ export const characterApi = {
     });
   },
 
-  async update(id: number, data: Partial<FavoriteCharacter> & { images?: number[] }): Promise<FavoriteCharacter> {
+  async update(id: number, data: Partial<FavoriteCharacter> & { cover_image?: number | null; images?: number[] }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -459,3 +507,88 @@ export const statsApi = {
     return fetchJson<JournalStats>(`${API_BASE}/stats/`);
   },
 };
+
+export interface ExternalAnimeLookupResult {
+  source: 'mal';
+  source_id: number;
+  title: string;
+  japanese_title?: string | null;
+  romaji_title?: string | null;
+  media_type: 'season' | 'movie';
+  format?: string;
+  total_episodes?: number | null;
+  total_minutes?: number | null;
+  score?: number | null;
+  status?: string | null;
+  synopsis?: string;
+  studios: string[];
+  genres: string[];
+  cover_url?: string;
+}
+
+export interface ExternalCharacterLookupResult {
+  source: 'mal';
+  source_id: number;
+  name: string;
+  name_kanji?: string | null;
+  about?: string;
+  portrait_url?: string;
+}
+
+export interface ExternalBookLookupResult {
+  source: 'openlibrary';
+  key?: string;
+  title: string;
+  author?: string | null;
+  total_pages?: number | null;
+  genres: string[];
+  first_publish_year?: number | null;
+  cover_url?: string;
+}
+
+export const lookupApi = {
+  async searchAnime(query: string): Promise<ExternalAnimeLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalAnimeLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'anime', q: query })}`
+    );
+    return res.results || [];
+  },
+  async searchCharacter(query: string): Promise<ExternalCharacterLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalCharacterLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'character', q: query })}`
+    );
+    return res.results || [];
+  },
+  async searchBook(query: string): Promise<ExternalBookLookupResult[]> {
+    const res = await fetchJson<{ results: ExternalBookLookupResult[] }>(
+      `${API_BASE}/lookup/${withQuery({ type: 'book', q: query })}`
+    );
+    return res.results || [];
+  },
+};
+
+export const exportApi = {
+  async exportJson(): Promise<any> {
+    return fetchJson<any>(`${API_BASE}/export/?export_format=json`);
+  },
+  async exportMarkdown(): Promise<{ content: string; format: string }> {
+    return fetchJson<{ content: string; format: string }>(`${API_BASE}/export/?export_format=markdown`);
+  },
+};
+
+export const importApi = {
+  async importMal(username: string, limit: number = 50): Promise<{ success: boolean; username: string; total_processed: number; imported_count: number; updated_count: number }> {
+    return fetchJson<{ success: boolean; username: string; total_processed: number; imported_count: number; updated_count: number }>(`${API_BASE}/import/mal/`, {
+      method: 'POST',
+      body: JSON.stringify({ username, limit }),
+    });
+  },
+  async importJson(data: any): Promise<{ success: boolean; imported: { series: number; books: number; characters: number; rewatches: number } }> {
+    return fetchJson<{ success: boolean; imported: { series: number; books: number; characters: number; rewatches: number } }>(`${API_BASE}/import/json/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+

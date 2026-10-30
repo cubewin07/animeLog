@@ -1,113 +1,246 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { Sparkles, Trash2, Film, Heart } from 'lucide-react';
+import { Sparkles, Trash2, PenLine, Image as ImageIcon, BookOpen } from 'lucide-react';
 
 interface CharacterCardProps {
   character: FavoriteCharacter;
-  onDelete: (id: number) => void;
+  onClick?: (character: FavoriteCharacter) => void;
+  onEdit?: (character: FavoriteCharacter) => void;
+  onDelete?: (id: number) => void;
 }
 
-export const CharacterCard: React.FC<CharacterCardProps> = ({ character, onDelete }) => {
+export const CharacterCard: React.FC<CharacterCardProps> = ({
+  character,
+  onClick,
+  onEdit,
+  onDelete,
+}) => {
+  const charImg =
+    character.cover_image_url ||
+    character.image_url ||
+    (character.images && character.images.length > 0
+      ? (character.images[0] as any).image_url || (character.images[0] as any).url
+      : null);
+
+  const imagesCount = character.images ? character.images.length : 0;
+  const hasReflection = Boolean(character.why && character.why.trim().length > 0);
+
   return (
     <div
-      className="glass-card"
+      className="desk-card character-card"
+      onClick={() => onClick?.(character)}
       style={{
-        padding: '20px',
+        position: 'relative',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
-        borderLeft: '4px solid var(--color-accent-emerald)',
+        alignItems: 'center',
+        textAlign: 'center',
+        padding: '28px 20px 20px 20px',
+        cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease',
+      }}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick(character);
+        }
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {(() => {
-            const charImg = (character.images && character.images.length > 0) ? character.images[0].url : character.image_url;
-            if (charImg) {
-              return (
-                <img
-                  src={charImg}
-                  alt={character.name}
-                  style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '10px',
-                    objectFit: 'cover',
-                    border: '1px solid rgba(78, 222, 163, 0.4)',
-                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-                  }}
-                />
-              );
-            }
-            return (
-              <div
-                style={{
-                  padding: '10px',
-                  borderRadius: '10px',
-                  background: 'rgba(78, 222, 163, 0.12)',
-                  color: 'var(--color-accent-emerald)',
-                }}
-              >
-                <Heart size={20} />
-              </div>
-            );
-          })()}
-          <div>
-            <h3 style={{ fontSize: '17px', color: '#ffffff' }}>{character.name}</h3>
-            {character.series_title && (
-              <span
-                style={{
-                  fontSize: '12px',
-                  color: 'var(--text-muted)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  marginTop: '2px',
-                }}
-              >
-                <Film size={12} /> {character.series_title}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <button
-          className="btn-icon"
-          onClick={() => onDelete(character.id)}
-          title="Remove from favorites"
-          style={{ color: '#fb7185' }}
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
-
+      {/* Top-Right Floating Actions */}
       <div
         style={{
-          background: 'rgba(13, 28, 45, 0.8)',
-          padding: '12px 14px',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid var(--border-subtle)',
+          position: 'absolute',
+          top: 12,
+          right: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          zIndex: 2,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {onEdit && (
+          <button
+            type="button"
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(character);
+            }}
+            title={`Edit reflection for ${character.name}`}
+            aria-label={`Edit ${character.name}`}
+          >
+            <PenLine size={14} />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            type="button"
+            className="btn-icon danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(character.id);
+            }}
+            title={`Remove ${character.name}`}
+            aria-label={`Delete ${character.name}`}
+          >
+            <Trash2 size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Prominent Large Circular Avatar (168x168px) */}
+      <div
+        style={{
+          position: 'relative',
+          width: 168,
+          height: 168,
+          borderRadius: '50%',
+          backgroundColor: 'var(--desk-surface)',
+          padding: 4,
+          boxShadow: '0 0 0 5px var(--desk-surface), var(--shadow-paper), 0 10px 32px rgba(0, 0, 0, 0.45)',
+          border: '3px solid var(--border-desk-medium)',
+          flexShrink: 0,
+          overflow: 'hidden',
+          marginBottom: 18,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-          <Sparkles size={13} color="var(--color-accent-emerald)" />
-          <span
+        {charImg ? (
+          <img
+            src={charImg}
+            alt={character.name}
             style={{
-              fontSize: '11px',
-              fontFamily: 'var(--font-mono)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              fontWeight: 600,
-              color: 'var(--color-accent-emerald)',
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              display: 'block',
+              transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            width={168}
+            height={168}
+            loading="lazy"
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--graphite)',
             }}
           >
-            Why Worth Remembering
+            <Sparkles size={48} />
+          </div>
+        )}
+      </div>
+
+      {/* Series Eyebrow */}
+      {character.series_title && (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11.5,
+            fontWeight: 700,
+            textTransform: 'uppercase',
+            letterSpacing: '0.08em',
+            color: 'var(--text-desk-muted)',
+            marginTop: 0,
+            lineHeight: 1.3,
+            display: 'block',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={character.series_title}
+        >
+          {character.series_title}
+        </span>
+      )}
+
+      {/* Character Name */}
+      <h3
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: 24,
+          fontWeight: 700,
+          color: 'var(--text-desk)',
+          marginTop: character.series_title ? 4 : 0,
+          marginBottom: 0,
+          lineHeight: 1.25,
+          letterSpacing: '-0.01em',
+        }}
+      >
+        {character.name}
+      </h3>
+
+      {/* Subtle Metadata Pill Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: '1px solid var(--border-desk-subtle)',
+          width: '100%',
+        }}
+      >
+        {hasReflection ? (
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--ember-text, #F0B27A)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontWeight: 600,
+            }}
+            title="Character reflection recorded"
+          >
+            <BookOpen size={12} /> Reflection
           </span>
-        </div>
-        <p style={{ fontSize: '13px', color: '#d4e4fa', lineHeight: '1.6', fontStyle: 'italic' }}>
-          "{character.why || 'A character that made a lasting impression.'}"
-        </p>
+        ) : (
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: 'var(--font-mono)',
+              color: 'var(--text-desk-muted)',
+              fontStyle: 'italic',
+            }}
+          >
+            No reflection
+          </span>
+        )}
+
+        {imagesCount > 1 && (
+          <>
+            <span style={{ color: 'var(--border-desk-subtle)', fontSize: 10 }}>•</span>
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--text-desk-muted)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+              title={`${imagesCount} stills in gallery`}
+            >
+              <ImageIcon size={12} /> {imagesCount} stills
+            </span>
+          </>
+        )}
       </div>
     </div>
   );
 };
+

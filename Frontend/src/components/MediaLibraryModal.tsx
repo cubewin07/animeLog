@@ -15,6 +15,9 @@ import {
   FolderPlus,
   CheckCircle2,
 } from 'lucide-react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
+import { EASING, prefersReducedMotion } from '../utils/animations';
 
 interface MediaLibraryModalProps {
   isOpen: boolean;
@@ -37,15 +40,17 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
   const [uploading, setUploading] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
 
-  // New folder dialog state
+  // New folder state
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderSubmitting, setFolderSubmitting] = useState(false);
 
   // Upload inputs
-  const [imageTitle, setImageTitle] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   const loadMedia = async () => {
     try {
@@ -63,7 +68,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
       setFolders(foldersList);
       setImages(imagesList);
     } catch (err) {
-      console.error('Failed to load media library:', err);
+      console.error('Failed to load media assets:', err);
     } finally {
       setLoading(false);
     }
@@ -74,6 +79,23 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
       loadMedia();
     }
   }, [isOpen, activeFolderId]);
+
+  useGSAP(
+    () => {
+      if (!isOpen || prefersReducedMotion()) return;
+      if (overlayRef.current) {
+        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
+      }
+      if (modalRef.current) {
+        gsap.fromTo(
+          modalRef.current,
+          { opacity: 0, scale: 0.96, y: 12 },
+          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
+        );
+      }
+    },
+    { dependencies: [isOpen] }
+  );
 
   if (!isOpen) return null;
 
@@ -90,7 +112,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
       setShowNewFolder(false);
       await loadMedia();
     } catch (err) {
-      console.error('Error creating folder:', err);
+      console.error('Failed to create folder:', err);
+      alert('Failed to create folder');
     } finally {
       setFolderSubmitting(false);
     }
@@ -106,37 +129,33 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
 
         await imageApi.upload(file, {
           folder: folderVal,
-          title: imageTitle.trim() || file.name.replace(/\.[^/.]+$/, ''),
+          title: file.name.replace(/\.[^/.]+$/, ''),
         });
       }
-      setImageTitle('');
-      if (fileInputRef.current) fileInputRef.current.value = '';
       await loadMedia();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Upload failed:', err);
-      alert('Upload failed. Please verify Cloudinary credentials and network connection.');
+      alert(`Upload failed: ${err.message || 'Check Cloudinary credentials.'}`);
     } finally {
       setUploading(false);
     }
   };
 
-  const handleDeleteImage = async (e: React.MouseEvent, id: number) => {
+  const handleCopyUrl = (e: React.MouseEvent, image: ImageAsset) => {
     e.stopPropagation();
-    if (!window.confirm('Delete this image from Cloudinary & library?')) return;
-    try {
-      await imageApi.delete(id);
-      setImages((prev) => prev.filter((img) => img.id !== id));
-    } catch (err) {
-      console.error('Failed to delete image:', err);
-    }
+    navigator.clipboard.writeText(image.url);
+    setCopiedId(image.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleCopyUrl = (e: React.MouseEvent, img: ImageAsset) => {
+  const handleDeleteImage = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
-    if (img.url) {
-      navigator.clipboard.writeText(img.url);
-      setCopiedId(img.id);
-      setTimeout(() => setCopiedId(null), 2000);
+    if (!window.confirm('Are you sure you want to delete this image?')) return;
+    try {
+      await imageApi.delete(id);
+      await loadMedia();
+    } catch (err) {
+      console.error('Failed to delete image:', err);
     }
   };
 
@@ -151,9 +170,10 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
   });
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" ref={overlayRef} onClick={onClose}>
       <div
         className="modal-container"
+        ref={modalRef}
         onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '1000px',
@@ -163,18 +183,18 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
           flexDirection: 'column',
           padding: '0',
           overflow: 'hidden',
-          background: 'linear-gradient(180deg, #091728 0%, #05101e 100%)',
+          backgroundColor: 'var(--desk-raised)',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: '18px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
+            borderBottom: '1px solid var(--border-desk-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'rgba(10, 24, 42, 0.9)',
+            backgroundColor: 'var(--desk-surface)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -182,9 +202,9 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
               style={{
                 width: '32px',
                 height: '32px',
-                borderRadius: '8px',
-                background: 'rgba(99, 102, 241, 0.15)',
-                color: 'var(--color-primary)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--desk-surface-high)',
+                color: 'var(--text-desk)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -193,32 +213,32 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
               <ImageIcon size={18} />
             </div>
             <div>
-              <h2 style={{ fontSize: '18px', color: '#ffffff', fontWeight: 700 }}>
+              <h2 style={{ fontSize: '18px', color: 'var(--text-desk)', fontWeight: 700 }}>
                 {onSelectImage ? 'Choose Cover Image' : 'Cloudinary Media Library'}
               </h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-desk-muted)' }}>
                 Upload and manage image assets directly stored on Cloudinary
               </p>
             </div>
           </div>
 
-          <button className="btn-icon" onClick={onClose}>
-            <X size={18} />
+          <button className="btn-icon" onClick={onClose} aria-label="Close modal">
+            <X size={16} />
           </button>
         </div>
 
-        {/* Content Layout: Left Folders Sidebar + Right Assets Grid */}
+        {/* Modal Body: Sidebar + Main Grid */}
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-          {/* Sidebar */}
+          {/* Sidebar: Folders */}
           <div
             style={{
-              width: '240px',
-              borderRight: '1px solid var(--border-subtle)',
+              width: '230px',
+              borderRight: '1px solid var(--border-desk-subtle)',
               padding: '16px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              background: 'rgba(5, 16, 28, 0.7)',
+              backgroundColor: 'var(--desk)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -227,51 +247,41 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   fontSize: '11px',
                   fontFamily: 'var(--font-mono)',
                   fontWeight: 700,
+                  color: 'var(--text-desk-dim)',
                   textTransform: 'uppercase',
-                  color: 'var(--text-dim)',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.04em',
                 }}
               >
                 Folders
               </span>
               <button
-                className="btn btn-ghost"
-                style={{ padding: '2px 6px', fontSize: '11px', color: 'var(--color-primary)' }}
-                onClick={() => setShowNewFolder(true)}
+                type="button"
+                className="btn-icon"
+                onClick={() => setShowNewFolder(!showNewFolder)}
                 title="Create Folder"
+                style={{ width: '24px', height: '24px', padding: '0' }}
               >
-                <FolderPlus size={13} /> + New
+                <FolderPlus size={13} />
               </button>
             </div>
 
-            {/* New Folder Form Dialog */}
+            {/* Inline New Folder Form */}
             {showNewFolder && (
-              <form
-                onSubmit={handleCreateFolder}
-                style={{
-                  padding: '10px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'rgba(99, 102, 241, 0.1)',
-                  border: '1px solid var(--border-glow)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '8px',
-                }}
-              >
+              <form onSubmit={handleCreateFolder} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <input
                   type="text"
                   placeholder="Folder name..."
                   value={newFolderName}
                   onChange={(e) => setNewFolderName(e.target.value)}
                   className="form-input"
-                  style={{ fontSize: '12px', padding: '5px 8px' }}
                   autoFocus
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
                 />
-                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '4px' }}>
                   <button
                     type="button"
                     className="btn btn-ghost"
-                    style={{ fontSize: '11px', padding: '3px 6px' }}
+                    style={{ fontSize: '11px', padding: '3px 8px' }}
                     onClick={() => setShowNewFolder(false)}
                   >
                     Cancel
@@ -300,8 +310,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   padding: '8px 10px',
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
-                  background: activeFolderId === 'all' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                  color: activeFolderId === 'all' ? '#ffffff' : 'var(--text-muted)',
+                  background: activeFolderId === 'all' ? 'var(--desk-surface-high)' : 'transparent',
+                  color: activeFolderId === 'all' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                   fontSize: '13px',
                   fontWeight: activeFolderId === 'all' ? 600 : 400,
                   cursor: 'pointer',
@@ -309,7 +319,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   width: '100%',
                 }}
               >
-                <FolderIcon size={14} color={activeFolderId === 'all' ? 'var(--color-primary)' : '#64748b'} />
+                <FolderIcon size={14} color={activeFolderId === 'all' ? 'var(--text-desk)' : 'var(--graphite)'} />
                 <span>All Images</span>
               </button>
 
@@ -323,8 +333,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   padding: '8px 10px',
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
-                  background: activeFolderId === 'root' ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                  color: activeFolderId === 'root' ? '#ffffff' : 'var(--text-muted)',
+                  background: activeFolderId === 'root' ? 'var(--desk-surface-high)' : 'transparent',
+                  color: activeFolderId === 'root' ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                   fontSize: '13px',
                   fontWeight: activeFolderId === 'root' ? 600 : 400,
                   cursor: 'pointer',
@@ -332,7 +342,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   width: '100%',
                 }}
               >
-                <FolderIcon size={14} color={activeFolderId === 'root' ? 'var(--color-primary)' : '#64748b'} />
+                <FolderIcon size={14} color={activeFolderId === 'root' ? 'var(--text-desk)' : 'var(--graphite)'} />
                 <span>Unorganized (Root)</span>
               </button>
 
@@ -350,8 +360,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                       padding: '8px 10px',
                       borderRadius: 'var(--radius-sm)',
                       border: 'none',
-                      background: isActive ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
-                      color: isActive ? '#ffffff' : 'var(--text-muted)',
+                      background: isActive ? 'var(--desk-surface-high)' : 'transparent',
+                      color: isActive ? 'var(--text-desk)' : 'var(--text-desk-muted)',
                       fontSize: '13px',
                       fontWeight: isActive ? 600 : 400,
                       cursor: 'pointer',
@@ -360,7 +370,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                      <FolderIcon size={14} color={isActive ? 'var(--color-primary)' : '#64748b'} />
+                      <FolderIcon size={14} color={isActive ? 'var(--text-desk)' : 'var(--graphite)'} />
                       <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {f.name}
                       </span>
@@ -368,7 +378,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                     {f.images_count !== undefined && (
                       <span
                         className="mono"
-                        style={{ fontSize: '10px', color: 'var(--text-dim)', paddingLeft: '4px' }}
+                        style={{ fontSize: '10px', color: 'var(--text-desk-dim)', paddingLeft: '4px' }}
                       >
                         {f.images_count}
                       </span>
@@ -386,18 +396,18 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
               display: 'flex',
               flexDirection: 'column',
               minWidth: 0,
-              background: 'rgba(8, 20, 36, 0.4)',
+              backgroundColor: 'var(--desk-surface)',
             }}
           >
             {/* Top Toolbar: Upload Area & Search */}
             <div
               style={{
                 padding: '16px 20px',
-                borderBottom: '1px solid var(--border-subtle)',
+                borderBottom: '1px solid var(--border-desk-subtle)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '12px',
-                background: 'rgba(10, 22, 38, 0.6)',
+                backgroundColor: 'var(--desk-raised)',
               }}
             >
               {/* Drag & Drop Upload Zone */}
@@ -413,8 +423,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   handleFileUpload(e.dataTransfer.files);
                 }}
                 style={{
-                  border: `2px dashed ${dragActive ? 'var(--color-primary)' : 'var(--border-medium)'}`,
-                  background: dragActive ? 'rgba(99, 102, 241, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                  border: `2px dashed ${dragActive ? 'var(--tungsten)' : 'var(--border-desk-medium)'}`,
+                  background: dragActive ? 'var(--tungsten-dim)' : 'var(--desk-surface)',
                   borderRadius: 'var(--radius-md)',
                   padding: '14px 20px',
                   display: 'flex',
@@ -429,9 +439,9 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                     style={{
                       width: '38px',
                       height: '38px',
-                      borderRadius: '8px',
-                      background: 'rgba(99, 102, 241, 0.18)',
-                      color: 'var(--color-primary)',
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'var(--desk-surface-high)',
+                      color: 'var(--text-desk)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -440,10 +450,10 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                     {uploading ? <Loader2 size={20} className="spin" /> : <UploadCloud size={20} />}
                   </div>
                   <div>
-                    <p style={{ fontSize: '13px', fontWeight: 600, color: '#ffffff' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-desk)' }}>
                       {uploading ? 'Uploading to Cloudinary...' : 'Drag & drop image files here'}
                     </p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <p style={{ fontSize: '11px', color: 'var(--text-desk-muted)' }}>
                       Supports PNG, JPG, WebP, AVIF up to 10MB
                     </p>
                   </div>
@@ -476,7 +486,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                 <div style={{ position: 'relative', flex: 1, maxWidth: '320px' }}>
                   <Search
                     size={14}
-                    color="#64748b"
+                    color="var(--graphite)"
                     style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }}
                   />
                   <input
@@ -489,7 +499,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                   />
                 </div>
 
-                <span className="mono" style={{ fontSize: '12px', color: 'var(--text-dim)' }}>
+                <span className="mono" style={{ fontSize: '12px', color: 'var(--text-desk-dim)' }}>
                   {filteredImages.length} image{filteredImages.length === 1 ? '' : 's'}
                 </span>
               </div>
@@ -504,7 +514,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
               }}
             >
               {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: 'var(--text-desk-muted)' }}>
                   <Loader2 size={24} className="spin" />
                   <span style={{ marginLeft: '10px', fontSize: '13px' }}>Loading media...</span>
                 </div>
@@ -516,12 +526,12 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                     alignItems: 'center',
                     justifyContent: 'center',
                     height: '240px',
-                    color: 'var(--text-dim)',
+                    color: 'var(--text-desk-dim)',
                     gap: '10px',
                   }}
                 >
                   <ImageIcon size={36} opacity={0.4} />
-                  <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>No images found</p>
+                  <p style={{ fontSize: '14px', color: 'var(--text-desk-muted)' }}>No images found</p>
                   <p style={{ fontSize: '12px' }}>Upload your first image to Cloudinary using the dropzone above.</p>
                 </div>
               ) : (
@@ -538,7 +548,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                       <div
                         key={img.id}
                         onClick={() => onSelectImage && onSelectImage(img)}
-                        className="glass-card"
+                        className="desk-panel"
                         style={{
                           padding: '8px',
                           display: 'flex',
@@ -546,11 +556,8 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                           gap: '8px',
                           cursor: onSelectImage ? 'pointer' : 'default',
                           border: isSelected
-                            ? '2px solid var(--color-primary-action)'
-                            : '1px solid var(--border-subtle)',
-                          background: isSelected
-                            ? 'rgba(99, 102, 241, 0.12)'
-                            : 'rgba(13, 28, 48, 0.75)',
+                            ? '2px solid var(--tungsten)'
+                            : '1px solid var(--border-desk-subtle)',
                           borderRadius: 'var(--radius-md)',
                           position: 'relative',
                           transition: 'all 0.15s ease',
@@ -564,7 +571,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                             borderRadius: 'var(--radius-sm)',
                             overflow: 'hidden',
                             position: 'relative',
-                            background: '#040d18',
+                            background: 'var(--still-well)',
                           }}
                         >
                           <img
@@ -584,10 +591,11 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                                 position: 'absolute',
                                 top: '6px',
                                 right: '6px',
-                                background: 'var(--color-primary-action)',
+                                background: 'var(--tungsten)',
                                 borderRadius: '50%',
                                 padding: '2px',
-                                color: '#ffffff',
+                                color: 'var(--ink)',
+                                display: 'flex',
                               }}
                             >
                               <CheckCircle2 size={16} />
@@ -617,7 +625,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                               }}
                             >
                               {copiedId === img.id ? (
-                                <Check size={12} color="#34d399" />
+                                <Check size={12} color="var(--spine-text)" />
                               ) : (
                                 <Copy size={12} />
                               )}
@@ -625,13 +633,12 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                             <button
                               type="button"
                               onClick={(e) => handleDeleteImage(e, img.id)}
-                              className="btn-icon"
+                              className="btn-icon danger"
                               title="Delete Image"
                               style={{
                                 width: '26px',
                                 height: '26px',
                                 background: 'rgba(0, 0, 0, 0.7)',
-                                color: '#fb7185',
                                 backdropFilter: 'blur(4px)',
                               }}
                             >
@@ -646,7 +653,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                             style={{
                               fontSize: '12px',
                               fontWeight: 600,
-                              color: '#ffffff',
+                              color: 'var(--text-desk)',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
@@ -659,7 +666,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                             <span
                               style={{
                                 fontSize: '10px',
-                                color: 'var(--color-primary)',
+                                color: 'var(--text-desk-muted)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '3px',
