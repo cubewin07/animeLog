@@ -282,7 +282,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </section>
 
       <div className="desk-lower-grid desk-animate-item">
-        <section className="desk-side-section" aria-labelledby="returns-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><RotateCcw size={13} /> return shelf</p><h2 id="returns-heading">Seen again</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('rewatches')}>All returns <ChevronRight size={15} /></button></div>{recentReturns.length ? <div className="return-timeline">{recentReturns.map((rewatch) => { const date = returnDate(rewatch.finish_date || rewatch.start_date); return <button type="button" key={rewatch.id} className="return-timeline-item" onClick={() => onNavigate('rewatches')}><time className="return-timeline-date"><span>{date.month}</span><strong>{date.day}</strong><small>{date.year}</small></time><span className="return-timeline-node" /><span className="return-timeline-copy"><strong>{rewatch.release_title || rewatch.series_title || 'A remembered title'}</strong><small>{notePreview(rewatch.notes || '', 78)}</small></span></button>; })}</div> : <p className="desk-quiet-copy">Rewatches become a record of how a story changes with you.</p>}</section>
+        <section className="desk-side-section" aria-labelledby="returns-heading">
+          <div className="desk-section-heading">
+            <div>
+              <p className="desk-eyebrow"><RotateCcw size={13} /> return shelf</p>
+              <h2 id="returns-heading">Seen again</h2>
+            </div>
+            <button type="button" className="desk-text-action" onClick={() => onNavigate('rewatches')}>
+              All returns <ChevronRight size={15} />
+            </button>
+          </div>
+          {recentReturns.length ? (
+            <div className="desk-return-timeline">
+              {recentReturns.map((rewatch) => {
+                const date = returnDate(rewatch.finish_date || rewatch.start_date);
+                return (
+                  <button
+                    type="button"
+                    key={rewatch.id}
+                    className="desk-return-timeline-item"
+                    onClick={() => onNavigate('rewatches')}
+                  >
+                    <time className="desk-return-timeline-date">
+                      <span>{date.month}</span>
+                      <strong>{date.day}</strong>
+                      <small>{date.year}</small>
+                    </time>
+                    <span className="desk-return-timeline-node" />
+                    <span className="desk-return-timeline-copy">
+                      <strong>{rewatch.release_title || rewatch.series_title || 'A remembered title'}</strong>
+                      <small>{notePreview(rewatch.notes || '', 78)}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="desk-quiet-copy">Rewatches become a record of how a story changes with you.</p>
+          )}
+        </section>
         <section className="desk-side-section" aria-labelledby="characters-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><UsersRound size={13} /> character shelf</p><h2 id="characters-heading">People remembered</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('characters')}>All characters <ChevronRight size={15} /></button></div>{rememberedCharacters.length ? <div className="character-memory-deck">{rememberedCharacters.map((character) => { const image = character.cover_image_url || character.image_url || character.images?.[0]?.url || character.images?.[0]?.file; return <button type="button" className="character-memory-card" key={character.id} onClick={() => onNavigate('characters')}><span className="character-memory-portrait">{image ? <img src={image} alt="" /> : character.name.slice(0, 1)}</span><span className="character-memory-copy"><small>{character.series_title || 'Favorite character'}</small><strong>{character.name}</strong><em>“{notePreview(character.why || '', 88)}”</em></span></button>; })}</div> : <p className="desk-quiet-copy">Keep the characters whose choices gave you something to think about.</p>}</section>
       </div>
 
