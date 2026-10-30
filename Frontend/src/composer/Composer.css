@@ -1,0 +1,76 @@
+.lamplight-composer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.lamplight-composer-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.lamplight-composer-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.lamplight-composer-kinds {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.lamplight-kind-pill {
+  padding: 6px 14px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-kind-pill:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.lamplight-kind-pill.is-active {
+  background: var(--lamp);
+  color: var(--text-inverse);
+  border-color: var(--lamp);
+  font-weight: 600;
+}
+
+.lamplight-composer-prev-note {
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2);
+  font-style: italic;
+  max-height: 90px;
+  overflow-y: auto;
+}
+
+.lamplight-composer-paper-wrap {
+  position: relative;
+}
+
+.lamplight-composer-draft-status {
+  font-size: 11px;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

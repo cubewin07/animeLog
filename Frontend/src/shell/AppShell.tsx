@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomBar } from './BottomBar';
 import { CommandPalette } from './CommandPalette';
+import { Composer } from '../composer/Composer';
 import { useJournal } from '../state/JournalContext';
 import './AppShell.css';
 
@@ -12,7 +13,14 @@ export interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children, onOpenExport }) => {
-  const { paletteOpen, setPaletteOpen, openComposer, openNewFranchiseModal } = useJournal();
+  const {
+    paletteOpen,
+    setPaletteOpen,
+    composerOpen,
+    setComposerOpen,
+    openComposer,
+    openNewFranchiseModal,
+  } = useJournal();
 
   // Global Keyboard Shortcuts
   useEffect(() => {
@@ -58,6 +66,7 @@ export const AppShell: React.FC<AppShellProps> = ({ children, onOpenExport }) =>
       <BottomBar onOpenExport={onOpenExport} />
 
       <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <Composer isOpen={composerOpen} onClose={() => setComposerOpen(false)} />
     </div>
   );
 };
