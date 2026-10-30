@@ -1,0 +1,298 @@
+.lamplight-folio {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+  animation: fadeIn var(--dur-base) var(--ease-smooth);
+}
+
+.lamplight-folio-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--s-7);
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .lamplight-folio-grid {
+    grid-template-columns: 1fr;
+    gap: var(--s-5);
+  }
+}
+
+/* Left Sticky Identity Column */
+.lamplight-identity-col {
+  position: sticky;
+  top: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.lamplight-identity-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-identity-back:hover {
+  color: var(--lamp);
+}
+
+.lamplight-identity-cover-wrap {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.lamplight-identity-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.lamplight-identity-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.lamplight-identity-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line-subtle);
+}
+
+/* Release Switcher */
+.lamplight-release-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.lamplight-release-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.lamplight-release-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lamplight-release-pill {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-release-pill:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.lamplight-release-pill.is-active {
+  background: var(--lamp-soft);
+  color: var(--lamp);
+  border-color: var(--lamp);
+  font-weight: 600;
+}
+
+/* Right Spread (Reading Room & Reflections) */
+.lamplight-spread-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  min-width: 0;
+}
+
+/* Lesson Paper Card */
+.lamplight-lesson-folio {
+  background-color: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+  box-shadow: var(--shadow-paper);
+  border: 1px solid var(--paper-line);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.lamplight-lesson-folio .lamplight-paper-rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: var(--lamp);
+  border-top-left-radius: var(--r-lg);
+  border-bottom-left-radius: var(--r-lg);
+}
+
+.lamplight-lesson-folio-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--paper-ink-2);
+  border-bottom: 1px dashed var(--paper-line);
+  padding-bottom: var(--s-2);
+}
+
+.lamplight-lesson-folio-text {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.7;
+  color: var(--paper-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.lamplight-lesson-folio-textarea {
+  width: 100%;
+  min-height: 160px;
+  background: transparent;
+  border: none;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.7;
+  color: var(--paper-ink);
+  outline: none;
+  resize: vertical;
+}
+
+/* Episode Memory Grid */
+.lamplight-episode-grid-wrap {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.lamplight-episode-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(42px, 1fr));
+  gap: 8px;
+}
+
+.lamplight-episode-cell {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  color: var(--text-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-episode-cell:hover {
+  background: var(--surface-hover);
+  border-color: var(--lamp);
+  color: var(--text);
+  transform: translateY(-2px);
+}
+
+.lamplight-episode-cell.has-note {
+  border-color: var(--lamp);
+  color: var(--lamp);
+  font-weight: 700;
+}
+
+.lamplight-episode-cell-dot {
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background-color: var(--lamp);
+}
+
+/* Then vs Now Returns comparison */
+.lamplight-returns-spread {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.lamplight-then-now-card {
+  background: var(--bg-sunken);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-then-now-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lamp);
+}
+
+.lamplight-then-now-body {
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text);
+  font-style: italic;
+}
