@@ -1,0 +1,59 @@
+.lamplight-top-bar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .lamplight-top-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 54px;
+    background-color: var(--bg-sunken);
+    border-bottom: 1px solid var(--line);
+    padding: 0 var(--s-4);
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+    user-select: none;
+  }
+
+  .lamplight-top-bar-brand {
+    display: flex;
+    align-items: center;
+    gap: var(--s-2);
+    text-decoration: none;
+    color: var(--text);
+  }
+
+  .lamplight-top-bar-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--r-sm);
+    background-color: var(--surface);
+    color: var(--lamp);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lamplight-top-bar-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .lamplight-top-bar-search-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: var(--r-md);
+    background: var(--surface);
+    color: var(--text-2);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+}

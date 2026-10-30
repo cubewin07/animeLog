@@ -1,0 +1,233 @@
+.lamplight-sidebar {
+  width: 256px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-sunken);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-5) var(--s-4);
+  gap: var(--s-5);
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 50;
+  transition: width var(--dur-base) var(--ease-smooth);
+}
+
+@media (max-width: 1023px) {
+  .lamplight-sidebar {
+    display: none;
+  }
+}
+
+.lamplight-sidebar.is-collapsed {
+  width: 76px;
+  padding: var(--s-5) var(--s-2);
+  align-items: center;
+}
+
+/* Brand header */
+.lamplight-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  text-decoration: none;
+  color: var(--text);
+  padding: 0 var(--s-2);
+}
+
+.lamplight-sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background-color: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--lamp);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+.lamplight-sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lamplight-sidebar-brand-title {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.lamplight-sidebar-brand-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--lamp);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Actions in sidebar */
+.lamplight-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.lamplight-sidebar-write-btn {
+  width: 100%;
+  height: 40px;
+  border-radius: var(--r-md);
+  background: var(--lamp);
+  color: var(--text-inverse);
+  font-weight: 600;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-sidebar-write-btn:hover {
+  background: var(--lamp-hover);
+  transform: translateY(-1px);
+}
+
+.lamplight-sidebar-search-btn {
+  width: 100%;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--s-3);
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-sidebar-search-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+
+/* Navigation lists */
+.lamplight-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.lamplight-sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lamplight-sidebar-label {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  padding: 0 var(--s-3) var(--s-1);
+}
+
+.lamplight-sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--dur-fast) var(--ease-smooth);
+  border: 1px solid transparent;
+}
+
+.lamplight-sidebar-link:hover {
+  background-color: var(--surface-hover);
+  color: var(--text);
+}
+
+.lamplight-sidebar-link.is-active {
+  background-color: var(--surface);
+  color: var(--lamp);
+  border-color: var(--line-strong);
+  font-weight: 600;
+}
+
+.lamplight-sidebar-link-left {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.lamplight-sidebar-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.lamplight-sidebar-link.is-active .lamplight-sidebar-count {
+  color: var(--lamp);
+}
+
+/* Footer & Collapse Toggle */
+.lamplight-sidebar-footer {
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-sidebar-summary {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.4;
+  padding: 0 var(--s-2);
+}
+
+.lamplight-sidebar-summary strong {
+  color: var(--text-2);
+  font-family: var(--font-mono);
+}
+
+.lamplight-sidebar-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  cursor: pointer;
+  padding: var(--s-1) var(--s-2);
+  border-radius: var(--r-sm);
+  transition: color var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-sidebar-collapse-btn:hover {
+  color: var(--text);
+}
