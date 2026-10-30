@@ -1,0 +1,296 @@
+.lamplight-desk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  animation: fadeIn var(--dur-base) var(--ease-smooth);
+}
+
+/* Desk Header */
+.lamplight-desk-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.lamplight-desk-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--lamp);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--s-1);
+}
+
+.lamplight-desk-title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.2vw, 36px);
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.lamplight-desk-meta {
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+/* Section Header */
+.lamplight-desk-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+}
+
+.lamplight-desk-section-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.lamplight-desk-section-badge {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--lamp);
+  background: var(--lamp-soft);
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+}
+
+/* Continue Shelf */
+.lamplight-continue-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--s-4);
+}
+
+.lamplight-continue-card {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  gap: var(--s-4);
+  align-items: center;
+  transition: all var(--dur-fast) var(--ease-smooth);
+}
+
+.lamplight-continue-card:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.lamplight-continue-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  min-width: 0;
+  flex: 1;
+}
+
+.lamplight-continue-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lamplight-continue-context {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lamplight-continue-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-1);
+}
+
+/* Resurfaced Memory & Reading Room spread */
+.lamplight-desk-main-spread {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: var(--s-5);
+}
+
+@media (max-width: 900px) {
+  .lamplight-desk-main-spread {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lamplight-resurfaced-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-resurfaced-paper {
+  background-color: var(--paper);
+  color: var(--paper-ink);
+  border-radius: var(--r-md);
+  padding: var(--s-5) var(--s-6);
+  box-shadow: var(--shadow-paper);
+  border: 1px solid var(--paper-line);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-resurfaced-paper .lamplight-paper-rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  background-color: var(--lamp);
+  border-top-left-radius: var(--r-md);
+  border-bottom-left-radius: var(--r-md);
+}
+
+.lamplight-resurfaced-quote {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 1.6;
+  color: var(--paper-ink);
+  font-style: italic;
+}
+
+.lamplight-resurfaced-source {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--paper-ink-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px dashed var(--paper-line);
+  padding-top: var(--s-3);
+}
+
+/* Waiting for Words List */
+.lamplight-waiting-list {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-waiting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.lamplight-waiting-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.lamplight-waiting-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lamplight-waiting-sub {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* Desk Bottom Grid (Returns & People) */
+.lamplight-desk-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-5);
+}
+
+@media (max-width: 800px) {
+  .lamplight-desk-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lamplight-desk-card-deck {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.lamplight-return-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line-subtle);
+  cursor: pointer;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  width: 100%;
+}
+
+.lamplight-return-item:last-child {
+  border-bottom: none;
+}
+
+.lamplight-return-date {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--lamp);
+  white-space: nowrap;
+}
+
+.lamplight-person-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--line-subtle);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.lamplight-person-item:last-child {
+  border-bottom: none;
+}

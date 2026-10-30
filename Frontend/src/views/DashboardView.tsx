@@ -1,25 +1,29 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
+import {
+  AnimeMovie,
+  AnimeSeason,
+  AnimeSeries,
+  Book,
+  FavoriteCharacter,
+  JournalStats,
+  Rewatch,
+} from '../types';
+import { useJournal } from '../state/JournalContext';
+import { useReflections } from '../state/useReflections';
+import { Cover, Stepper, Rating, Button, EmptyState } from '../ui';
+import { formatDate } from '../lib/format';
 import {
   BookOpen,
-  Check,
   ChevronRight,
-  Clapperboard,
-  Copy,
-  Download,
   Film,
   PenLine,
+  Quote,
+  RefreshCw,
   RotateCcw,
-  Star,
+  Sparkles,
   Tv,
-  UsersRound,
 } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { AnimeMovie, AnimeSeason, AnimeSeries, Book, FavoriteCharacter, JournalStats, Rewatch } from '../types';
-import { ProgressStepper } from '../components/ProgressStepper';
-import { ExportModal } from '../components/ExportModal';
-import { ReadingRoomModal } from '../components/ReadingRoomModal';
-import { EASING, prefersReducedMotion } from '../utils/animations';
+import './DashboardView.css';
 
 interface DashboardViewProps {
   stats: JournalStats;
@@ -38,45 +42,6 @@ interface DashboardViewProps {
   onToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-type LessonKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
-
-interface Lesson {
-  id: string;
-  kind: LessonKind;
-  title: string;
-  context: string;
-  note: string;
-  rating?: number | null;
-  timestamp: number;
-  open: () => void;
-}
-
-interface CurrentTitle {
-  id: string;
-  format: 'Watching' | 'Reading';
-  title: string;
-  context: string;
-  cover?: string | null;
-  current: number;
-  total?: number | null;
-  unit: string;
-  progress: (delta: number) => void;
-  open: () => void;
-}
-
-const dateLabel = (timestamp: number) => timestamp ? new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(timestamp) : 'Undated memory';
-const notePreview = (note: string, length = 210) => note.length > length ? `${note.slice(0, length).trimEnd()}…` : note;
-const ratingClass = (rating?: number | null) => rating && rating >= 9 ? 'high' : rating && rating >= 7 ? 'mid' : rating ? 'low' : '';
-const returnDate = (date?: string | null) => {
-  if (!date) return { month: '—', day: '—', year: 'Undated' };
-  const value = new Date(`${date}T00:00:00`);
-  return {
-    month: new Intl.DateTimeFormat(undefined, { month: 'short' }).format(value),
-    day: new Intl.DateTimeFormat(undefined, { day: 'numeric' }).format(value),
-    year: new Intl.DateTimeFormat(undefined, { year: 'numeric' }).format(value),
-  };
-};
-
 export const DashboardView: React.FC<DashboardViewProps> = ({
   stats,
   seriesList,
@@ -87,255 +52,483 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSeasonProgressDelta,
   onMovieProgressDelta,
   onProgressBook,
-  onEditSeason,
-  onEditMovie,
-  onEditBook,
   onOpenLogModal,
-  onToast,
 }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [showReadingRoomModal, setShowReadingRoomModal] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [copiedFeatured, setCopiedFeatured] = useState(false);
-  const current: CurrentTitle[] = [];
-  const lessons: Lesson[] = [];
+  const { openComposer } = useJournal();
+  const { reflections } = useReflections();
 
-  seriesList.forEach((series) => {
-    const seriesCover = series.cover_image_url || series.image_url;
-    series.seasons.forEach((season) => {
-      const cover = season.cover_image_url || season.image_url || seriesCover;
-      const created = season.created_at ? new Date(season.created_at).getTime() : 0;
-      if (season.status === 'WATCHING') {
-        current.push({
-          id: `season-${season.id}`,
-          format: 'Watching',
-          title: season.title,
-          context: `${series.title} · Season ${season.season_number}`,
-          cover,
-          current: season.progress || 0,
-          total: season.total_episodes,
-          unit: 'eps',
-          progress: (delta) => onSeasonProgressDelta(season.id, delta),
-          open: () => onNavigate('anime', series.id),
+  // Dynamic greeting based on time of day
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  const todayLabel = useMemo(() => {
+    return new Intl.DateTimeFormat(undefined, {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date());
+  }, []);
+
+  // In-progress items
+  const activeItems = useMemo(() => {
+    const list: any[] = [];
+    seriesList.forEach((series) => {
+      series.seasons?.forEach((season) => {
+        if (season.status === 'WATCHING') {
+          list.push({
+            id: `season-${season.id}`,
+            format: 'anime',
+            title: series.title,
+            context: `Season ${season.season_number} · ${season.title}`,
+            cover: season.cover_image_url || season.image_url || series.cover_image_url,
+            current: season.progress || 0,
+            total: season.total_episodes,
+            unit: 'eps',
+            progress: (delta: number) => onSeasonProgressDelta(season.id, delta),
+            open: () => onNavigate('anime', series.id),
+            onNote: () =>
+              openComposer({
+                targetKind: 'season',
+                id: season.id,
+                title: series.title,
+                context: `Season ${season.season_number}`,
+                defaultKind: 'episode',
+                episodeNumber: (season.progress || 0) + 1,
+              }),
+          });
+        }
+      });
+
+      series.movies?.forEach((movie) => {
+        if (movie.status === 'WATCHING') {
+          list.push({
+            id: `movie-${movie.id}`,
+            format: 'anime',
+            title: series.title,
+            context: `Film · ${movie.title}`,
+            cover: movie.cover_image_url || movie.image_url || series.cover_image_url,
+            current: movie.progress_minutes || 0,
+            total: movie.total_minutes,
+            unit: 'min',
+            progress: (delta: number) => onMovieProgressDelta(movie.id, delta),
+            open: () => onNavigate('anime', series.id),
+            onNote: () =>
+              openComposer({
+                targetKind: 'movie',
+                id: movie.id,
+                title: series.title,
+                context: movie.title,
+                defaultKind: 'lesson',
+              }),
+          });
+        }
+      });
+    });
+
+    bookList.forEach((book) => {
+      if (book.status === 'READING') {
+        list.push({
+          id: `book-${book.id}`,
+          format: 'book',
+          title: book.title,
+          context: book.author ? `by ${book.author}` : 'Book journal',
+          cover: book.cover_image_url || book.image_url,
+          current: book.progress || 0,
+          total: book.total_pages,
+          unit: 'pages',
+          progress: (delta: number) => onProgressBook(book.id, delta),
+          open: () => onNavigate('books', book.id),
+          onNote: () =>
+            openComposer({
+              targetKind: 'book',
+              id: book.id,
+              title: book.title,
+              context: book.author || undefined,
+              defaultKind: 'lesson',
+            }),
         });
       }
-      if (season.notes?.trim()) lessons.push({ id: `season-${season.id}`, kind: 'season', title: series.title, context: `Season ${season.season_number} · ${season.title}`, note: season.notes, rating: season.rating, timestamp: created, open: () => onNavigate('anime', series.id) });
-      season.episode_notes?.forEach((episode) => {
-        if (episode.note?.trim()) lessons.push({
-          id: `episode-${episode.id}`,
-          kind: 'episode',
-          title: series.title,
-          context: `S${season.season_number} · Ep ${episode.episode_number}${episode.episode_title ? ` · ${episode.episode_title}` : ''}`,
-          note: episode.note,
-          rating: episode.rating,
-          timestamp: episode.created_at ? new Date(episode.created_at).getTime() : created,
-          open: () => onNavigate('anime', series.id),
+    });
+
+    return list;
+  }, [seriesList, bookList, onSeasonProgressDelta, onMovieProgressDelta, onProgressBook, onNavigate, openComposer]);
+
+  // Resurfaced memory selection (seeded daily pick, prioritizes substantive lessons)
+  const [resurfacedIndexOffset, setResurfacedIndexOffset] = useState(0);
+  const substantiveReflections = useMemo(() => {
+    return reflections.filter((r) => r.note && r.note.length > 25);
+  }, [reflections]);
+
+  const resurfaced = useMemo(() => {
+    if (!substantiveReflections.length) return reflections[0] || null;
+    const daySeed = new Date().getDate();
+    const idx = (daySeed + resurfacedIndexOffset) % substantiveReflections.length;
+    return substantiveReflections[idx];
+  }, [substantiveReflections, reflections, resurfacedIndexOffset]);
+
+  // Titles waiting for words (finished or in library with no notes)
+  const waitingForWords = useMemo(() => {
+    const list: any[] = [];
+    seriesList.forEach((s) => {
+      s.seasons?.forEach((season) => {
+        if (!season.notes?.trim() && season.status === 'COMPLETED') {
+          list.push({
+            id: `season-${season.id}`,
+            targetKind: 'season',
+            targetId: season.id,
+            title: s.title,
+            sub: `Season ${season.season_number} completed`,
+          });
+        }
+      });
+      s.movies?.forEach((movie) => {
+        if (!movie.notes?.trim() && movie.status === 'COMPLETED') {
+          list.push({
+            id: `movie-${movie.id}`,
+            targetKind: 'movie',
+            targetId: movie.id,
+            title: s.title,
+            sub: `Film "${movie.title}" completed`,
+          });
+        }
+      });
+    });
+
+    bookList.forEach((b) => {
+      if (!b.notes?.trim() && b.status === 'COMPLETED') {
+        list.push({
+          id: `book-${b.id}`,
+          targetKind: 'book',
+          targetId: b.id,
+          title: b.title,
+          sub: b.author ? `by ${b.author}` : 'Book completed',
         });
-      });
-      season.rewatches?.forEach((rewatch) => {
-        if (rewatch.notes?.trim()) lessons.push({ id: `season-rewatch-${rewatch.id}`, kind: 'rewatch', title: series.title, context: `Return to ${season.title}`, note: rewatch.notes, rating: rewatch.rating, timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : rewatch.start_date ? new Date(rewatch.start_date).getTime() : created, open: () => onNavigate('rewatches') });
-      });
+      }
     });
-    series.movies.forEach((movie) => {
-      const created = movie.created_at ? new Date(movie.created_at).getTime() : 0;
-      if (movie.status === 'WATCHING') current.push({ id: `movie-${movie.id}`, format: 'Watching', title: movie.title, context: `${series.title} · Film`, cover: movie.cover_image_url || movie.image_url || seriesCover, current: movie.progress_minutes || 0, total: movie.total_minutes, unit: 'min', progress: (delta) => onMovieProgressDelta(movie.id, delta), open: () => onNavigate('anime', series.id) });
-      if (movie.notes?.trim()) lessons.push({ id: `movie-${movie.id}`, kind: 'film', title: series.title, context: `Film · ${movie.title}`, note: movie.notes, rating: movie.rating, timestamp: created, open: () => onNavigate('anime', series.id) });
-      movie.rewatches?.forEach((rewatch) => {
-        if (rewatch.notes?.trim()) lessons.push({ id: `movie-rewatch-${rewatch.id}`, kind: 'rewatch', title: series.title, context: `Return to ${movie.title}`, note: rewatch.notes, rating: rewatch.rating, timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : rewatch.start_date ? new Date(rewatch.start_date).getTime() : created, open: () => onNavigate('rewatches') });
-      });
+
+    characterList.forEach((c) => {
+      if (!c.why?.trim()) {
+        list.push({
+          id: `char-${c.id}`,
+          targetKind: 'character',
+          targetId: c.id,
+          title: c.name,
+          sub: c.series_title ? `Character in ${c.series_title}` : 'Character remembered',
+        });
+      }
     });
-  });
 
-  bookList.forEach((book) => {
-    const created = book.created_at ? new Date(book.created_at).getTime() : 0;
-    if (book.status === 'READING') current.push({ id: `book-${book.id}`, format: 'Reading', title: book.title, context: book.author ? `by ${book.author}` : 'Book journal', cover: book.cover_image_url || book.image_url, current: book.progress || 0, total: book.total_pages, unit: 'pages', progress: (delta) => onProgressBook(book.id, delta), open: () => onNavigate('books', book.id) });
-    if (book.notes?.trim()) lessons.push({ id: `book-${book.id}`, kind: 'book', title: book.title, context: book.author ? `Book · ${book.author}` : 'Book journal', note: book.notes, rating: book.rating, timestamp: created, open: () => onNavigate('books', book.id) });
-  });
+    return list.slice(0, 4);
+  }, [seriesList, bookList, characterList]);
 
-  characterList.forEach((character) => {
-    if (character.why?.trim()) lessons.push({ id: `character-${character.id}`, kind: 'character', title: character.name, context: character.series_title ? `Character · ${character.series_title}` : 'Character note', note: character.why, timestamp: 0, open: () => onNavigate('characters') });
-  });
+  // Returns timeline excerpt (series title first!)
+  const recentReturns = useMemo(() => {
+    return rewatchList
+      .filter((r) => r.notes?.trim())
+      .sort((a, b) => `${b.finish_date || b.start_date || ''}`.localeCompare(`${a.finish_date || a.start_date || ''}`))
+      .slice(0, 3);
+  }, [rewatchList]);
 
-  lessons.sort((a, b) => b.timestamp - a.timestamp);
-  current.sort((a, b) => a.format.localeCompare(b.format));
-  const featuredLesson = lessons[0];
-  const memoryIndex = lessons.slice(1, 5);
-  const recentReturns = rewatchList.filter((rewatch) => rewatch.notes?.trim()).sort((a, b) => `${b.finish_date || b.start_date || ''}`.localeCompare(`${a.finish_date || a.start_date || ''}`)).slice(0, 3);
-  const rememberedCharacters = characterList.filter((character) => character.why?.trim()).slice(0, 4);
-
-  useGSAP(() => {
-    if (prefersReducedMotion() || !containerRef.current) return;
-    gsap.fromTo(containerRef.current.querySelectorAll('.desk-animate-item'), { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.42, stagger: 0.07, ease: EASING.smooth, clearProps: 'transform,opacity' });
-  }, { scope: containerRef, dependencies: [current.length, lessons.length] });
+  // Remembered Characters excerpt
+  const rememberedCharacters = useMemo(() => {
+    return characterList.filter((c) => c.why?.trim()).slice(0, 3);
+  }, [characterList]);
 
   return (
-    <div ref={containerRef} className="desk-home">
-      <header className="desk-home-header desk-animate-item">
+    <div className="lamplight-desk">
+      {/* 1. Header with quiet greeting */}
+      <header className="lamplight-desk-header">
         <div>
-          <p className="desk-eyebrow"><Clapperboard size={14} /> personal viewing desk</p>
-          <h1>Your stories, still in motion.</h1>
-          <p className="desk-home-intro">A working desk for what you are living with now, and a reading room for the ideas that stayed after the credits.</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setShowExportModal(true)}
-            style={{ fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Download size={14} />
-            <span>Export Journal</span>
-          </button>
-          <div className="desk-ledger" aria-label="Journal totals">
-            <div><strong>{stats.totalLessons}</strong><span>lessons kept</span></div>
-            <div><strong>{stats.rewatchesCount}</strong><span>returns made</span></div>
-            <div><strong>{stats.totalCompleted}</strong><span>titles finished</span></div>
+          <div className="lamplight-desk-eyebrow">
+            <Quote size={14} />
+            <span>Personal Viewing & Reading Desk</span>
           </div>
+          <h1 className="lamplight-desk-title">{greeting}</h1>
+          <p className="lamplight-desk-meta">{todayLabel}</p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button
+            variant="primary"
+            icon={<PenLine size={15} />}
+            onClick={() => openComposer()}
+          >
+            Write Reflection
+          </Button>
         </div>
       </header>
 
-      <section className="desk-now desk-animate-item" aria-labelledby="now-heading">
-        <div className="desk-section-heading">
-          <div><p className="desk-eyebrow">currently open</p><h2 id="now-heading">On the desk <span>{current.length}</span></h2></div>
-          <button type="button" className="desk-text-action" onClick={() => onNavigate('anime')}>View library <ChevronRight size={15} /></button>
+      {/* 2. On the desk: In-progress titles */}
+      <section aria-labelledby="continue-heading">
+        <div className="lamplight-desk-section-head">
+          <h2 id="continue-heading" className="lamplight-desk-section-title">
+            <span>On the Desk</span>
+            <span className="lamplight-desk-section-badge">{activeItems.length}</span>
+          </h2>
+          <Button variant="ghost" size="sm" onClick={() => onNavigate('anime')}>
+            <span>View library</span>
+            <ChevronRight size={14} />
+          </Button>
         </div>
-        {current.length ? (
-          <div className="current-title-grid">
-            {current.slice(0, 3).map((item) => {
-              const percentage = item.total ? Math.min(100, (item.current / item.total) * 100) : 0;
-              return <article key={item.id} className={`current-title ${item.format === 'Reading' ? 'is-reading' : ''}`}>
-                <button type="button" className="current-title-open" onClick={item.open} aria-label={`Open ${item.title}`}>
-                  {item.cover ? <img src={item.cover} alt="" /> : <span className="current-title-placeholder">{item.format === 'Reading' ? <BookOpen size={22} /> : <Tv size={22} />}</span>}
-                  <span className="current-title-copy"><span className="current-format">{item.format}</span><strong>{item.title}</strong><small>{item.context}</small></span>
-                </button>
-                <div className="current-progress">
-                  <div><ProgressStepper current={item.current} total={item.total} unit={item.unit} step={item.unit === 'pages' || item.unit === 'min' ? 10 : 1} tone={item.format === 'Reading' ? 'reading' : 'watching'} onDelta={item.progress} ariaLabelPrefix={item.title} /></div>
-                  {item.total && <span className="current-progress-line"><i style={{ width: `${percentage}%` }} /></span>}
+
+        {activeItems.length ? (
+          <div className="lamplight-continue-grid">
+            {activeItems.map((item) => (
+              <article key={item.id} className="lamplight-continue-card">
+                <div style={{ width: 60, height: 90, flexShrink: 0 }}>
+                  <Cover
+                    title={item.title}
+                    subtitle={item.context}
+                    imageUrl={item.cover}
+                    variant={item.format === 'book' ? 'book' : 'poster'}
+                    showTitle={false}
+                  />
                 </div>
-              </article>;
-            })}
+
+                <div className="lamplight-continue-info">
+                  <h3 className="lamplight-continue-title" onClick={item.open} title={`Open ${item.title}`}>
+                    {item.title}
+                  </h3>
+                  <span className="lamplight-continue-context">{item.context}</span>
+
+                  <div className="lamplight-continue-actions">
+                    <Stepper
+                      current={item.current}
+                      total={item.total}
+                      unit={item.unit}
+                      step={item.unit === 'pages' || item.unit === 'min' ? 10 : 1}
+                      onDelta={item.progress}
+                    />
+                    <Button variant="ghost" size="sm" onClick={item.onNote} title="Write note on this progress">
+                      <PenLine size={12} />
+                      <span>Note</span>
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
         ) : (
-          <div className="desk-empty-state"><div><Film size={20} /><p>Nothing is in progress. Start something worth returning to.</p></div>{onOpenLogModal && <button type="button" className="btn btn-primary" onClick={onOpenLogModal}>Log a title</button>}</div>
+          <EmptyState
+            icon={<Tv size={24} />}
+            title="Nothing is currently in progress"
+            description="Start watching or reading something worth returning to."
+            action={
+              onOpenLogModal && (
+                <Button variant="secondary" onClick={onOpenLogModal}>
+                  Log a title
+                </Button>
+              )
+            }
+          />
         )}
       </section>
 
-      <section className="desk-reading-room desk-animate-item" aria-labelledby="reading-room-heading">
-        <div className="desk-section-heading">
-          <div>
-            <p className="desk-eyebrow">the reading room</p>
-            <h2 id="reading-room-heading">What stayed with you</h2>
+      {/* 3. Main Spread: Resurfaced Memory & Waiting for Words */}
+      <div className="lamplight-desk-main-spread">
+        {/* Resurfaced Memory */}
+        <section className="lamplight-resurfaced-wrap" aria-labelledby="resurfaced-heading">
+          <div className="lamplight-desk-section-head">
+            <h2 id="resurfaced-heading" className="lamplight-desk-section-title">
+              <Sparkles size={16} color="var(--lamp)" />
+              <span>Resurfaced Memory</span>
+            </h2>
+            {substantiveReflections.length > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<RefreshCw size={12} />}
+                onClick={() => setResurfacedIndexOffset((prev) => prev + 1)}
+              >
+                Another
+              </Button>
+            )}
           </div>
-          <button
-            type="button"
-            className="desk-text-action"
-            onClick={() => setShowReadingRoomModal(true)}
-          >
-            Browse reading room ({lessons.length}) <ChevronRight size={15} />
-          </button>
-        </div>
-        {featuredLesson ? (
-          <div className="lesson-layout">
-            <article className="featured-lesson">
-              <div className="featured-lesson-rule" />
-              <div className="featured-lesson-meta"><span>{featuredLesson.kind}</span><time>{dateLabel(featuredLesson.timestamp)}</time></div>
-              <button type="button" className="featured-lesson-open" onClick={featuredLesson.open}>
-                <h3>{featuredLesson.title}</h3><p>{featuredLesson.context}</p>
-              </button>
-              <blockquote>“{notePreview(featuredLesson.note, 440)}”</blockquote>
-              <div className="featured-lesson-footer">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>Latest entry</span>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const text = `“${featuredLesson.note}”\n— ${featuredLesson.title} (${featuredLesson.context})`;
-                      navigator.clipboard.writeText(text);
-                      setCopiedFeatured(true);
-                      if (onToast) onToast('Copied lesson quote to clipboard');
-                      setTimeout(() => setCopiedFeatured(false), 2000);
-                    }}
-                    style={{ fontSize: 11, padding: '2px 6px', height: 22 }}
-                    aria-label="Copy featured lesson quote"
-                  >
-                    {copiedFeatured ? <Check size={12} color="var(--spine-text)" /> : <Copy size={12} />}
-                    <span>{copiedFeatured ? 'Copied' : 'Copy'}</span>
-                  </button>
+
+          {resurfaced ? (
+            <article className="lamplight-resurfaced-paper">
+              <div className="lamplight-paper-rule" aria-hidden="true" />
+              <blockquote className="lamplight-resurfaced-quote">
+                “{resurfaced.note}”
+              </blockquote>
+              <footer className="lamplight-resurfaced-source">
+                <div>
+                  <strong>{resurfaced.title}</strong>
+                  <span style={{ opacity: 0.65, marginLeft: 6 }}>· {resurfaced.context}</span>
                 </div>
-                {featuredLesson.rating && (
-                  <span className={`lesson-score ${ratingClass(featuredLesson.rating)}`}>
-                    <Star size={13} fill="currentColor" /> {featuredLesson.rating}/10
-                  </span>
-                )}
-              </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {resurfaced.rating && <Rating score={resurfaced.rating} />}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      openComposer({
+                        targetKind: resurfaced.targetKind,
+                        id: resurfaced.targetId,
+                        title: resurfaced.title,
+                        context: resurfaced.context,
+                        defaultKind: 'lesson',
+                      })
+                    }
+                  >
+                    Add thought
+                  </Button>
+                </div>
+              </footer>
             </article>
-            <div className="memory-index">
-              <div className="memory-index-heading"><span>Memory index</span><span>{memoryIndex.length.toString().padStart(2, '0')}</span></div>
-              {memoryIndex.length ? memoryIndex.map((lesson) => <button type="button" key={lesson.id} className="memory-index-item" onClick={lesson.open}><span className="memory-index-type">{lesson.kind}</span><span><strong>{lesson.title}</strong><small>{lesson.context}</small></span>{lesson.rating && <span className={`lesson-score ${ratingClass(lesson.rating)}`}>{lesson.rating}</span>}<ChevronRight size={15} /></button>) : <p className="memory-index-empty">Your next note will join this index.</p>}
-            </div>
-          </div>
-        ) : (
-          <div className="lesson-empty"><PenLine size={22} /><div><strong>The reading room is waiting.</strong><p>Write a lesson on any title to make this a journal instead of a list.</p></div>{onOpenLogModal && <button type="button" className="desk-text-action" onClick={onOpenLogModal}>Log a title <ChevronRight size={15} /></button>}</div>
-        )}
-      </section>
-
-      <div className="desk-lower-grid desk-animate-item">
-        <section className="desk-side-section" aria-labelledby="returns-heading">
-          <div className="desk-section-heading">
-            <div>
-              <p className="desk-eyebrow"><RotateCcw size={13} /> return shelf</p>
-              <h2 id="returns-heading">Seen again</h2>
-            </div>
-            <button type="button" className="desk-text-action" onClick={() => onNavigate('rewatches')}>
-              All returns <ChevronRight size={15} />
-            </button>
-          </div>
-          {recentReturns.length ? (
-            <div className="desk-return-timeline">
-              {recentReturns.map((rewatch) => {
-                const date = returnDate(rewatch.finish_date || rewatch.start_date);
-                return (
-                  <button
-                    type="button"
-                    key={rewatch.id}
-                    className="desk-return-timeline-item"
-                    onClick={() => onNavigate('rewatches')}
-                  >
-                    <time className="desk-return-timeline-date">
-                      <span>{date.month}</span>
-                      <strong>{date.day}</strong>
-                      <small>{date.year}</small>
-                    </time>
-                    <span className="desk-return-timeline-node" />
-                    <span className="desk-return-timeline-copy">
-                      <strong>{rewatch.release_title || rewatch.series_title || 'A remembered title'}</strong>
-                      <small>{notePreview(rewatch.notes || '', 78)}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
           ) : (
-            <p className="desk-quiet-copy">Rewatches become a record of how a story changes with you.</p>
+            <div className="lamplight-resurfaced-paper" style={{ fontStyle: 'italic', color: 'var(--paper-ink-2)' }}>
+              Write your first reflection to seed the reading room.
+            </div>
           )}
         </section>
-        <section className="desk-side-section" aria-labelledby="characters-heading"><div className="desk-section-heading"><div><p className="desk-eyebrow"><UsersRound size={13} /> character shelf</p><h2 id="characters-heading">People remembered</h2></div><button type="button" className="desk-text-action" onClick={() => onNavigate('characters')}>All characters <ChevronRight size={15} /></button></div>{rememberedCharacters.length ? <div className="character-memory-deck">{rememberedCharacters.map((character) => { const image = character.cover_image_url || character.image_url || character.images?.[0]?.url || character.images?.[0]?.file; return <button type="button" className="character-memory-card" key={character.id} onClick={() => onNavigate('characters')}><span className="character-memory-portrait">{image ? <img src={image} alt="" /> : character.name.slice(0, 1)}</span><span className="character-memory-copy"><small>{character.series_title || 'Favorite character'}</small><strong>{character.name}</strong><em>“{notePreview(character.why || '', 88)}”</em></span></button>; })}</div> : <p className="desk-quiet-copy">Keep the characters whose choices gave you something to think about.</p>}</section>
+
+        {/* Waiting for Words */}
+        <section aria-labelledby="waiting-heading">
+          <div className="lamplight-desk-section-head">
+            <h2 id="waiting-heading" className="lamplight-desk-section-title">
+              <span>Waiting for Words</span>
+              <span className="lamplight-desk-section-badge">{waitingForWords.length}</span>
+            </h2>
+          </div>
+
+          {waitingForWords.length ? (
+            <div className="lamplight-waiting-list">
+              {waitingForWords.map((item) => (
+                <div key={item.id} className="lamplight-waiting-item">
+                  <div>
+                    <h4 className="lamplight-waiting-title">{item.title}</h4>
+                    <span className="lamplight-waiting-sub">{item.sub}</span>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    icon={<PenLine size={12} />}
+                    onClick={() =>
+                      openComposer({
+                        targetKind: item.targetKind,
+                        id: item.targetId,
+                        title: item.title,
+                        context: item.sub,
+                        defaultKind: item.targetKind === 'character' ? 'why' : 'lesson',
+                      })
+                    }
+                  >
+                    Write
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="lamplight-waiting-list" style={{ color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic' }}>
+              Every completed title has its lesson kept.
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Reader & Export Modals */}
-      <ReadingRoomModal
-        isOpen={showReadingRoomModal}
-        onClose={() => setShowReadingRoomModal(false)}
-        lessons={lessons}
-        onToast={onToast}
-      />
-      <ExportModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        onToast={onToast}
-      />
+      {/* 4. Bottom Grid: Seen Again (Returns) & People Remembered */}
+      <div className="lamplight-desk-bottom-grid">
+        {/* Seen Again Returns Shelf */}
+        <section aria-labelledby="returns-heading">
+          <div className="lamplight-desk-section-head">
+            <h2 id="returns-heading" className="lamplight-desk-section-title">
+              <RotateCcw size={15} color="var(--lamp)" />
+              <span>Seen Again</span>
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('rewatches')}>
+              <span>All returns</span>
+              <ChevronRight size={14} />
+            </Button>
+          </div>
+
+          {recentReturns.length ? (
+            <div className="lamplight-desk-card-deck">
+              {recentReturns.map((rewatch) => (
+                <button
+                  key={rewatch.id}
+                  type="button"
+                  className="lamplight-return-item"
+                  onClick={() => onNavigate('rewatches')}
+                >
+                  <span className="lamplight-return-date">
+                    {formatDate(rewatch.finish_date || rewatch.start_date)}
+                  </span>
+                  <div>
+                    <strong style={{ color: 'var(--text)', display: 'block', fontSize: 14 }}>
+                      {rewatch.series_title || rewatch.release_title}
+                    </strong>
+                    <span style={{ color: 'var(--text-3)', fontSize: 12, display: 'block' }}>
+                      {rewatch.release_title !== rewatch.series_title ? rewatch.release_title : ''}
+                    </span>
+                    <p style={{ color: 'var(--text-2)', fontSize: 13, fontStyle: 'italic', marginTop: 2 }}>
+                      “{rewatch.notes}”
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="lamplight-desk-card-deck" style={{ color: 'var(--text-3)', fontSize: 13 }}>
+              Rewatches become a record of how a story changes with you.
+            </div>
+          )}
+        </section>
+
+        {/* People Remembered */}
+        <section aria-labelledby="people-heading">
+          <div className="lamplight-desk-section-head">
+            <h2 id="people-heading" className="lamplight-desk-section-title">
+              <Sparkles size={15} color="var(--lamp)" />
+              <span>People Remembered</span>
+            </h2>
+            <Button variant="ghost" size="sm" onClick={() => onNavigate('characters')}>
+              <span>All people</span>
+              <ChevronRight size={14} />
+            </Button>
+          </div>
+
+          {rememberedCharacters.length ? (
+            <div className="lamplight-desk-card-deck">
+              {rememberedCharacters.map((char) => (
+                <button
+                  key={char.id}
+                  type="button"
+                  className="lamplight-person-item"
+                  onClick={() => onNavigate('characters')}
+                >
+                  <div style={{ width: 40, height: 40, flexShrink: 0 }}>
+                    <Cover
+                      title={char.name}
+                      imageUrl={char.cover_image_url || char.image_url}
+                      variant="portrait"
+                    />
+                  </div>
+                  <div>
+                    <strong style={{ color: 'var(--text)', display: 'block', fontSize: 14 }}>
+                      {char.name}
+                    </strong>
+                    <span style={{ color: 'var(--text-3)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {char.series_title}
+                    </span>
+                    <p style={{ color: 'var(--text-2)', fontSize: 13, fontStyle: 'italic', marginTop: 2 }}>
+                      “{char.why}”
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="lamplight-desk-card-deck" style={{ color: 'var(--text-3)', fontSize: 13 }}>
+              Remember the people whose choices gave you something to think about.
+            </div>
+          )}
+        </section>
+      </div>
     </div>
   );
 };
