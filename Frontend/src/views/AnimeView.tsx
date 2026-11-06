@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { AnimeSeries } from '../types';
 import { useJournal } from '../state/JournalContext';
+import { overallSeriesStatus } from '../lib/selectors/seriesStatus';
 import { Cover, StatusMark, Rating, Button, EmptyState } from '../ui';
 import {
   Film,
@@ -9,8 +10,6 @@ import {
   LayoutGrid,
   List as ListIcon,
   PenLine,
-  MoreVertical,
-  RotateCcw,
 } from 'lucide-react';
 import '../features/library/Library.css';
 
@@ -39,8 +38,6 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   seriesList,
   searchQuery,
   onOpenDetail,
-  onEditSeries,
-  onDeleteSeries,
   onOpenNewFranchiseModal,
 }) => {
   const { openComposer } = useJournal();
@@ -49,36 +46,6 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   const [sortBy, setSortBy] = useState<'recent' | 'rating' | 'title' | 'lesson'>('recent');
   const [viewMode, setViewMode] = useState<'shelf' | 'list'>('shelf');
 
-  // Compute status counts
-  const filterTabs = useMemo(() => {
-    return [
-      { id: 'ALL', label: 'All', count: seriesList.length },
-      {
-        id: 'WATCHING',
-        label: 'Watching',
-        count: seriesList.filter((s) =>
-          s.seasons?.some((sea) => sea.status === 'WATCHING') ||
-          s.movies?.some((m) => m.status === 'WATCHING')
-        ).length,
-      },
-      {
-        id: 'COMPLETED',
-        label: 'Finished',
-        count: seriesList.filter((s) =>
-          s.seasons?.some((sea) => sea.status === 'COMPLETED') ||
-          s.movies?.some((m) => m.status === 'COMPLETED')
-        ).length,
-      },
-      {
-        id: 'PLAN_TO_WATCH',
-        label: 'Up next',
-        count: seriesList.filter((s) =>
-          s.seasons?.some((sea) => sea.status === 'PLAN_TO_WATCH') ||
-          s.movies?.some((m) => m.status === 'PLAN_TO_WATCH')
-        ).length,
-      },
-    ];
-  }, [seriesList]);
 
   // Extract helper for each series
   const enrichedSeries = useMemo(() => {
@@ -88,15 +55,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       const watchingMovie = series.movies?.find((m) => m.status === 'WATCHING');
       const primarySeason = series.seasons?.[0];
 
-      // Overall status
-      let overallStatus = 'PLAN_TO_WATCH';
-      if (watchingSeason || watchingMovie) overallStatus = 'WATCHING';
-      else if (
-        series.seasons?.every((s) => s.status === 'COMPLETED') &&
-        (series.movies?.length === 0 || series.movies?.every((m) => m.status === 'COMPLETED'))
-      ) {
-        overallStatus = 'COMPLETED';
-      }
+      const overallStatus = overallSeriesStatus(series);
 
       // Ratings
       const ratings = [
@@ -122,7 +81,8 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       // Season label
       const totalSeasons = series.seasons?.length || 0;
       const totalMovies = series.movies?.length || 0;
-      let label = '1 Season';
+      let label = totalSeasons === 0 && totalMovies === 0 ? 'No seasons yet' : '1 Season';
+      if (totalSeasons === 0 && totalMovies > 0) label = `${totalMovies} Film${totalMovies > 1 ? 's' : ''}`;
       if (watchingSeason) label = `Watching · Season ${watchingSeason.season_number}`;
       else if (totalSeasons > 1 && totalMovies === 0) label = `${totalSeasons} Seasons`;
       else if (totalSeasons === 1 && totalMovies > 0) label = `1 Season · ${totalMovies} Film${totalMovies > 1 ? 's' : ''}`;
@@ -142,9 +102,24 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         label,
         coverUrl,
         primarySeason,
+        primaryMovie: series.movies?.[0],
       };
     });
   }, [seriesList]);
+
+  // Counts use the same status as the filter, so a tab's number always matches its results
+  const filterTabs = useMemo(() => {
+    const count = (id: string) => enrichedSeries.filter((item) => item.overallStatus === id).length;
+    const tabs = [
+      { id: 'ALL', label: 'All', count: enrichedSeries.length },
+      { id: 'WATCHING', label: 'Watching', count: count('WATCHING') },
+      { id: 'COMPLETED', label: 'Finished', count: count('COMPLETED') },
+      { id: 'PLAN_TO_WATCH', label: 'Up next', count: count('PLAN_TO_WATCH') },
+      { id: 'ON_HOLD', label: 'On hold', count: count('ON_HOLD') },
+      { id: 'DROPPED', label: 'Dropped', count: count('DROPPED') },
+    ];
+    return tabs.filter((tab) => tab.count > 0 || tab.id === 'ALL' || tab.id === selectedStatus);
+  }, [enrichedSeries, selectedStatus]);
 
   // Filter & sort
   const filtered = useMemo(() => {
@@ -262,7 +237,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       {filtered.length ? (
         viewMode === 'shelf' ? (
           <div className="lamplight-shelf-grid">
-            {filtered.map(({ series, overallStatus, avgRating, latestLesson, label, coverUrl, primarySeason }) => (
+            {filtered.map(({ series, overallStatus, avgRating, latestLesson, label, coverUrl, primarySeason, primaryMovie }) => (
               <article
                 key={series.id}
                 className="lamplight-card"
@@ -297,12 +272,16 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                       className="lamplight-card-empty-lesson"
                       onClick={(e) => {
                         e.stopPropagation();
-                        openComposer({
-                          targetKind: 'season',
-                          id: primarySeason?.id || series.id,
-                          title: series.title,
-                          defaultKind: 'lesson',
-                        });
+                        const release = primarySeason
+                          ? { targetKind: 'season' as const, id: primarySeason.id }
+                          : primaryMovie
+                            ? { targetKind: 'movie' as const, id: primaryMovie.id }
+                            : null;
+                        if (!release) {
+                          onOpenDetail?.(series.id);
+                          return;
+                        }
+                        openComposer({ ...release, title: series.title, defaultKind: 'lesson' });
                       }}
                     >
                       <PenLine size={13} />

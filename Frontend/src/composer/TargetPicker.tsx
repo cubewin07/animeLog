@@ -10,8 +10,6 @@ export interface ChosenTarget {
   context?: string;
   defaultKind?: 'lesson' | 'episode' | 'return' | 'why';
   episodeNumber?: number;
-  existingNotes?: string | null;
-  totalEpisodes?: number | null;
 }
 
 export interface TargetPickerProps {
@@ -61,8 +59,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
           title: s.title,
           context: `Season ${season.season_number} · ${season.title}`,
           defaultKind: 'lesson',
-          existingNotes: season.notes,
-          totalEpisodes: season.total_episodes,
         };
         if (season.status === 'WATCHING') active.push(item);
         else others.push(item);
@@ -75,7 +71,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
           title: s.title,
           context: `Film · ${movie.title}`,
           defaultKind: 'lesson',
-          existingNotes: movie.notes,
         };
         if (movie.status === 'WATCHING') active.push(item);
         else others.push(item);
@@ -90,7 +85,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
         title: b.title,
         context: b.author ? `by ${b.author} · Book` : 'Book',
         defaultKind: 'lesson',
-        existingNotes: b.notes,
       };
       if (b.status === 'READING') active.push(item);
       else others.push(item);
@@ -104,7 +98,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
         title: c.name,
         context: c.series_title ? `Character · ${c.series_title}` : 'Character',
         defaultKind: 'why',
-        existingNotes: c.why,
       });
     });
 

@@ -9,6 +9,7 @@ export interface ComposerDraft {
   episodeNumber?: number;
   note: string;
   rating?: number | null;
+  editEntireNote?: boolean;
   updatedAt: number;
 }
 

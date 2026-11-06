@@ -10,7 +10,6 @@ import {
   Quote,
   Search,
   Sparkles,
-  RotateCcw,
   Plus,
 } from 'lucide-react';
 import './CommandPalette.css';

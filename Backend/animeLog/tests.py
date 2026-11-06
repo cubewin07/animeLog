@@ -522,13 +522,31 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         )
         self.assertEqual(res3.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # 4. Delta -1 decreases progress below total -> does not erase COMPLETED status
+        # 4. Delta -1 undoes finishing: back to WATCHING, and today's finish date is cleared
         res4 = self.client.patch(
             f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json"
         )
         self.assertEqual(res4.status_code, status.HTTP_200_OK)
         self.assertEqual(res4.data["progress"], 11)
-        self.assertEqual(res4.data["status"], AnimeStatus.COMPLETED)
+        self.assertEqual(res4.data["status"], AnimeStatus.WATCHING)
+        self.assertIsNone(res4.data["finish_date"])
+
+    def test_stepping_back_keeps_an_older_finish_date(self):
+        season = AnimeSeason.objects.create(
+            series=self.series,
+            season_number=3,
+            title="Season 3",
+            status=AnimeStatus.COMPLETED,
+            progress=12,
+            total_episodes=12,
+            finish_date=date(2023, 2, 20),
+        )
+        res = self.client.patch(
+            f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["status"], AnimeStatus.WATCHING)
+        self.assertEqual(res.data["finish_date"], "2023-02-20")
 
     def test_movie_progress_endpoint_and_bounds(self):
         movie = AnimeMovie.objects.create(

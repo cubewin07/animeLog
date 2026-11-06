@@ -371,21 +371,22 @@ export const bookApi = {
     const current = await bookApi.get(id);
     const max = current.total_pages || 99999;
     const newProgress = Math.max(0, Math.min(max, current.progress + delta));
-    const newStatus =
-      current.status === 'PLAN_TO_READ' && newProgress > 0
+    const today = new Date().toISOString().split('T')[0];
+    const reopened =
+      current.status === 'COMPLETED' && Boolean(current.total_pages) && newProgress < (current.total_pages as number);
+    const newStatus = reopened
+      ? 'READING'
+      : current.status === 'PLAN_TO_READ' && newProgress > 0
         ? 'READING'
         : current.total_pages && newProgress >= current.total_pages && current.status === 'READING'
           ? 'COMPLETED'
           : current.status;
 
-    return bookApi.update(id, {
-      progress: newProgress,
-      status: newStatus,
-      finish_date:
-        newStatus === 'COMPLETED' && !current.finish_date
-          ? new Date().toISOString().split('T')[0]
-          : current.finish_date,
-    });
+    let finishDate = current.finish_date;
+    if (newStatus === 'COMPLETED' && !finishDate) finishDate = today;
+    if (reopened && finishDate === today) finishDate = null;
+
+    return bookApi.update(id, { progress: newProgress, status: newStatus, finish_date: finishDate });
   },
 
   async delete(id: number): Promise<void> {
@@ -476,7 +477,7 @@ export const characterApi = {
     });
   },
 
-  async update(id: number, data: Partial<FavoriteCharacter> & { cover_image?: number | null; images?: number[] }): Promise<FavoriteCharacter> {
+  async update(id: number, data: Omit<Partial<FavoriteCharacter>, 'images'> & { cover_image?: number | null; images?: number[] }): Promise<FavoriteCharacter> {
     return fetchJson<FavoriteCharacter>(`${API_BASE}/characters/${id}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),

@@ -94,6 +94,15 @@ def _update_release_progress(
                 release.finish_date = date.today()
                 changed_fields.append("finish_date")
 
+        # Stepping back from the last episode reopens the release, which is what makes Undo work.
+        # A finish date set today came from reaching the end just now; an older one is history.
+        elif delta < 0 and total is not None and release.status == AnimeStatus.COMPLETED:
+            release.status = AnimeStatus.WATCHING
+            changed_fields.append("status")
+            if release.finish_date == date.today():
+                release.finish_date = None
+                changed_fields.append("finish_date")
+
         release.save(update_fields=list(dict.fromkeys(changed_fields)))
 
     return Response(viewset.get_serializer(release).data, status=status.HTTP_200_OK)

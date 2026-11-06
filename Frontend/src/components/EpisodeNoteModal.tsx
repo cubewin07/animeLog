@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AnimeSeason, EpisodeNote } from '../types';
-import { X, BookmarkCheck, Star, Trash2 } from 'lucide-react';
+import { X, BookmarkCheck, Trash2 } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 import { ImageUploadField } from './ImageUploadField';
-import { CustomSelect } from './CustomSelect';
 import { CustomNumberInput } from './CustomNumberInput';
 import { CustomRatingInput } from './CustomRatingInput';
 

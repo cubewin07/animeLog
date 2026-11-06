@@ -8,23 +8,19 @@ import {
   Rewatch,
 } from '../types';
 import { useJournal } from '../state/JournalContext';
-import { Cover, StatusMark, Rating, Stepper, Button, EmptyState, Kbd } from '../ui';
+import { Cover, StatusMark, Rating, Stepper, Button } from '../ui';
 import { formatDate } from '../lib/format';
+import { rewatchesForRelease } from '../lib/selectors/rewatches';
 import { seasonApi, movieApi } from '../api/client';
 import {
   ArrowLeft,
-  BookOpen,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
-  Film,
-  MoreVertical,
   PenLine,
   Plus,
   Quote,
   RotateCcw,
   Sparkles,
-  Trash2,
 } from 'lucide-react';
 import './FranchiseDetailView.css';
 
@@ -55,19 +51,19 @@ interface FranchiseDetailViewProps {
   onRefresh?: () => Promise<void>;
 }
 
+const nextNoteEpisode = (season: AnimeSeason) => {
+  const next = (season.progress || 0) + 1;
+  return season.total_episodes ? Math.min(next, season.total_episodes) : next;
+};
+
 export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   series,
   allRewatches = [],
   onBack,
   onEditSeries,
-  onDeleteSeries,
   onAddSeason,
   onAddMovie,
-  onEditSeason,
-  onDeleteSeason,
   onSeasonProgressDelta,
-  onEditMovie,
-  onDeleteMovie,
   onMovieProgressDelta,
   onOpenEpisodeNotes,
   onAddRewatchSeason,
@@ -140,11 +136,12 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   // Rewatches for active release
   const releaseRewatches = React.useMemo(() => {
     if (!activeRelease) return [];
-    return allRewatches.filter((r) => {
-      if (selectedType === 'season') return r.season_id === activeRelease.id || r.target_id === activeRelease.id;
-      return r.movie_id === activeRelease.id || r.target_id === activeRelease.id;
+    return rewatchesForRelease(allRewatches, {
+      type: selectedType,
+      id: activeRelease.id,
+      seriesId: series.id,
     });
-  }, [allRewatches, selectedType, activeRelease]);
+  }, [allRewatches, selectedType, activeRelease, series.id]);
 
   return (
     <div className="lamplight-folio">
@@ -200,11 +197,11 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                         title: series.title,
                         context: `Season ${currentSeason.season_number}`,
                         defaultKind: 'episode',
-                        episodeNumber: (currentSeason.progress || 0) + 1,
+                        episodeNumber: nextNoteEpisode(currentSeason),
                       })
                     }
                   >
-                    Note ep {(currentSeason.progress || 0) + 1}
+                    Note ep {nextNoteEpisode(currentSeason)}
                   </Button>
                 </div>
               )}
@@ -287,15 +284,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             <Button
               variant="primary"
               icon={<PenLine size={14} />}
-              onClick={() =>
+              disabled={!activeRelease}
+              onClick={() => {
+                if (!activeRelease) return;
                 openComposer({
                   targetKind: selectedType,
-                  id: activeRelease?.id || series.id,
+                  id: activeRelease.id,
                   title: series.title,
                   context: releaseTitle,
                   defaultKind: 'lesson',
-                })
-              }
+                });
+              }}
             >
               Write Reflection
             </Button>

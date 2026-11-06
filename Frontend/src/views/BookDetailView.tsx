@@ -6,7 +6,6 @@ import { formatDate } from '../lib/format';
 import { bookApi } from '../api/client';
 import {
   ArrowLeft,
-  BookOpen,
   Calendar,
   ChevronDown,
   ChevronUp,
@@ -86,10 +85,9 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
         <aside className="lamplight-identity-col">
           <div className="lamplight-identity-cover-wrap">
             <Cover
-              type="book"
+              variant="book"
               title={book.title}
-              coverUrl={coverUrl}
-              size="lg"
+              imageUrl={coverUrl}
             />
           </div>
 
@@ -104,7 +102,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
 
           <div className="lamplight-identity-meta-row">
             <StatusMark status={book.status} />
-            <Rating value={book.rating} max={10} readonly />
+            <Rating score={book.rating} />
           </div>
 
           {/* Reading Progress */}
@@ -175,10 +173,11 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
               icon={<PenLine size={14} />}
               onClick={() => {
                 openComposer({
-                  type: 'book',
-                  targetId: book.id,
+                  targetKind: 'book',
+                  id: book.id,
                   title: book.title,
-                  currentNotes: book.notes,
+                  context: book.author || undefined,
+                  defaultKind: 'lesson',
                 });
               }}
               style={{ flex: 1 }}

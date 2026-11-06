@@ -3,8 +3,7 @@ import { AnimeSeries, Rewatch, RewatchTargetType } from '../types';
 import { RewatchTimeline } from '../components/RewatchTimeline';
 import { RewatchDetailModal } from '../components/RewatchDetailModal';
 import { Button, EmptyState } from '../ui';
-import { useJournal } from '../state/JournalContext';
-import { Plus, RotateCcw, Search, Sparkles, X } from 'lucide-react';
+import { Plus, RotateCcw, Search, X } from 'lucide-react';
 import {
   filterRewatches,
   getSpineLedgerStats,
@@ -24,14 +23,12 @@ interface RewatchesViewProps {
 
 export const RewatchesView: React.FC<RewatchesViewProps> = ({
   rewatches,
-  seriesList,
   searchQuery,
   onEdit,
   onDelete,
   onOpenRewatchModal,
   onNavigateSeries,
 }) => {
-  const { openComposer } = useJournal();
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<'ALL' | RewatchTargetType>('ALL');
   const [selectedRewatch, setSelectedRewatch] = useState<Rewatch | null>(null);
   const [localQuery, setLocalQuery] = useState(searchQuery || '');

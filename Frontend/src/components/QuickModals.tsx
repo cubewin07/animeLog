@@ -3,17 +3,16 @@ import {
   AnimeMovie,
   AnimeSeason,
   AnimeSeries,
-  EpisodeNote,
   FavoriteCharacter,
   Rewatch,
   RewatchTargetType,
 } from '../types';
-import { X, RotateCcw, Tv, Film, Layers, PlayCircle } from 'lucide-react';
+import { X, RotateCcw, Tv, Film, Layers, PlayCircle, Sparkles } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';
 import { ImageUploadField } from './ImageUploadField';
-import { CustomSelect, SelectItem } from './CustomSelect';
+import { CustomSelect } from './CustomSelect';
 import { CustomDatePicker } from './CustomDatePicker';
 import { CustomNumberInput } from './CustomNumberInput';
 import { CustomRatingInput } from './CustomRatingInput';

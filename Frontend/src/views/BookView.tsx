@@ -35,25 +35,17 @@ export const BookView: React.FC<BookViewProps> = ({
   const [viewMode, setViewMode] = useState<'shelf' | 'list'>('shelf');
 
   const filterTabs = useMemo(() => {
-    return [
+    const count = (id: string) => bookList.filter((b) => b.status === id).length;
+    const tabs = [
       { id: 'ALL', label: 'All', count: bookList.length },
-      {
-        id: 'READING',
-        label: 'Reading',
-        count: bookList.filter((b) => b.status === 'READING').length,
-      },
-      {
-        id: 'COMPLETED',
-        label: 'Finished',
-        count: bookList.filter((b) => b.status === 'COMPLETED').length,
-      },
-      {
-        id: 'PLAN_TO_READ',
-        label: 'Up next',
-        count: bookList.filter((b) => b.status === 'PLAN_TO_READ').length,
-      },
+      { id: 'READING', label: 'Reading', count: count('READING') },
+      { id: 'COMPLETED', label: 'Finished', count: count('COMPLETED') },
+      { id: 'PLAN_TO_READ', label: 'Up next', count: count('PLAN_TO_READ') },
+      { id: 'ON_HOLD', label: 'On hold', count: count('ON_HOLD') },
+      { id: 'DROPPED', label: 'Dropped', count: count('DROPPED') },
     ];
-  }, [bookList]);
+    return tabs.filter((tab) => tab.count > 0 || tab.id === 'ALL' || tab.id === selectedStatus);
+  }, [bookList, selectedStatus]);
 
   const filtered = useMemo(() => {
     return bookList

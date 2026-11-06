@@ -1,9 +1,8 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
-import { Cover, Button } from '../ui';
+import { Cover } from '../ui';
 import { useJournal } from '../state/JournalContext';
 import {
-  Sparkles,
   Trash2,
   PenLine,
   Image as ImageIcon,
@@ -126,7 +125,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           title={character.name}
           imageUrl={charImg}
           variant="portrait"
-          style={{ width: '100%', height: '100%', borderRadius: '50%' }}
         />
       </div>
 
@@ -227,10 +225,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               }}
               onClick={() => {
                 openComposer({
-                  type: 'character',
-                  targetId: character.id,
+                  targetKind: 'character',
+                  id: character.id,
                   title: character.name,
-                  currentNotes: character.why,
+                  context: character.series_title,
+                  defaultKind: 'why',
                 });
               }}
             >

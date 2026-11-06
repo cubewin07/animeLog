@@ -3,8 +3,7 @@ import { FavoriteCharacter, ImageAsset } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
 import { CharacterDetailModal } from '../components/CharacterDetailModal';
 import { Button, EmptyState } from '../ui';
-import { useJournal } from '../state/JournalContext';
-import { Plus, Search, Sparkles, User, X } from 'lucide-react';
+import { Plus, Search, User, X } from 'lucide-react';
 import { characterApi } from '../api/client';
 
 interface CharactersViewProps {
@@ -24,7 +23,6 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   onOpenAddModal,
   onRefresh,
 }) => {
-  const { openComposer } = useJournal();
   const [selectedCharacter, setSelectedCharacter] = useState<FavoriteCharacter | null>(null);
   const [localQuery, setLocalQuery] = useState(searchQuery || '');
 

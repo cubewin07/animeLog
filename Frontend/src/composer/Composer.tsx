@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useJournal } from '../state/JournalContext';
 import { TargetPicker, ChosenTarget } from './TargetPicker';
 import { Sheet, Button, Paper, Rating, Kbd } from '../ui';
@@ -11,8 +11,8 @@ import {
   characterApi,
   rewatchApi,
 } from '../api/client';
-import { formatDate } from '../lib/format';
-import { Check, Clock, History, PenLine } from 'lucide-react';
+import { Check, PenLine } from 'lucide-react';
+import { composeFinalNote, normalizeKind, resolveExistingNote, NoteKind } from './noteTarget';
 import './Composer.css';
 
 export interface ComposerProps {
@@ -20,11 +20,14 @@ export interface ComposerProps {
   onClose: () => void;
 }
 
-export type ReflectionKind = 'lesson' | 'episode' | 'return' | 'why';
+export type ReflectionKind = NoteKind;
 
 export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   const {
     composerInitialTarget,
+    seriesList,
+    bookList,
+    characterList,
     refreshAll,
     addToast,
     openNewFranchiseModal,
@@ -41,40 +44,60 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
 
   // Initialize target when opened
   useEffect(() => {
-    if (isOpen) {
-      if (composerInitialTarget) {
-        setTarget({
-          targetKind: composerInitialTarget.targetKind,
-          id: composerInitialTarget.id,
-          title: composerInitialTarget.title,
-          context: composerInitialTarget.context,
-          defaultKind: composerInitialTarget.defaultKind || 'lesson',
-          episodeNumber: composerInitialTarget.episodeNumber,
-        });
-        setKind(composerInitialTarget.defaultKind || 'lesson');
-        if (composerInitialTarget.episodeNumber) {
-          setEpisodeNumber(composerInitialTarget.episodeNumber);
-        }
-      }
+    if (!isOpen) return;
+    setNote('');
+    setRating(null);
+    setEditEntireNote(false);
+    if (composerInitialTarget) {
+      setTarget({
+        targetKind: composerInitialTarget.targetKind,
+        id: composerInitialTarget.id,
+        title: composerInitialTarget.title,
+        context: composerInitialTarget.context,
+        defaultKind: composerInitialTarget.defaultKind,
+        episodeNumber: composerInitialTarget.episodeNumber,
+      });
+      setKind(normalizeKind(composerInitialTarget.targetKind, composerInitialTarget.defaultKind));
+      setEpisodeNumber(composerInitialTarget.episodeNumber ?? 1);
+    } else {
+      setTarget(null);
+      setKind('lesson');
+      setEpisodeNumber(1);
     }
   }, [isOpen, composerInitialTarget]);
+
+  // Always read the saved note from live data, however the Composer was opened
+  const existing = useMemo(
+    () =>
+      target
+        ? resolveExistingNote(target, kind, episodeNumber, { seriesList, bookList, characterList })
+        : { text: null },
+    [target, kind, episodeNumber, seriesList, bookList, characterList]
+  );
+  const existingText = existing.text?.trim() ? existing.text : null;
 
   // Load existing draft if available
   useEffect(() => {
     if (target) {
       const draft = loadDraft(`${target.targetKind}-${target.id}`, kind);
-      if (draft) {
+      // A draft for a different episode must not replace the episode that was asked for
+      const draftFitsEpisode =
+        !target.episodeNumber || !draft?.episodeNumber || draft.episodeNumber === target.episodeNumber;
+      if (draft && draftFitsEpisode) {
         setNote(draft.note);
-        if (draft.rating) setRating(draft.rating);
+        setRating(draft.rating ?? null);
+        setEditEntireNote(Boolean(draft.editEntireNote));
         if (draft.episodeNumber) setEpisodeNumber(draft.episodeNumber);
       } else {
         setNote('');
+        setRating(null);
+        setEditEntireNote(false);
       }
     }
   }, [target, kind]);
 
   // Debounced draft autosave
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!target || !note.trim()) return;
 
@@ -87,6 +110,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         episodeNumber: kind === 'episode' ? episodeNumber : undefined,
         note,
         rating,
+        editEntireNote,
         updatedAt: Date.now(),
       });
       setDraftSavedTime('Draft saved');
@@ -96,7 +120,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [note, rating, episodeNumber, target, kind]);
+  }, [note, rating, episodeNumber, target, kind, editEntireNote]);
 
   // Available kinds based on target type
   const availableKinds = React.useMemo(() => {
@@ -137,16 +161,14 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         year: 'numeric',
       }).format(new Date());
 
-      // Prepare final note (append if previous note existed and not in overwrite mode)
-      let finalNote = note.trim();
-      if (
-        !editEntireNote &&
-        target.existingNotes?.trim() &&
-        kind === 'lesson' &&
-        !finalNote.includes(target.existingNotes.trim())
-      ) {
-        finalNote = `${target.existingNotes.trim()}\n\n— ${todayStr}\n${finalNote}`;
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+      const finalNote = composeFinalNote({
+        newText: note,
+        existingText,
+        editEntireNote,
+        dateLabel: todayStr,
+      });
 
       if (target.targetKind === 'season') {
         if (kind === 'lesson') {
@@ -156,12 +178,19 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
           });
           addToast('Season reflection saved');
         } else if (kind === 'episode') {
-          await episodeNoteApi.create({
-            season: target.id,
-            episode_number: episodeNumber,
-            note: finalNote,
-            ...(rating ? { rating } : {}),
-          });
+          if (existing.episodeNoteId) {
+            await episodeNoteApi.update(existing.episodeNoteId, {
+              note: finalNote,
+              ...(rating ? { rating } : {}),
+            });
+          } else {
+            await episodeNoteApi.create({
+              season: target.id,
+              episode_number: episodeNumber,
+              note: finalNote,
+              ...(rating ? { rating } : {}),
+            });
+          }
           addToast(`Episode ${episodeNumber} memory recorded`);
         } else if (kind === 'return') {
           await rewatchApi.create({
@@ -172,6 +201,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             start_date: new Date().toISOString().split('T')[0],
           });
           addToast('Return pass recorded');
+        } else {
+          throw new Error('This note type is not available for a season.');
         }
       } else if (target.targetKind === 'movie') {
         if (kind === 'lesson') {
@@ -189,6 +220,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             start_date: new Date().toISOString().split('T')[0],
           });
           addToast('Return pass recorded');
+        } else {
+          throw new Error('This note type is not available for a movie.');
         }
       } else if (target.targetKind === 'book') {
         await bookApi.update(target.id, {
@@ -201,6 +234,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
           why: finalNote,
         });
         addToast('Character reflection saved');
+      } else {
+        throw new Error('This note type is not available for that title.');
       }
 
       clearDraft(`${target.targetKind}-${target.id}`, kind);
@@ -267,7 +302,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             value={target}
             onChange={(selected) => {
               setTarget(selected);
-              if (selected.defaultKind) setKind(selected.defaultKind as ReflectionKind);
+              setKind(normalizeKind(selected.targetKind, selected.defaultKind));
+              setEpisodeNumber(1);
             }}
             onOpenNewCatalog={() => {
               onClose();
@@ -299,14 +335,20 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         {kind === 'episode' && (
           <div className="lamplight-composer-field">
             <label className="lamplight-composer-label">
-              Episode Number {target?.totalEpisodes ? `(1 – ${target.totalEpisodes})` : ''}
+              Episode Number {existing.totalEpisodes ? `(1 – ${existing.totalEpisodes})` : ''}
             </label>
             <input
               type="number"
               min={1}
-              max={target?.totalEpisodes || 9999}
+              max={existing.totalEpisodes || 9999}
               value={episodeNumber}
-              onChange={(e) => setEpisodeNumber(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => {
+                setEpisodeNumber(Math.max(1, parseInt(e.target.value) || 1));
+                if (editEntireNote) {
+                  setEditEntireNote(false);
+                  setNote('');
+                }
+              }}
               style={{
                 width: 120,
                 height: 38,
@@ -324,15 +366,15 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         )}
 
         {/* Previous notes excerpt (if appending) */}
-        {target?.existingNotes && kind === 'lesson' && !editEntireNote && (
+        {existingText && !editEntireNote && (
           <div className="lamplight-composer-field">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label className="lamplight-composer-label">Previous notes on this title</label>
+              <label className="lamplight-composer-label">Already saved (your new text is added below it)</label>
               <button
                 type="button"
                 onClick={() => {
                   setEditEntireNote(true);
-                  setNote(target.existingNotes || '');
+                  setNote(existingText);
                 }}
                 style={{
                   background: 'none',
@@ -347,7 +389,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
               </button>
             </div>
             <div className="lamplight-composer-prev-note">
-              “{target.existingNotes}”
+              “{existingText}”
             </div>
           </div>
         )}

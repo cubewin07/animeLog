@@ -13,9 +13,7 @@ import { useReflections } from '../state/useReflections';
 import { Cover, Stepper, Rating, Button, EmptyState } from '../ui';
 import { formatDate } from '../lib/format';
 import {
-  BookOpen,
   ChevronRight,
-  Film,
   PenLine,
   Quote,
   RefreshCw,
@@ -43,7 +41,6 @@ interface DashboardViewProps {
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  stats,
   seriesList,
   bookList,
   characterList = [],
@@ -362,21 +359,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {resurfaced.rating && <Rating score={resurfaced.rating} />}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      openComposer({
-                        targetKind: resurfaced.targetKind,
-                        id: resurfaced.targetId,
-                        title: resurfaced.title,
-                        context: resurfaced.context,
-                        defaultKind: 'lesson',
-                      })
-                    }
-                  >
-                    Add thought
-                  </Button>
+                  {resurfaced.kind !== 'rewatch' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        openComposer({
+                          targetKind: resurfaced.targetKind,
+                          id: resurfaced.targetId,
+                          title: resurfaced.title,
+                          context: resurfaced.context,
+                          defaultKind: resurfaced.kind === 'episode' ? 'episode' : undefined,
+                          episodeNumber: resurfaced.episodeNumber,
+                        })
+                      }
+                    >
+                      Add thought
+                    </Button>
+                  )}
                 </div>
               </footer>
             </article>

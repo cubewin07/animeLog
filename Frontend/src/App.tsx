@@ -12,6 +12,7 @@ import {
 import { JournalProvider, useJournal } from './state/JournalContext';
 import { AppShell } from './shell/AppShell';
 import { ToastContainer } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { EntryModal } from './components/EntryModal';
 import { EpisodeNoteModal } from './components/EpisodeNoteModal';
@@ -124,6 +125,8 @@ const JournalAppContent: React.FC = () => {
     removeToast,
     addToast,
     requestConfirm,
+    confirmDialog,
+    closeConfirm,
     handleSaveSeries,
     handleDeleteSeries,
     handleSaveSeason,
@@ -149,6 +152,7 @@ const JournalAppContent: React.FC = () => {
     openEditMovieModal,
     openNewBookModal,
     openEditBookModal,
+    openAddRewatch,
     openAddRewatchSeries,
     openAddRewatchSeason,
     openAddRewatchMovie,
@@ -181,7 +185,15 @@ const JournalAppContent: React.FC = () => {
 
   return (
     <AppShell onOpenExport={() => setShowExportModal(true)}>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel={confirmDialog.confirmLabel}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={closeConfirm}
+      />
 
       {loading ? (
         <div
@@ -201,6 +213,7 @@ const JournalAppContent: React.FC = () => {
           </p>
         </div>
       ) : (
+        <ErrorBoundary>
         <Routes>
           <Route
             path="/"
@@ -345,9 +358,7 @@ const JournalAppContent: React.FC = () => {
                 searchQuery={searchQuery}
                 onEdit={openEditRewatchModal}
                 onDelete={handleDeleteRewatch}
-                onOpenRewatchModal={() => {
-                  openAddRewatchSeries(seriesList[0]);
-                }}
+                onOpenRewatchModal={openAddRewatch}
                 onNavigateSeries={(seriesId) => navigate(`/anime/${seriesId}`)}
               />
             }
@@ -358,9 +369,11 @@ const JournalAppContent: React.FC = () => {
             element={<MediaView onNotify={addToast} onRequestConfirm={requestConfirm} />}
           />
         </Routes>
+        </ErrorBoundary>
       )}
 
       {/* Global Modals */}
+      <ErrorBoundary>
       <EntryModal
         isOpen={entryModalOpen}
         onClose={() => setEntryModalOpen(false)}
@@ -411,6 +424,7 @@ const JournalAppContent: React.FC = () => {
         onClose={() => setShowExportModal(false)}
         onToast={addToast}
       />
+      </ErrorBoundary>
     </AppShell>
   );
 };

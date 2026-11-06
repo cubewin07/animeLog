@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getClothTone } from '../../lib/hash';
-import { BookOpen, Clapperboard, Film } from 'lucide-react';
+import { BookOpen, Film } from 'lucide-react';
 import './Cover.css';
 
 export type CoverVariant = 'poster' | 'book' | 'portrait';

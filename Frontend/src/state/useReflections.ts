@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import { useJournal } from './JournalContext';
-import { AnimeSeries, Book, FavoriteCharacter, Rewatch } from '../types';
 
 export type ReflectionKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
 
@@ -14,6 +13,7 @@ export interface JournalReflection {
   context: string;
   note: string;
   rating?: number | null;
+  episodeNumber?: number;
   timestamp: number;
   dateStr?: string | null;
 }
@@ -61,6 +61,7 @@ export function useReflections(): {
               context: `S${season.season_number} · Ep ${ep.episode_number}${ep.episode_title ? ` (${ep.episode_title})` : ''}`,
               note: ep.note,
               rating: ep.rating,
+              episodeNumber: ep.episode_number,
               timestamp: ep.created_at ? new Date(ep.created_at).getTime() : seasonTime,
               dateStr: ep.created_at,
             });
@@ -152,6 +153,7 @@ export function useReflections(): {
           kind: 'rewatch',
           targetKind: rewatch.movie_id ? 'movie' : 'season',
           targetId: (rewatch.season_id || rewatch.movie_id || rewatch.target_id) as number,
+          seriesId: rewatch.series_id ?? undefined,
           title: rewatch.series_title || rewatch.release_title || 'A remembered title',
           context: `Return pass · ${rewatch.release_title || ''}`,
           note: rewatch.notes,

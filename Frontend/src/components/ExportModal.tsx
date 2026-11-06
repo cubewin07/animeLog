@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { exportApi, importApi } from '../api/client';
-import { X, Download, Upload, FileText, Database, Check, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { X, Download, Upload, FileText, Database, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import { EASING, prefersReducedMotion } from '../utils/animations';

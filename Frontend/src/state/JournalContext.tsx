@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
-  ActiveTab,
   AnimeMovie,
   AnimeSeason,
   AnimeSeries,
@@ -10,7 +9,6 @@ import {
   Genre,
   JournalStats,
   Rewatch,
-  RewatchTargetType,
   Studio,
 } from '../types';
 import {
@@ -28,7 +26,15 @@ import {
 import { ToastMessage } from '../components/Toast';
 import { EntryModalMode } from '../components/EntryModal';
 
-export interface JournalContextValue {
+export interface ConfirmDialogState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  onConfirm: () => void;
+}
+
+interface JournalContextValue {
   // Data
   loading: boolean;
   seriesList: AnimeSeries[];
@@ -46,6 +52,8 @@ export interface JournalContextValue {
   toasts: ToastMessage[];
   addToast: (text: string, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
+  confirmDialog: ConfirmDialogState;
+  closeConfirm: () => void;
   requestConfirm: (options: {
     title: string;
     message: string;
@@ -70,7 +78,7 @@ export interface JournalContextValue {
   handleSaveRewatch: (data: any, id?: number) => Promise<void>;
   handleDeleteRewatch: (id: number) => void;
   handleSaveEpisodeNote: (data: any, id?: number) => Promise<void>;
-  handleDeleteEpisodeNote: (id: number) => void;
+  handleDeleteEpisodeNote: (id: number) => Promise<void>;
 
   // Modal Triggers
   openNewFranchiseModal: () => void;
@@ -81,6 +89,7 @@ export interface JournalContextValue {
   openEditMovieModal: (movie: AnimeMovie) => void;
   openNewBookModal: () => void;
   openEditBookModal: (book: Book) => void;
+  openAddRewatch: () => void;
   openAddRewatchSeries: (series: AnimeSeries) => void;
   openAddRewatchSeason: (season: AnimeSeason) => void;
   openAddRewatchMovie: (movie: AnimeMovie) => void;
@@ -185,13 +194,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   // Confirm state
-  const [confirmDialog, setConfirmDialog] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    confirmLabel?: string;
-    onConfirm: () => void;
-  }>({
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState>({
     isOpen: false,
     title: '',
     message: '',
@@ -214,6 +217,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         options.onConfirm();
       },
     });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
   // Modals state
@@ -365,7 +372,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const openNewBookModal = () => {
-    setEntryModalMode('new-book');
+    setEntryModalMode('book');
     setEntryModalEditTarget(null);
     setEntryModalTargetSeries(null);
     setEntryModalOpen(true);
@@ -376,6 +383,20 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setEntryModalEditTarget({ type: 'book', data: book });
     setEntryModalTargetSeries(null);
     setEntryModalOpen(true);
+  };
+
+  const openAddRewatch = () => {
+    if (seriesList.length === 0) {
+      addToast('Add an anime first, then log a rewatch of it.', 'info');
+      openNewFranchiseModal();
+      return;
+    }
+    setRewatchTargetSeries(null);
+    setRewatchTargetSeason(null);
+    setRewatchTargetMovie(null);
+    setRewatchTargetEpisodeNumber(null);
+    setEditRewatchTarget(null);
+    setRewatchModalOpen(true);
   };
 
   const openAddRewatchSeries = (series: AnimeSeries) => {
@@ -713,6 +734,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     toasts,
     addToast,
     removeToast,
+    confirmDialog,
+    closeConfirm,
     requestConfirm,
     handleSaveSeries,
     handleDeleteSeries,
@@ -739,6 +762,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     openEditMovieModal,
     openNewBookModal,
     openEditBookModal,
+    openAddRewatch,
     openAddRewatchSeries,
     openAddRewatchSeason,
     openAddRewatchMovie,
