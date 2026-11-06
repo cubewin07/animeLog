@@ -1,0 +1,33 @@
+.kf-epmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  border-top: 1px solid var(--kf-line-strong);
+  border-left: 1px solid var(--kf-line-strong);
+}
+.kf-epcell {
+  position: relative;
+  min-height: 44px;
+  border: 0;
+  border-right: 1px solid var(--kf-line);
+  border-bottom: 1px solid var(--kf-line);
+  background: none;
+  color: var(--kf-text-2);
+  font: 700 var(--kf-text-sm) / 1 var(--kf-font-display);
+  font-stretch: 75%;
+  cursor: pointer;
+  transition: background var(--kf-fast), color var(--kf-fast);
+}
+.kf-epcell:hover { background: var(--kf-raised); color: var(--kf-text); }
+.kf-epcell.ends-cour { border-right: 3px solid var(--kf-line-strong); }
+.kf-epcell.is-watched {
+  background: color-mix(in srgb, var(--title-accent) 20%, transparent);
+  color: var(--kf-text);
+  animation: kf-cell-light 420ms var(--kf-ease);
+}
+.kf-epcell.has-note { background: var(--title-accent); color: var(--kf-on-fill); }
+.kf-epcell.is-top { background: var(--kf-gold); color: var(--kf-on-fill); }
+.kf-epcell.is-next { box-shadow: inset 0 0 0 2px var(--kf-brand); color: var(--kf-text); }
+.kf-epcell.is-selected { outline: 2px solid var(--kf-text); outline-offset: -2px; z-index: 1; }
+@keyframes kf-cell-light {
+  from { background: var(--title-accent); }
+}

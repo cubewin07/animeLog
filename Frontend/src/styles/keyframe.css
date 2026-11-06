@@ -1,0 +1,90 @@
+/*
+ * Keyframe design tokens. Scoped to .kf until the look is approved, then moved to :root.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Geist:wght@400..700&family=Literata:ital,opsz,wght@0,7..72,400..600;1,7..72,400&family=Noto+Sans+JP:wght@500;800&display=swap');
+
+.kf {
+  /* Night studio */
+  --kf-bg: #0d1017;
+  --kf-panel: #171b25;
+  --kf-raised: #212734;
+  --kf-line: rgba(242, 244, 248, 0.1);
+  --kf-line-strong: rgba(242, 244, 248, 0.22);
+  --kf-text: #f2f4f8;
+  --kf-text-2: #a8b0c0;
+  --kf-on-fill: #0d1017;
+
+  /* Action and reward */
+  --kf-brand: #ff5a36;
+  --kf-brand-hover: #ff7656;
+  --kf-gold: #ffc857;
+  --kf-danger: #ff8a80;
+
+  /* Key-frame paper */
+  --kf-paper: #f4f6f1;
+  --kf-paper-ink: #1e2430;
+  --kf-paper-ink-2: #566074;
+  --kf-paper-rule: rgba(143, 176, 217, 0.55);
+
+  /* Status */
+  --kf-completed: #4fd1b5;
+  --kf-plan: #7ea8ff;
+  --kf-hold: #e8b14c;
+  --kf-dropped: #7b8291;
+
+  /* Per-title accent. Set inline on a title's wrapper. */
+  --title-accent: #ffb7a6;
+
+  /* Type */
+  --kf-font-display: 'Archivo', 'Arial Narrow', sans-serif;
+  --kf-font-ui: 'Geist', system-ui, sans-serif;
+  --kf-font-note: 'Literata', Georgia, serif;
+  --kf-font-jp: 'Noto Sans JP', sans-serif;
+
+  --kf-text-xs: 0.75rem;
+  --kf-text-sm: 0.875rem;
+  --kf-text-md: 1rem;
+  --kf-text-lg: 1.25rem;
+  --kf-text-xl: clamp(1.5rem, 1.2rem + 1.2vw, 2.25rem);
+  --kf-text-2xl: clamp(2.25rem, 1.4rem + 4vw, 5rem);
+
+  /* Space and shape */
+  --kf-1: 4px;
+  --kf-2: 8px;
+  --kf-3: 12px;
+  --kf-4: 16px;
+  --kf-5: 24px;
+  --kf-6: 32px;
+  --kf-7: 48px;
+  --kf-8: 72px;
+  --kf-radius: 6px;
+  --kf-radius-lg: 12px;
+
+  /* Motion */
+  --kf-fast: 90ms;
+  --kf-base: 180ms;
+  --kf-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --kf-spring: cubic-bezier(0.3, 1.6, 0.5, 1);
+
+  background: var(--kf-bg);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-md);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.kf :focus-visible {
+  outline: 2px solid var(--kf-text);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kf *,
+  .kf *::before,
+  .kf *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

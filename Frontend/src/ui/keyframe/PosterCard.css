@@ -1,0 +1,73 @@
+.kf-poster {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--kf-radius);
+}
+.kf-poster-art {
+  position: relative;
+  border-radius: var(--kf-radius);
+  transition: transform var(--kf-base) var(--kf-ease), box-shadow var(--kf-base) var(--kf-ease);
+}
+.kf-poster:hover .kf-poster-art,
+.kf-poster:focus-visible .kf-poster-art {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 34px -14px var(--title-accent);
+}
+.kf-poster-score { position: absolute; top: var(--kf-2); left: var(--kf-2); }
+.kf-poster-pencil {
+  position: absolute;
+  right: var(--kf-2);
+  bottom: var(--kf-2);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(13, 16, 23, 0.82);
+  color: var(--kf-text-2);
+}
+.kf-poster-note {
+  position: absolute;
+  inset: auto 0 0;
+  max-height: 70%;
+  margin: 0;
+  padding: var(--kf-7) var(--kf-3) var(--kf-3);
+  overflow: hidden;
+  border-radius: 0 0 var(--kf-radius) var(--kf-radius);
+  background: linear-gradient(to top, rgba(13, 16, 23, 0.97) 62%, transparent);
+  color: var(--kf-text);
+  font: italic 400 var(--kf-text-sm) / 1.45 var(--kf-font-note);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  opacity: 0;
+  transition: opacity var(--kf-base) var(--kf-ease);
+}
+.kf-poster:hover .kf-poster-note,
+.kf-poster:focus-visible .kf-poster-note { opacity: 1; }
+.kf-poster-bar {
+  height: 3px;
+  margin-top: var(--kf-2);
+  border-radius: 2px;
+  background: var(--kf-raised);
+  overflow: hidden;
+}
+.kf-poster-bar.is-empty { background: none; }
+.kf-poster-bar span { display: block; height: 100%; background: var(--title-accent); }
+.kf-poster-title {
+  margin: var(--kf-2) 0 var(--kf-1);
+  color: var(--kf-text);
+  font: 800 var(--kf-text-md) / 1.15 var(--kf-font-display);
+  font-stretch: 78%;
+}
+.kf-poster-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--kf-2);
+  align-items: center;
+  color: var(--kf-text-2);
+  font-size: var(--kf-text-xs);
+}

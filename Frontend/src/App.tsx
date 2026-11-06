@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Routes, Route, useParams } from 'react-router-dom';
+import React, { lazy, Suspense, useState } from 'react';
+import { useLocation, useNavigate, Routes, Route, useParams } from 'react-router-dom';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -429,10 +429,22 @@ const JournalAppContent: React.FC = () => {
   );
 };
 
+// Dev-only preview of the Keyframe design. Excluded from production builds.
+const StyleGuidePage = import.meta.env.DEV
+  ? lazy(() => import('./features/style-guide/StyleGuidePage'))
+  : null;
+
 export const App: React.FC = () => {
+  const { pathname } = useLocation();
   return (
     <JournalProvider>
-      <JournalAppContent />
+      {StyleGuidePage && pathname === '/__style' ? (
+        <Suspense fallback={null}>
+          <StyleGuidePage />
+        </Suspense>
+      ) : (
+        <JournalAppContent />
+      )}
     </JournalProvider>
   );
 };
