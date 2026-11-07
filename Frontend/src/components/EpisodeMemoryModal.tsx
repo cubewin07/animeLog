@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { AnimeSeason, EpisodeNote } from '../types';
 import {
   X,
@@ -32,6 +33,7 @@ export const EpisodeMemoryModal: React.FC<EpisodeMemoryModalProps> = ({
   onAddRewatchEpisode,
 }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -51,18 +53,6 @@ export const EpisodeMemoryModal: React.FC<EpisodeMemoryModalProps> = ({
     { dependencies: [isOpen] }
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen || !season || !note) return null;
 

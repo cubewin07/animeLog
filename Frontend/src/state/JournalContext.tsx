@@ -1,4 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -23,8 +32,20 @@ import {
   statsApi,
   studioApi,
 } from '../api/client';
+import {
+  findMovie,
+  findSeason,
+  nextBookState,
+  nextMovieState,
+  nextSeasonState,
+  patchBook,
+  patchMovie,
+  patchSeason,
+} from '../lib/journal/progress';
+import { ProgressQueue } from '../lib/journal/progressQueue';
+import { loadSnapshot, saveSnapshot } from './journalCache';
 import { ToastMessage } from '../components/Toast';
-import { EntryModalMode } from '../components/EntryModal';
+import type { EntryModalMode } from '../components/EntryModal';
 
 export interface ConfirmDialogState {
   isOpen: boolean;
@@ -37,6 +58,8 @@ export interface ConfirmDialogState {
 interface JournalContextValue {
   // Data
   loading: boolean;
+  loadFailed: boolean;
+  retryLoad: () => void;
   seriesList: AnimeSeries[];
   bookList: Book[];
   rewatchList: Rewatch[];
@@ -66,13 +89,13 @@ interface JournalContextValue {
   handleDeleteSeries: (id: number) => void;
   handleSaveSeason: (data: any, id?: number) => Promise<void>;
   handleDeleteSeason: (id: number) => void;
-  handleSeasonProgressDelta: (id: number, delta: number) => Promise<void>;
+  handleSeasonProgressDelta: (id: number, delta: number) => void;
   handleSaveMovie: (data: any, id?: number) => Promise<void>;
   handleDeleteMovie: (id: number) => void;
-  handleMovieProgressDelta: (id: number, delta: number) => Promise<void>;
+  handleMovieProgressDelta: (id: number, delta: number) => void;
   handleSaveBook: (data: any, id?: number) => Promise<void>;
   handleDeleteBook: (id: number) => void;
-  handleBookProgressDelta: (id: number, delta: number) => Promise<void>;
+  handleBookProgressDelta: (id: number, delta: number) => void;
   handleSaveCharacter: (data: any, id?: number) => Promise<void>;
   handleDeleteCharacter: (id: number) => void;
   handleSaveRewatch: (data: any, id?: number) => Promise<void>;
@@ -148,28 +171,73 @@ interface JournalContextValue {
   openPalette: () => void;
 }
 
-const JournalContext = createContext<JournalContextValue | null>(null);
+type FunctionKeys<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? K : never }[keyof T];
+type DataKeys =
+  | 'loading'
+  | 'loadFailed'
+  | 'seriesList'
+  | 'bookList'
+  | 'rewatchList'
+  | 'characterList'
+  | 'genres'
+  | 'studios'
+  | 'stats';
 
-export const useJournal = (): JournalContextValue => {
-  const context = useContext(JournalContext);
-  if (!context) {
-    throw new Error('useJournal must be used within a JournalProvider');
-  }
-  return context;
-};
+export type JournalData = Pick<JournalContextValue, DataKeys>;
+export type JournalActions = Pick<JournalContextValue, FunctionKeys<JournalContextValue>>;
+export type JournalUI = Omit<JournalContextValue, DataKeys | FunctionKeys<JournalContextValue>>;
+
+/*
+ * Three contexts, so a component only re-renders for what it uses. A toast or an opening modal
+ * no longer re-renders every page, and actions never change identity at all.
+ */
+const JournalDataContext = createContext<JournalData | null>(null);
+const JournalActionsContext = createContext<JournalActions | null>(null);
+const JournalUIContext = createContext<JournalUI | null>(null);
+
+function useRequired<T>(context: React.Context<T | null>): T {
+  const value = useContext(context);
+  if (!value) throw new Error('Journal hooks must be used within a JournalProvider');
+  return value;
+}
+
+export const useJournalData = (): JournalData => useRequired(JournalDataContext);
+export const useJournalActions = (): JournalActions => useRequired(JournalActionsContext);
+export const useJournalUI = (): JournalUI => useRequired(JournalUIContext);
+
+/** Stable wrappers that always call the latest version of each action. */
+function buildStableActions(
+  value: JournalContextValue,
+  latest: React.RefObject<JournalContextValue>
+): JournalActions {
+  const entries = Object.entries(value)
+    .filter(([, member]) => typeof member === 'function')
+    .map(([key]) => [
+      key,
+      (...args: unknown[]) => (latest.current[key as keyof JournalContextValue] as (...a: unknown[]) => unknown)(...args),
+    ]);
+  return Object.fromEntries(entries) as JournalActions;
+}
+
+const PROGRESS_SAVE_DELAY_MS = 250;
+const SNAPSHOT_SAVE_DELAY_MS = 500;
+type ProgressRecord = AnimeSeason | AnimeMovie | Book;
 
 export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [snapshot] = useState(loadSnapshot);
+  // With a saved copy the app draws straight away and refreshes quietly behind it
+  const [loading, setLoading] = useState(!snapshot);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   // Data
-  const [seriesList, setSeriesList] = useState<AnimeSeries[]>([]);
-  const [bookList, setBookList] = useState<Book[]>([]);
-  const [rewatchList, setRewatchList] = useState<Rewatch[]>([]);
-  const [characterList, setCharacterList] = useState<FavoriteCharacter[]>([]);
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [studios, setStudios] = useState<Studio[]>([]);
-  const [stats, setStats] = useState<JournalStats>({
+  const [seriesList, setSeriesList] = useState<AnimeSeries[]>(snapshot?.seriesList ?? []);
+  const [bookList, setBookList] = useState<Book[]>(snapshot?.bookList ?? []);
+  const [rewatchList, setRewatchList] = useState<Rewatch[]>(snapshot?.rewatchList ?? []);
+  const [characterList, setCharacterList] = useState<FavoriteCharacter[]>(snapshot?.characterList ?? []);
+  const [genres, setGenres] = useState<Genre[]>(snapshot?.genres ?? []);
+  const [studios, setStudios] = useState<Studio[]>(snapshot?.studios ?? []);
+  const [stats, setStats] = useState<JournalStats>(snapshot?.stats ?? {
     activeWatching: 0,
     activeReading: 0,
     totalCompleted: 0,
@@ -275,35 +343,18 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setPaletteOpen(true);
   }, []);
 
-  // Fetch all initial data
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [s, b, r, c, g, st, stt] = await Promise.all([
-        seriesApi.list(),
-        bookApi.list(),
-        rewatchApi.list(),
-        characterApi.list(),
-        genreApi.list(),
-        studioApi.list(),
-        statsApi.getStats(),
-      ]);
-      setSeriesList(s);
-      setBookList(b);
-      setRewatchList(r);
-      setCharacterList(c);
-      setGenres(g);
-      setStudios(st);
-      setStats(stt);
-    } catch (err: any) {
-      console.error('Failed to load data:', err);
-      addToast('Failed to load journal data', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast]);
+  // Newest request wins, so a slow older response can't overwrite newer data
+  const fetchId = useRef(0);
+  const refreshWhenIdle = useRef(false);
+  const progressQueue = useRef<ProgressQueue<ProgressRecord> | null>(null);
 
   const refreshAll = useCallback(async () => {
+    // Progress taps still being saved would be overwritten by older server data, so wait for them
+    if (progressQueue.current?.busy) {
+      refreshWhenIdle.current = true;
+      return;
+    }
+    const id = ++fetchId.current;
     try {
       const [s, b, r, c, stt] = await Promise.all([
         seriesApi.list(),
@@ -312,6 +363,11 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         characterApi.list(),
         statsApi.getStats(),
       ]);
+      if (id !== fetchId.current) return;
+      if (progressQueue.current?.busy) {
+        refreshWhenIdle.current = true;
+        return;
+      }
       setSeriesList(s);
       setBookList(b);
       setRewatchList(r);
@@ -322,9 +378,102 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
+  const hasSnapshot = Boolean(snapshot);
+  const loadData = useCallback(async () => {
+    const id = ++fetchId.current;
+    setLoadFailed(false);
+    try {
+      const [s, b, r, c, g, st, stt] = await Promise.all([
+        seriesApi.list(),
+        bookApi.list(),
+        rewatchApi.list(),
+        characterApi.list(),
+        genreApi.list(),
+        studioApi.list(),
+        statsApi.getStats(),
+      ]);
+      setGenres(g);
+      setStudios(st);
+      if (id !== fetchId.current || progressQueue.current?.busy) {
+        refreshWhenIdle.current = refreshWhenIdle.current || Boolean(progressQueue.current?.busy);
+        return;
+      }
+      setSeriesList(s);
+      setBookList(b);
+      setRewatchList(r);
+      setCharacterList(c);
+      setStats(stt);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+      if (hasSnapshot) {
+        addToast('Couldn’t reach the server. Showing your last saved copy.', 'info');
+      } else {
+        setLoadFailed(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, hasSnapshot]);
+
   useEffect(() => {
+    // Fetching on mount is exactly what this effect is for
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData();
   }, [loadData]);
+
+  const retryLoad = useCallback(() => {
+    setLoading(true);
+    loadData();
+  }, [loadData]);
+
+  // Keep the saved copy current, without writing on every tap
+  useEffect(() => {
+    if (loading || loadFailed) return;
+    const timer = setTimeout(() => {
+      saveSnapshot({ seriesList, bookList, rewatchList, characterList, genres, studios, stats });
+    }, SNAPSHOT_SAVE_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats]);
+
+  // Instant progress: the screen changes now, the queue saves in the background
+  const [queue] = useState(
+    () =>
+      new ProgressQueue<ProgressRecord>({
+        delayMs: PROGRESS_SAVE_DELAY_MS,
+        onSettled: (key, confirmed, before) => {
+          applyRecord(key, confirmed);
+          if (confirmed.status !== before.status) {
+            statsApi.getStats().then(setStats).catch(() => {});
+          }
+        },
+        onFailed: (key, confirmed, error) => {
+          console.error('Failed to save progress:', error);
+          applyRecord(key, confirmed);
+          addToast('Couldn’t save your progress, so it was put back. Check that the server is running.', 'error');
+        },
+        onIdle: () => {
+          if (refreshWhenIdle.current) {
+            refreshWhenIdle.current = false;
+            refreshAll();
+          }
+        },
+      })
+  );
+
+  function applyRecord(key: string, record: ProgressRecord) {
+    if (key.startsWith('season-')) setSeriesList((list) => patchSeason(list, record as AnimeSeason));
+    else if (key.startsWith('movie-')) setSeriesList((list) => patchMovie(list, record as AnimeMovie));
+    else setBookList((list) => patchBook(list, record as Book));
+  }
+
+  useEffect(() => {
+    progressQueue.current = queue;
+    const flushWhenHidden = () => {
+      if (document.visibilityState === 'hidden') queue.flushAll();
+    };
+    document.addEventListener('visibilitychange', flushWhenHidden);
+    return () => document.removeEventListener('visibilitychange', flushWhenHidden);
+  }, [queue]);
 
   // Modal openers
   const openNewFranchiseModal = () => {
@@ -503,14 +652,15 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const handleSaveSeason = async (data: any, id?: number) => {
     try {
       if (id) {
-        await seasonApi.update(id, data);
+        const saved = await seasonApi.update(id, data);
+        setSeriesList((list) => patchSeason(list, saved));
         addToast('Season updated');
       } else {
         await seasonApi.create(data);
         addToast('Season added');
+        refreshAll();
       }
       setEntryModalOpen(false);
-      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving season: ${err.message}`, 'error');
     }
@@ -533,26 +683,26 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const handleSeasonProgressDelta = async (id: number, delta: number) => {
-    try {
-      await seasonApi.updateProgress(id, delta);
-      await refreshAll();
-    } catch (err: any) {
-      addToast(`Error updating season progress: ${err.message}`, 'error');
-    }
+  const handleSeasonProgressDelta = (id: number, delta: number) => {
+    const season = findSeason(seriesList, id);
+    const next = season && nextSeasonState(season, delta);
+    if (!season || !next) return;
+    setSeriesList((list) => patchSeason(list, next));
+    queue.enqueue(`season-${id}`, delta, season, (d) => seasonApi.updateProgress(id, d));
   };
 
   const handleSaveMovie = async (data: any, id?: number) => {
     try {
       if (id) {
-        await movieApi.update(id, data);
+        const saved = await movieApi.update(id, data);
+        setSeriesList((list) => patchMovie(list, saved));
         addToast('Movie updated');
       } else {
         await movieApi.create(data);
         addToast('Movie added');
+        refreshAll();
       }
       setEntryModalOpen(false);
-      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving movie: ${err.message}`, 'error');
     }
@@ -575,26 +725,26 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const handleMovieProgressDelta = async (id: number, delta: number) => {
-    try {
-      await movieApi.updateProgress(id, delta);
-      await refreshAll();
-    } catch (err: any) {
-      addToast(`Error updating movie progress: ${err.message}`, 'error');
-    }
+  const handleMovieProgressDelta = (id: number, delta: number) => {
+    const movie = findMovie(seriesList, id);
+    const next = movie && nextMovieState(movie, delta);
+    if (!movie || !next) return;
+    setSeriesList((list) => patchMovie(list, next));
+    queue.enqueue(`movie-${id}`, delta, movie, (d) => movieApi.updateProgress(id, d));
   };
 
   const handleSaveBook = async (data: any, id?: number) => {
     try {
       if (id) {
-        await bookApi.update(id, data);
+        const saved = await bookApi.update(id, data);
+        setBookList((list) => patchBook(list, saved));
         addToast('Book updated');
       } else {
-        await bookApi.create(data);
+        const saved = await bookApi.create(data);
+        setBookList((list) => [saved, ...list]);
         addToast('Book added');
       }
       setEntryModalOpen(false);
-      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving book: ${err.message}`, 'error');
     }
@@ -617,13 +767,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const handleBookProgressDelta = async (id: number, delta: number) => {
-    try {
-      await bookApi.updateProgress(id, delta);
-      await refreshAll();
-    } catch (err: any) {
-      addToast(`Error updating book progress: ${err.message}`, 'error');
-    }
+  const handleBookProgressDelta = (id: number, delta: number) => {
+    const book = bookList.find((b) => b.id === id);
+    const next = book && nextBookState(book, delta);
+    if (!book || !next) return;
+    setBookList((list) => patchBook(list, next));
+    queue.enqueue(`book-${id}`, delta, book, (d) => bookApi.updateProgress(id, d));
   };
 
   const handleSaveCharacter = async (data: any, id?: number) => {
@@ -721,6 +870,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value: JournalContextValue = {
     loading,
+    loadFailed,
+    retryLoad,
     seriesList,
     bookList,
     rewatchList,
@@ -800,6 +951,73 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     openPalette,
   };
 
-  return <JournalContext.Provider value={value}>{children}</JournalContext.Provider>;
-};
+  const latestValue = useRef(value);
+  useLayoutEffect(() => {
+    latestValue.current = value;
+  });
+  const [actions] = useState(() => buildStableActions(value, latestValue));
 
+  const data = useMemo<JournalData>(
+    () => ({ loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats }),
+    [loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats]
+  );
+
+  const ui = useMemo<JournalUI>(
+    () => ({
+      searchQuery,
+      toasts,
+      confirmDialog,
+      entryModalOpen,
+      entryModalMode,
+      entryModalEditTarget,
+      entryModalTargetSeries,
+      episodeNoteModalOpen,
+      targetSeasonForNotes,
+      targetNoteForEpisodeModal,
+      rewatchModalOpen,
+      rewatchTargetSeries,
+      rewatchTargetSeason,
+      rewatchTargetMovie,
+      rewatchTargetEpisodeNumber,
+      editRewatchTarget,
+      characterModalOpen,
+      characterTargetSeries,
+      editCharacterTarget,
+      composerOpen,
+      composerInitialTarget,
+      paletteOpen,
+    }),
+    [
+      searchQuery,
+      toasts,
+      confirmDialog,
+      entryModalOpen,
+      entryModalMode,
+      entryModalEditTarget,
+      entryModalTargetSeries,
+      episodeNoteModalOpen,
+      targetSeasonForNotes,
+      targetNoteForEpisodeModal,
+      rewatchModalOpen,
+      rewatchTargetSeries,
+      rewatchTargetSeason,
+      rewatchTargetMovie,
+      rewatchTargetEpisodeNumber,
+      editRewatchTarget,
+      characterModalOpen,
+      characterTargetSeries,
+      editCharacterTarget,
+      composerOpen,
+      composerInitialTarget,
+      paletteOpen,
+    ]
+  );
+
+  return (
+    <JournalActionsContext.Provider value={actions}>
+      <JournalDataContext.Provider value={data}>
+        <JournalUIContext.Provider value={ui}>{children}</JournalUIContext.Provider>
+      </JournalDataContext.Provider>
+    </JournalActionsContext.Provider>
+  );
+};

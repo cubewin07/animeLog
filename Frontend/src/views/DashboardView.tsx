@@ -8,7 +8,7 @@ import {
   JournalStats,
   Rewatch,
 } from '../types';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { useReflections } from '../state/useReflections';
 import { Cover, Stepper, Rating, Button, EmptyState } from '../ui';
 import { formatDate } from '../lib/format';
@@ -51,7 +51,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onProgressBook,
   onOpenLogModal,
 }) => {
-  const { openComposer } = useJournal();
+  const { openComposer } = useJournalActions();
   const { reflections } = useReflections();
 
   // Dynamic greeting based on time of day

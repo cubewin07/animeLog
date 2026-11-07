@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { AnimeSeason, EpisodeNote } from '../types';
 import { X, BookmarkCheck, Trash2 } from 'lucide-react';
 import gsap from 'gsap';
@@ -50,6 +51,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
     setErrorMsg('');
     onClose();
   };
+  useDialog(overlayRef, isOpen, handleClose);
 
   useEffect(() => {
     if (!isOpen || !season) return;

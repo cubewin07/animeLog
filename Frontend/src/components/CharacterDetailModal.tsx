@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { FavoriteCharacter, ImageAsset } from '../types';
 import {
   X,
@@ -41,6 +42,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
   const [settingCoverId, setSettingCoverId] = useState<number | null>(null);
 
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useGSAP(

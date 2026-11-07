@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -24,21 +25,13 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
 }) => {
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onCancel);
+
+  // Start on the safe choice
   useEffect(() => {
-    if (!isOpen) return;
-
-    // Focus the safe cancel button on mount
-    cancelBtnRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onCancel();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
+    if (isOpen) cancelBtnRef.current?.focus();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -46,6 +39,7 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     <div
       className="modal-overlay"
       onClick={onCancel}
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"

@@ -4,7 +4,7 @@ import { TopBar } from './TopBar';
 import { BottomBar } from './BottomBar';
 import { CommandPalette } from './CommandPalette';
 import { Composer } from '../composer/Composer';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions, useJournalUI } from '../state/JournalContext';
 import './AppShell.css';
 
 export interface AppShellProps {
@@ -13,14 +13,8 @@ export interface AppShellProps {
 }
 
 export const AppShell: React.FC<AppShellProps> = ({ children, onOpenExport }) => {
-  const {
-    paletteOpen,
-    setPaletteOpen,
-    composerOpen,
-    setComposerOpen,
-    openComposer,
-    openNewFranchiseModal,
-  } = useJournal();
+  const { paletteOpen, composerOpen } = useJournalUI();
+  const { setPaletteOpen, setComposerOpen, openComposer, openNewFranchiseModal } = useJournalActions();
 
   // Global Keyboard Shortcuts
   useEffect(() => {

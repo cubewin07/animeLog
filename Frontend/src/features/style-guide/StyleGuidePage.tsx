@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Flame, Minus, PenLine, Plus, RotateCcw, Trophy, Undo2 } from 'lucide-react';
-import { useJournal } from '../../state/JournalContext';
+import { useJournalData } from '../../state/JournalContext';
 import { formatDate } from '../../lib/format';
 import { overallSeriesStatus } from '../../lib/selectors/seriesStatus';
 import { clampAccent, contrastRatio, dominantColor, titleAccent } from '../../lib/color/accent';
@@ -61,7 +61,7 @@ const SAMPLE_ACHIEVEMENTS = [
 ];
 
 const StyleGuidePage: React.FC = () => {
-  const { loading, seriesList, characterList } = useJournal();
+  const { loading, seriesList, characterList } = useJournalData();
 
   const heroSeries = useMemo(
     () => seriesList.find((s) => s.seasons?.some((season) => season.status === 'WATCHING')) ?? seriesList[0],

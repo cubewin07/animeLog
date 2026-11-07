@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -67,6 +68,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
 
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // All seasons and movies flattened for quick lookups
@@ -578,6 +580,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

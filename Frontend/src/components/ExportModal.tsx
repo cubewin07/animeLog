@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { exportApi, importApi } from '../api/client';
 import { X, Download, Upload, FileText, Database, Loader2, Sparkles, RefreshCw } from 'lucide-react';
 import gsap from 'gsap';
@@ -24,6 +25,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToa
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useGSAP(

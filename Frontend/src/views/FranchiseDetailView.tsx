@@ -7,7 +7,7 @@ import {
   FavoriteCharacter,
   Rewatch,
 } from '../types';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Stepper, Button } from '../ui';
 import { formatDate } from '../lib/format';
 import { rewatchesForRelease } from '../lib/selectors/rewatches';
@@ -69,9 +69,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   onAddRewatchSeason,
   onAddRewatchMovie,
   onAddCharacter,
-  onRefresh,
 }) => {
-  const { openComposer, addToast, refreshAll } = useJournal();
+  const { openComposer, addToast, refreshAll } = useJournalActions();
 
   // Active release selection
   const defaultSeason = series.seasons?.find((s) => s.status === 'WATCHING') || series.seasons?.[0];
@@ -113,8 +112,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
       }
       setIsEditingLesson(false);
       addToast('Lesson updated');
-      if (onRefresh) await onRefresh();
-      await refreshAll();
+      refreshAll();
     } catch (err: any) {
       addToast(`Error saving lesson: ${err.message}`, 'error');
     } finally {

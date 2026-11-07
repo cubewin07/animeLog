@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import {
   AnimeSeries,
   BookStatus,
@@ -85,6 +86,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
 import { TargetPicker, ChosenTarget } from './TargetPicker';
 import { Sheet, Button, Paper, Rating, Kbd } from '../ui';
 import { saveDraft, loadDraft, clearDraft } from './drafts';
@@ -23,15 +23,9 @@ export interface ComposerProps {
 export type ReflectionKind = NoteKind;
 
 export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
-  const {
-    composerInitialTarget,
-    seriesList,
-    bookList,
-    characterList,
-    refreshAll,
-    addToast,
-    openNewFranchiseModal,
-  } = useJournal();
+  const { seriesList, bookList, characterList } = useJournalData();
+  const { composerInitialTarget } = useJournalUI();
+  const { refreshAll, addToast, openNewFranchiseModal } = useJournalActions();
 
   const [target, setTarget] = useState<ChosenTarget | null>(null);
   const [kind, setKind] = useState<ReflectionKind>('lesson');
@@ -239,7 +233,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       }
 
       clearDraft(`${target.targetKind}-${target.id}`, kind);
-      await refreshAll();
+      refreshAll();
       onClose();
     } catch (err: any) {
       console.error('Error saving reflection:', err);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Book } from '../types';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Stepper, Button, EmptyState, Kbd } from '../ui';
 import { formatDate } from '../lib/format';
 import { bookApi } from '../api/client';
@@ -32,7 +32,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   onDelete,
   onProgressDelta,
 }) => {
-  const { openComposer, addToast, refreshAll } = useJournal();
+  const { openComposer, addToast, refreshAll } = useJournalActions();
 
   // Inline lesson editing state
   const [isEditingLesson, setIsEditingLesson] = useState(false);

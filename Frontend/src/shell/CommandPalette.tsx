@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { useNavigate } from 'react-router-dom';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions, useJournalData } from '../state/JournalContext';
 import { useReflections } from '../state/useReflections';
 import { Kbd } from '../ui';
 import {
@@ -20,8 +21,8 @@ export interface CommandPaletteProps {
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
-  const { seriesList, bookList, characterList, openComposer, openNewFranchiseModal, openNewBookModal } =
-    useJournal();
+  const { seriesList, bookList, characterList } = useJournalData();
+  const { openComposer, openNewFranchiseModal, openNewBookModal } = useJournalActions();
   const { reflections } = useReflections();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -36,19 +37,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     }
   }, [isOpen]);
 
-  // Keyboard navigation & global shortcuts (⌘K and /)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useDialog(dialogRef, isOpen, onClose);
 
   // Aggregate and filter items
   const filteredItems = useMemo(() => {
@@ -191,6 +181,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
 
   return (
     <div
+      ref={dialogRef}
       className="lamplight-palette-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();

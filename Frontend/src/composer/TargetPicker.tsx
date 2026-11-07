@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useJournal } from '../state/JournalContext';
+import { useJournalData } from '../state/JournalContext';
 import { ChevronDown, Search, Plus, Film, BookOpen, Sparkles, Check } from 'lucide-react';
 import './TargetPicker.css';
 
@@ -23,7 +23,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
   onChange,
   onOpenNewCatalog,
 }) => {
-  const { seriesList, bookList, characterList } = useJournal();
+  const { seriesList, bookList, characterList } = useJournalData();
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);

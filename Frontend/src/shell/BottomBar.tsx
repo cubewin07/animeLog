@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { Sheet } from '../ui';
 import {
   BookOpen,
@@ -21,14 +21,14 @@ export interface BottomBarProps {
 }
 
 export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
-  const { openComposer } = useJournal();
+  const { openComposer } = useJournalActions();
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
   const navigate = useNavigate();
 
   return (
     <>
       <nav className="lamplight-bottom-bar" aria-label="Mobile Navigation">
-        <NavLink
+        <NavLink viewTransition
           to="/"
           end
           className={({ isActive }) => `lamplight-bottom-tab ${isActive ? 'is-active' : ''}`}
@@ -37,7 +37,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
           <span>Desk</span>
         </NavLink>
 
-        <NavLink
+        <NavLink viewTransition
           to="/anime"
           className={({ isActive }) => `lamplight-bottom-tab ${isActive ? 'is-active' : ''}`}
         >
@@ -56,7 +56,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
           <PenLine size={20} />
         </button>
 
-        <NavLink
+        <NavLink viewTransition
           to="/books"
           className={({ isActive }) => `lamplight-bottom-tab ${isActive ? 'is-active' : ''}`}
         >
@@ -87,7 +87,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
             className="lamplight-sidebar-link"
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onClick={() => {
-              navigate('/reflections');
+              navigate('/reflections', { viewTransition: true });
               setMoreSheetOpen(false);
             }}
           >
@@ -102,7 +102,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
             className="lamplight-sidebar-link"
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onClick={() => {
-              navigate('/characters');
+              navigate('/characters', { viewTransition: true });
               setMoreSheetOpen(false);
             }}
           >
@@ -117,7 +117,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
             className="lamplight-sidebar-link"
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onClick={() => {
-              navigate('/rewatches');
+              navigate('/rewatches', { viewTransition: true });
               setMoreSheetOpen(false);
             }}
           >
@@ -134,7 +134,7 @@ export const BottomBar: React.FC<BottomBarProps> = ({ onOpenExport }) => {
             className="lamplight-sidebar-link"
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}
             onClick={() => {
-              navigate('/media');
+              navigate('/media', { viewTransition: true });
               setMoreSheetOpen(false);
             }}
           >

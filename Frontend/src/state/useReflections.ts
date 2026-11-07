@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useJournal } from './JournalContext';
+import { useJournalData } from './JournalContext';
 
 export type ReflectionKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' | 'character';
 
@@ -22,7 +22,7 @@ export function useReflections(): {
   reflections: JournalReflection[];
   totalCount: number;
 } {
-  const { seriesList, bookList, characterList, rewatchList } = useJournal();
+  const { seriesList, bookList, characterList, rewatchList } = useJournalData();
 
   const reflections = useMemo(() => {
     const list: JournalReflection[] = [];

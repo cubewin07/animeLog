@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { BookMarked, Search } from 'lucide-react';
 import './TopBar.css';
 
 export const TopBar: React.FC = () => {
-  const { openPalette } = useJournal();
+  const { openPalette } = useJournalActions();
 
   return (
     <header className="lamplight-top-bar" aria-label="Mobile Header">

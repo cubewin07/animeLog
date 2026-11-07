@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReflections, JournalReflection } from '../state/useReflections';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { Rating, Button, EmptyState } from '../ui';
 import { formatDate } from '../lib/format';
 import {
@@ -21,7 +21,7 @@ import {
 
 export const ReflectionsView: React.FC = () => {
   const { reflections } = useReflections();
-  const { openComposer, addToast } = useJournal();
+  const { openComposer, addToast } = useJournalActions();
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedKind, setSelectedKind] = useState<string>('ALL');
   const [copiedId, setCopiedId] = useState<string | null>(null);

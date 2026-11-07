@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { AnimeSeries } from '../types';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import { overallSeriesStatus } from '../lib/selectors/seriesStatus';
 import { Cover, StatusMark, Rating, Button, EmptyState } from '../ui';
 import {
@@ -40,7 +40,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   onOpenDetail,
   onOpenNewFranchiseModal,
 }) => {
-  const { openComposer } = useJournal();
+  const { openComposer } = useJournalActions();
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [filterText, setFilterText] = useState(searchQuery || '');
   const [sortBy, setSortBy] = useState<'recent' | 'rating' | 'title' | 'lesson'>('recent');

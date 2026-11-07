@@ -1,0 +1,14 @@
+/* A quick crossfade between pages, kept short so navigation still feels immediate */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 120ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { FavoriteCharacter } from '../types';
 import { Cover } from '../ui';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions } from '../state/JournalContext';
 import {
   Trash2,
   PenLine,
@@ -23,7 +23,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   onEdit,
   onDelete,
 }) => {
-  const { openComposer } = useJournal();
+  const { openComposer } = useJournalActions();
   const charImg =
     character.cover_image_url ||
     character.image_url ||

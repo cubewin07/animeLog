@@ -1,4 +1,5 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
+import { useDialog } from '../ui/Sheet/useDialog';
 import { Rewatch } from '../types';
 import {
   X,
@@ -39,6 +40,7 @@ export const RewatchDetailModal: React.FC<RewatchDetailModalProps> = ({
   onNavigateSeries,
 }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
+  useDialog(overlayRef, isOpen, onClose);
   const modalRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -58,18 +60,6 @@ export const RewatchDetailModal: React.FC<RewatchDetailModalProps> = ({
     { dependencies: [isOpen] }
   );
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
 
   if (!isOpen || !rewatch) return null;
 

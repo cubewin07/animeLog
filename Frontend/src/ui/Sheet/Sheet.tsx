@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useId, useRef } from 'react';
+import { useDialog } from './useDialog';
 import { X } from 'lucide-react';
 import './Sheet.css';
 
@@ -20,24 +21,8 @@ export const Sheet: React.FC<SheetProps> = ({
   className = '',
 }) => {
   const sheetRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
+  const titleId = useId();
+  useDialog(sheetRef, isOpen, onClose);
 
   if (!isOpen) return null;
 
@@ -47,13 +32,16 @@ export const Sheet: React.FC<SheetProps> = ({
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
-      role="dialog"
-      aria-modal="true"
     >
-      <div ref={sheetRef} className={`lamplight-sheet ${className}`}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        ref={sheetRef} className={`lamplight-sheet ${className}`}
+      >
         {title && (
           <header className="lamplight-sheet-header">
-            <h3 className="lamplight-sheet-title">{title}</h3>
+            <h3 id={titleId} className="lamplight-sheet-title">{title}</h3>
             <button
               type="button"
               className="lamplight-sheet-close"

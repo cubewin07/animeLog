@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { useJournal } from '../state/JournalContext';
+import { useJournalActions, useJournalData } from '../state/JournalContext';
 import { useReflections } from '../state/useReflections';
 import { Kbd } from '../ui';
 import {
@@ -25,8 +25,8 @@ export interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
-  const { seriesList, bookList, characterList, rewatchList, stats, openComposer, openPalette } =
-    useJournal();
+  const { seriesList, bookList, characterList, rewatchList, stats } = useJournalData();
+  const { openComposer, openPalette } = useJournalActions();
   const { totalCount: reflectionsCount } = useReflections();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -44,7 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
   return (
     <aside className={`lamplight-sidebar ${collapsed ? 'is-collapsed' : ''}`} aria-label="Main Navigation">
       {/* Brand */}
-      <NavLink to="/" className="lamplight-sidebar-brand" title="AnimeLog Journal">
+      <NavLink viewTransition to="/" className="lamplight-sidebar-brand" title="AnimeLog Journal">
         <div className="lamplight-sidebar-brand-icon">
           <BookMarked size={18} />
         </div>
@@ -89,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
       <nav className="lamplight-sidebar-nav">
         {/* Desk */}
         <div className="lamplight-sidebar-group">
-          <NavLink
+          <NavLink viewTransition
             to="/"
             end
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
         {/* Library */}
         <div className="lamplight-sidebar-group">
           {!collapsed && <span className="lamplight-sidebar-label">Library</span>}
-          <NavLink
+          <NavLink viewTransition
             to="/anime"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="Anime Library"
@@ -117,7 +117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
             {!collapsed && <span className="lamplight-sidebar-count">{seriesList.length}</span>}
           </NavLink>
 
-          <NavLink
+          <NavLink viewTransition
             to="/books"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="Book Library"
@@ -133,7 +133,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
         {/* Journal Reflections */}
         <div className="lamplight-sidebar-group">
           {!collapsed && <span className="lamplight-sidebar-label">Journal</span>}
-          <NavLink
+          <NavLink viewTransition
             to="/reflections"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="All Written Reflections"
@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
             {!collapsed && <span className="lamplight-sidebar-count">{reflectionsCount}</span>}
           </NavLink>
 
-          <NavLink
+          <NavLink viewTransition
             to="/characters"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="People & Character Reflections"
@@ -157,7 +157,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
             {!collapsed && <span className="lamplight-sidebar-count">{characterList.length}</span>}
           </NavLink>
 
-          <NavLink
+          <NavLink viewTransition
             to="/rewatches"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="Returns & Rewatches Timeline"
@@ -173,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenExport }) => {
         {/* Utilities */}
         <div className="lamplight-sidebar-group" style={{ marginTop: 'auto' }}>
           {!collapsed && <span className="lamplight-sidebar-label">Tools</span>}
-          <NavLink
+          <NavLink viewTransition
             to="/media"
             className={({ isActive }) => `lamplight-sidebar-link ${isActive ? 'is-active' : ''}`}
             title="Media & Stills Library"
