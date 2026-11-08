@@ -10,14 +10,15 @@
     left: 0;
     right: 0;
     height: 64px;
-    background-color: var(--surface);
-    border-top: 1px solid var(--line);
-    padding: 0 var(--s-3);
+    background-color: var(--kf-panel);
+    border-top: 1px solid var(--kf-line);
+    padding: 0 var(--kf-2);
     align-items: center;
     justify-content: space-around;
     z-index: 100;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.55);
     user-select: none;
+    font-family: var(--kf-font-ui);
   }
 
   .lamplight-bottom-tab {
@@ -28,42 +29,54 @@
     gap: 3px;
     background: transparent;
     border: none;
-    color: var(--text-3);
+    color: var(--kf-text-2);
     text-decoration: none;
-    font-size: 10px;
+    font-family: var(--kf-font-ui);
+    font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     cursor: pointer;
     flex: 1;
+    min-width: 44px;
+    min-height: 44px;
     height: 100%;
-    transition: color var(--dur-fast) var(--ease-smooth);
+    transition: color var(--kf-fast) var(--kf-ease);
   }
 
   .lamplight-bottom-tab:hover,
   .lamplight-bottom-tab.is-active {
-    color: var(--lamp);
+    color: var(--kf-text);
   }
 
-  /* Center Floating Write Button */
+  .lamplight-bottom-tab.is-active svg {
+    color: var(--kf-brand);
+  }
+
+  /* Center Quick Log Button */
   .lamplight-bottom-write-btn {
     width: 48px;
     height: 48px;
-    border-radius: var(--r-pill);
-    background: var(--lamp);
-    color: var(--text-inverse);
-    border: 3px solid var(--surface);
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 9999px;
+    background: var(--kf-brand);
+    color: var(--kf-on-fill);
+    border: 3px solid var(--kf-panel);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(217, 165, 91, 0.4);
-    transform: translateY(-8px);
-    transition: transform var(--dur-fast) var(--ease-smooth), background var(--dur-fast) var(--ease-smooth);
+    box-shadow: 0 4px 14px rgba(255, 90, 54, 0.4);
+    transform: translateY(-6px);
+    transition: transform var(--kf-fast) var(--kf-ease), background var(--kf-fast) var(--kf-ease);
     flex-shrink: 0;
   }
 
+  .lamplight-bottom-write-btn:hover {
+    background: var(--kf-brand-hover);
+  }
+
   .lamplight-bottom-write-btn:active {
-    transform: translateY(-5px) scale(0.96);
+    transform: translateY(-4px) scale(0.96);
   }
 }
-

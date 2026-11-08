@@ -1,8 +1,9 @@
 .lamplight-shell {
   display: flex;
   min-height: 100vh;
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: var(--kf-bg);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
   position: relative;
 }
 
@@ -19,7 +20,7 @@
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: var(--s-6) var(--s-7);
+  padding: var(--kf-6) var(--kf-7);
 }
 
 @media (max-width: 1023px) {
@@ -28,7 +29,186 @@
   }
 
   .lamplight-shell-content {
-    padding: var(--s-4) var(--s-4) 96px var(--s-4);
+    padding: var(--kf-4) var(--kf-4) 96px var(--kf-4);
   }
 }
 
+/* Quick Log & Shortcuts Sheets */
+.kf-quicklog-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-5);
+  font-family: var(--kf-font-ui);
+}
+
+.kf-quicklog-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-3);
+}
+
+.kf-quicklog-heading {
+  font-size: var(--kf-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--kf-text-2);
+  margin: 0;
+}
+
+.kf-quicklog-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-2);
+}
+
+.kf-quicklog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kf-3);
+  padding: var(--kf-3);
+  background: var(--kf-panel);
+  border: 1px solid var(--kf-line);
+  border-radius: var(--kf-radius-lg);
+}
+
+.kf-quicklog-item-link {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  text-decoration: none;
+  color: var(--kf-text);
+}
+
+.kf-quicklog-item-link strong {
+  font-size: var(--kf-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kf-quicklog-item-link span {
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
+}
+
+.kf-quicklog-row-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--kf-2);
+  flex-shrink: 0;
+}
+
+.kf-quicklog-step-btn {
+  min-height: 36px;
+  padding: 0 var(--kf-3);
+  border-radius: var(--kf-radius);
+  background: var(--kf-brand);
+  color: var(--kf-on-fill);
+  border: none;
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kf-quicklog-step-btn:hover {
+  background: var(--kf-brand-hover);
+}
+
+.kf-quicklog-note-btn {
+  min-height: 36px;
+  padding: 0 var(--kf-3);
+  border-radius: var(--kf-radius);
+  background: var(--kf-raised);
+  color: var(--kf-text);
+  border: 1px solid var(--kf-line);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.kf-quicklog-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-2);
+}
+
+.kf-quicklog-action-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kf-3);
+  width: 100%;
+  padding: var(--kf-3) var(--kf-4);
+  background: var(--kf-panel);
+  border: 1px solid var(--kf-line);
+  border-radius: var(--kf-radius-lg);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--kf-fast) var(--kf-ease), border-color var(--kf-fast) var(--kf-ease);
+}
+
+.kf-quicklog-action-card:hover {
+  background: var(--kf-raised);
+  border-color: var(--kf-line-strong);
+}
+
+.kf-quicklog-action-card > div {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kf-quicklog-action-card strong {
+  font-size: var(--kf-text-sm);
+  font-weight: 600;
+}
+
+.kf-quicklog-action-card span {
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
+}
+
+.kf-shortcuts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-2);
+  font-family: var(--kf-font-ui);
+}
+
+.kf-shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kf-4);
+  padding: var(--kf-3) var(--kf-4);
+  background: var(--kf-panel);
+  border: 1px solid var(--kf-line);
+  border-radius: var(--kf-radius);
+  font-size: var(--kf-text-sm);
+  color: var(--kf-text);
+}
+
+.kf-shortcut-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kf-2);
+  flex-shrink: 0;
+}
+
+.kf-shortcut-keys small {
+  color: var(--kf-text-2);
+  font-size: var(--kf-text-xs);
+}

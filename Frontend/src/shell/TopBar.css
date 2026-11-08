@@ -9,52 +9,72 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 54px;
-    background-color: var(--bg-sunken);
-    border-bottom: 1px solid var(--line);
-    padding: 0 var(--s-4);
+    height: 56px;
+    background-color: var(--kf-panel);
+    border-bottom: 1px solid var(--kf-line);
+    padding: 0 var(--kf-4);
     align-items: center;
     justify-content: space-between;
     z-index: 50;
     user-select: none;
+    font-family: var(--kf-font-ui);
   }
 
   .lamplight-top-bar-brand {
     display: flex;
     align-items: center;
-    gap: var(--s-2);
+    gap: var(--kf-2);
     text-decoration: none;
-    color: var(--text);
+    color: var(--kf-text);
+    min-height: 44px;
   }
 
   .lamplight-top-bar-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: var(--r-sm);
-    background-color: var(--surface);
-    color: var(--lamp);
+    width: 30px;
+    height: 30px;
+    border-radius: var(--kf-radius);
+    background-color: var(--kf-raised);
+    border: 1px solid var(--kf-line-strong);
+    color: var(--kf-brand);
     display: flex;
     align-items: center;
     justify-content: center;
   }
 
   .lamplight-top-bar-title {
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 600;
+    font-family: var(--kf-font-display);
+    font-stretch: 82%;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--kf-text);
   }
 
-  .lamplight-top-bar-search-btn {
-    width: 34px;
-    height: 34px;
-    border-radius: var(--r-md);
-    background: var(--surface);
-    color: var(--text-2);
-    border: 1px solid var(--line);
+  .lamplight-top-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--kf-2);
+  }
+
+  .lamplight-top-bar-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: var(--kf-radius);
+    background: var(--kf-bg);
+    color: var(--kf-text-2);
+    border: 1px solid var(--kf-line);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    text-decoration: none;
+    transition: border-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+  }
+
+  .lamplight-top-bar-btn:hover,
+  .lamplight-top-bar-btn.is-active {
+    color: var(--kf-text);
+    border-color: var(--kf-line-strong);
   }
 }
-

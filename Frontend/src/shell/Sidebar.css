@@ -1,18 +1,20 @@
 .lamplight-sidebar {
-  width: 256px;
+  width: 248px;
   height: 100vh;
   position: sticky;
   top: 0;
-  background-color: var(--bg-sunken);
-  border-right: 1px solid var(--line);
+  background-color: var(--kf-panel);
+  border-right: 1px solid var(--kf-line);
   display: flex;
   flex-direction: column;
-  padding: var(--s-5) var(--s-4);
-  gap: var(--s-5);
+  padding: var(--kf-5) var(--kf-4);
+  gap: var(--kf-4);
   flex-shrink: 0;
   user-select: none;
   z-index: 50;
-  transition: width var(--dur-base) var(--ease-smooth);
+  font-family: var(--kf-font-ui);
+  color: var(--kf-text);
+  transition: width var(--kf-base) var(--kf-ease);
 }
 
 @media (max-width: 1023px) {
@@ -22,8 +24,8 @@
 }
 
 .lamplight-sidebar.is-collapsed {
-  width: 76px;
-  padding: var(--s-5) var(--s-2);
+  width: 72px;
+  padding: var(--kf-5) var(--kf-2);
   align-items: center;
 }
 
@@ -31,24 +33,23 @@
 .lamplight-sidebar-brand {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--kf-3);
   text-decoration: none;
-  color: var(--text);
-  padding: 0 var(--s-2);
+  color: var(--kf-text);
+  padding: 0 var(--kf-2);
 }
 
 .lamplight-sidebar-brand-icon {
   width: 36px;
   height: 36px;
-  border-radius: var(--r-md);
-  background-color: var(--surface);
-  border: 1px solid var(--line-strong);
-  color: var(--lamp);
+  border-radius: var(--kf-radius);
+  background-color: var(--kf-raised);
+  border: 1px solid var(--kf-line-strong);
+  color: var(--kf-brand);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: var(--shadow-sm);
 }
 
 .lamplight-sidebar-brand-text {
@@ -58,78 +59,83 @@
 }
 
 .lamplight-sidebar-brand-title {
-  font-family: var(--font-display);
+  font-family: var(--kf-font-display);
+  font-stretch: 82%;
   font-size: 19px;
-  font-weight: 600;
-  line-height: 1.15;
+  font-weight: 800;
+  line-height: 1.1;
   letter-spacing: -0.01em;
+  color: var(--kf-text);
 }
 
 .lamplight-sidebar-brand-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--lamp);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--kf-brand);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 
 /* Actions in sidebar */
 .lamplight-sidebar-actions {
   display: flex;
   flex-direction: column;
-  gap: var(--s-2);
+  gap: var(--kf-2);
 }
 
 .lamplight-sidebar-write-btn {
   width: 100%;
   height: 40px;
-  border-radius: var(--r-md);
-  background: var(--lamp);
-  color: var(--text-inverse);
-  font-weight: 600;
-  font-size: 14px;
+  border-radius: var(--kf-radius);
+  background: var(--kf-brand);
+  color: var(--kf-on-fill);
+  font-family: var(--kf-font-ui);
+  font-weight: 700;
+  font-size: var(--kf-text-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--s-2);
+  gap: var(--kf-2);
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-  transition: all var(--dur-fast) var(--ease-smooth);
+  transition: background var(--kf-fast) var(--kf-ease), transform var(--kf-fast) var(--kf-ease);
 }
 
 .lamplight-sidebar-write-btn:hover {
-  background: var(--lamp-hover);
-  transform: translateY(-1px);
+  background: var(--kf-brand-hover);
+}
+
+.lamplight-sidebar-write-btn:active {
+  transform: scale(0.98);
 }
 
 .lamplight-sidebar-search-btn {
   width: 100%;
   height: 36px;
-  border-radius: var(--r-md);
-  background: var(--surface);
-  color: var(--text-2);
-  font-size: 13px;
+  border-radius: var(--kf-radius);
+  background: var(--kf-bg);
+  color: var(--kf-text-2);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s-3);
-  border: 1px solid var(--line);
+  padding: 0 var(--kf-3);
+  border: 1px solid var(--kf-line);
   cursor: pointer;
-  transition: all var(--dur-fast) var(--ease-smooth);
+  transition: border-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
 }
 
 .lamplight-sidebar-search-btn:hover {
-  background: var(--surface-hover);
-  border-color: var(--line-strong);
-  color: var(--text);
+  border-color: var(--kf-line-strong);
+  color: var(--kf-text);
 }
 
 /* Navigation lists */
 .lamplight-sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: var(--s-4);
+  gap: var(--kf-3);
   flex: 1;
   overflow-y: auto;
 }
@@ -137,97 +143,128 @@
 .lamplight-sidebar-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-}
-
-.lamplight-sidebar-label {
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-3);
-  padding: 0 var(--s-3) var(--s-1);
+  gap: 3px;
 }
 
 .lamplight-sidebar-link {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-md);
-  color: var(--text-2);
+  min-height: 40px;
+  padding: var(--kf-2) var(--kf-3);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text-2);
   text-decoration: none;
-  font-size: 14px;
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
   font-weight: 500;
-  transition: all var(--dur-fast) var(--ease-smooth);
+  transition: background-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
   border: 1px solid transparent;
 }
 
 .lamplight-sidebar-link:hover {
-  background-color: var(--surface-hover);
-  color: var(--text);
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
 }
 
 .lamplight-sidebar-link.is-active {
-  background-color: var(--surface);
-  color: var(--lamp);
-  border-color: var(--line-strong);
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+  border-color: var(--kf-line-strong);
+  font-weight: 600;
+}
+
+.lamplight-sidebar-link.is-active svg {
+  color: var(--kf-brand);
+}
+
+.lamplight-sidebar-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: var(--kf-4);
+  padding-left: var(--kf-2);
+  border-left: 1px solid var(--kf-line);
+  margin-bottom: var(--kf-1);
+}
+
+.lamplight-sidebar-sublink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 4px var(--kf-2);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text-2);
+  text-decoration: none;
+  font-size: var(--kf-text-xs);
+  font-weight: 500;
+  transition: background-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sidebar-sublink:hover {
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+}
+
+.lamplight-sidebar-sublink.is-active {
+  color: var(--kf-brand);
   font-weight: 600;
 }
 
 .lamplight-sidebar-link-left {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--kf-3);
 }
 
 .lamplight-sidebar-count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-3);
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
   font-variant-numeric: tabular-nums;
 }
 
-.lamplight-sidebar-link.is-active .lamplight-sidebar-count {
-  color: var(--lamp);
+.lamplight-sidebar-link.is-active .lamplight-sidebar-count,
+.lamplight-sidebar-sublink.is-active .lamplight-sidebar-count {
+  color: var(--kf-text);
 }
 
 /* Footer & Collapse Toggle */
 .lamplight-sidebar-footer {
-  border-top: 1px solid var(--line);
-  padding-top: var(--s-3);
+  border-top: 1px solid var(--kf-line);
+  padding-top: var(--kf-3);
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--kf-2);
 }
 
 .lamplight-sidebar-summary {
-  font-size: 12px;
-  color: var(--text-3);
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
   line-height: 1.4;
-  padding: 0 var(--s-2);
+  padding: 0 var(--kf-2);
+  font-variant-numeric: tabular-nums;
 }
 
 .lamplight-sidebar-summary strong {
-  color: var(--text-2);
-  font-family: var(--font-mono);
+  color: var(--kf-text);
 }
 
 .lamplight-sidebar-collapse-btn {
   background: transparent;
   border: none;
-  color: var(--text-3);
-  font-size: 12px;
+  color: var(--kf-text-2);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--kf-2);
   cursor: pointer;
-  padding: var(--s-1) var(--s-2);
-  border-radius: var(--r-sm);
-  transition: color var(--dur-fast) var(--ease-smooth);
+  padding: var(--kf-1) var(--kf-2);
+  border-radius: var(--kf-radius);
+  transition: color var(--kf-fast) var(--kf-ease);
 }
 
 .lamplight-sidebar-collapse-btn:hover {
-  color: var(--text);
+  color: var(--kf-text);
 }
