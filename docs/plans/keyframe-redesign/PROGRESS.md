@@ -1,10 +1,10 @@
 # Keyframe Redesign Progress
 
-Last updated: 2026-11-07. Full plan: [README.md](./README.md).
+Last updated: 2026-11-08. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 3, Shell and navigation.** Phases 0, 1 and 2 are done, and the Keyframe look is approved.
+**Next up: Phase 4, Find Art.** Phases 0, 1, 2 and 3 are done, and the Keyframe shell and navigation are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-07. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app, or http://localhost:5173/__style for the approved design.
-4. Work through the [Phase 3 checklist](#phase-3-checklist), then update this file in the same commit as the work.
+4. Work through Phase 4 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -22,8 +22,8 @@ Last updated: 2026-11-07. Full plan: [README.md](./README.md).
 | 0 | Safety and baseline | ✅ Done | `49e4bee` | Notes can no longer be overwritten |
 | 1 | Keyframe foundation | ✅ Done, look approved | `ba647be` | `/__style` |
 | 2 | Smooth engine | ✅ Done | `8c3a901` | +1 feels instant |
-| 3 | Shell and navigation | 👉 **Next** | | You can find everything easily |
-| 4 | Find Art | Not started | | The app starts to look like yours |
+| 3 | Shell and navigation | ✅ Done | | You can find everything easily |
+| 4 | Find Art | 👉 **Next** | | The app starts to look like yours |
 | 5 | Activity and progression | Not started | | Numbers look right against your data |
 | 6 | Home and Quick Log | Not started | | The main habit loop works |
 | 7 | Anime library and title page | Not started | | Core browsing |
@@ -35,15 +35,15 @@ Last updated: 2026-11-07. Full plan: [README.md](./README.md).
 
 ## Phase 3 checklist
 
-- [ ] Desktop rail and phone tabs: Home, Library, +, Journal, Me (restyle `Frontend/src/shell/`)
-- [ ] Library section with Anime, Books and Characters tabs, keeping their existing URLs
-- [ ] New vocabulary everywhere (table in the [plan](./README.md#plain-fan-vocabulary))
-- [ ] Filters and sorting in the URL, plus `?release=` and `?ep=` on title pages
-- [ ] Redirect `/reflections` and `/rewatches` to `/journal`, and `/media` to `/settings`
-- [ ] Add placeholder `/journal`, `/me` and `/settings` routes in `Frontend/src/app/router.tsx`
-- [ ] Every card becomes a real link, and rows on Home open the item rather than a list
-- [ ] Search finds note text and runs actions, and `?` shows the shortcut list
-- [ ] Move Keyframe tokens from `.kf` to `:root` once the shell uses them
+- [x] Desktop rail and phone tabs: Home, Library, +, Journal, Me (restyle `Frontend/src/shell/`)
+- [x] Library section with Anime, Books and Characters tabs, keeping their existing URLs
+- [x] New vocabulary everywhere (table in the [plan](./README.md#plain-fan-vocabulary))
+- [x] Filters and sorting in the URL, plus `?release=` and `?ep=` on title pages
+- [x] Redirect `/reflections` and `/rewatches` to `/journal`, and `/media` to `/settings`
+- [x] Add placeholder `/journal`, `/me` and `/settings` routes in `Frontend/src/app/router.tsx`
+- [x] Every card becomes a real link, and rows on Home open the item rather than a list
+- [x] Search finds note text and runs actions, and `?` shows the shortcut list
+- [x] Move Keyframe tokens from `.kf` to `:root` once the shell uses them
 
 ## Phase 2 results
 
@@ -73,7 +73,7 @@ Test flows that write data against a copy of the database, never the real `Backe
 
 ## Things to know
 
-- **Design tokens are still scoped.** Keyframe styles apply only inside `.kf` (`Frontend/src/styles/keyframe.css`), so existing pages keep the old look until they are rebuilt. New primitives are in `Frontend/src/ui/keyframe/`.
+- **Design tokens are on `:root`.** Keyframe tokens (`--kf-*`) in `Frontend/src/styles/keyframe.css` are now defined on `:root, .kf` and imported globally in `Frontend/src/index.css`. New primitives are in `Frontend/src/ui/keyframe/`.
 - **Reading journal data:** use `useJournalData`, `useJournalActions` or `useJournalUI` from `Frontend/src/state/JournalContext.tsx`. Each one re-renders only for what it covers, and actions never change identity.
 - **Progress changes** go through `handleSeasonProgressDelta` and its movie and book versions. `Frontend/src/lib/journal/progress.ts` predicts the server's result, so if the rules in `_update_release_progress` change, change both.
 - **Routes** are in `Frontend/src/app/router.tsx`, and page wiring is in `Frontend/src/app/pages.tsx`.
