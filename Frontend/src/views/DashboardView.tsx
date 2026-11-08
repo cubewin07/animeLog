@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -9,7 +10,7 @@ import {
   Rewatch,
 } from '../types';
 import { useJournalActions } from '../state/JournalContext';
-import { useReflections } from '../state/useReflections';
+import { JournalReflection, useReflections } from '../state/useReflections';
 import { Cover, Stepper, Rating, Button, EmptyState } from '../ui';
 import { formatDate } from '../lib/format';
 import {
@@ -22,6 +23,49 @@ import {
   Tv,
 } from 'lucide-react';
 import './DashboardView.css';
+
+function getReflectionHref(r: JournalReflection): string {
+  if (r.targetKind === 'season' && r.seriesId) {
+    const epParam = r.episodeNumber ? `&ep=${r.episodeNumber}` : '';
+    return `/anime/${r.seriesId}?release=season-${r.targetId}${epParam}`;
+  }
+  if (r.targetKind === 'movie' && r.seriesId) {
+    return `/anime/${r.seriesId}?release=movie-${r.targetId}`;
+  }
+  if (r.targetKind === 'book') {
+    return `/books/${r.targetId}`;
+  }
+  if (r.targetKind === 'character') {
+    return `/characters/${r.targetId}`;
+  }
+  return '/journal';
+}
+
+function getRewatchHref(rewatch: Rewatch, seriesList: AnimeSeries[]): string {
+  const seasonId = rewatch.season_id || (rewatch.target_type === 'season' ? rewatch.target_id : undefined);
+  const movieId = rewatch.movie_id || (rewatch.target_type === 'movie' ? rewatch.target_id : undefined);
+  let seriesId = rewatch.series_id ?? undefined;
+
+  if (!seriesId) {
+    for (const s of seriesList) {
+      if (seasonId && s.seasons?.some((sea) => sea.id === seasonId)) {
+        seriesId = s.id;
+        break;
+      }
+      if (movieId && s.movies?.some((mov) => mov.id === movieId)) {
+        seriesId = s.id;
+        break;
+      }
+    }
+  }
+
+  if (seriesId) {
+    if (seasonId) return `/anime/${seriesId}?release=season-${seasonId}`;
+    if (movieId) return `/anime/${seriesId}?release=movie-${movieId}`;
+    return `/anime/${seriesId}`;
+  }
+  return '/journal?kind=rewatch';
+}
 
 interface DashboardViewProps {
   stats: JournalStats;
@@ -85,6 +129,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             current: season.progress || 0,
             total: season.total_episodes,
             unit: 'eps',
+            href: `/anime/${series.id}?release=season-${season.id}`,
             progress: (delta: number) => onSeasonProgressDelta(season.id, delta),
             open: () => onNavigate('anime', series.id),
             onNote: () =>
@@ -106,11 +151,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             id: `movie-${movie.id}`,
             format: 'anime',
             title: series.title,
-            context: `Film · ${movie.title}`,
+            context: `Movie · ${movie.title}`,
             cover: movie.cover_image_url || movie.image_url || series.cover_image_url,
             current: movie.progress_minutes || 0,
             total: movie.total_minutes,
             unit: 'min',
+            href: `/anime/${series.id}?release=movie-${movie.id}`,
             progress: (delta: number) => onMovieProgressDelta(movie.id, delta),
             open: () => onNavigate('anime', series.id),
             onNote: () =>
@@ -132,11 +178,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           id: `book-${book.id}`,
           format: 'book',
           title: book.title,
-          context: book.author ? `by ${book.author}` : 'Book journal',
+          context: book.author ? `by ${book.author}` : 'Book',
           cover: book.cover_image_url || book.image_url,
           current: book.progress || 0,
           total: book.total_pages,
           unit: 'pages',
+          href: `/books/${book.id}`,
           progress: (delta: number) => onProgressBook(book.id, delta),
           open: () => onNavigate('books', book.id),
           onNote: () =>
@@ -154,7 +201,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return list;
   }, [seriesList, bookList, onSeasonProgressDelta, onMovieProgressDelta, onProgressBook, onNavigate, openComposer]);
 
-  // Resurfaced memory selection (seeded daily pick, prioritizes substantive lessons)
+  // Resurfaced memory selection (seeded daily pick, prioritizes substantive notes)
   const [resurfacedIndexOffset, setResurfacedIndexOffset] = useState(0);
   const substantiveReflections = useMemo(() => {
     return reflections.filter((r) => r.note && r.note.length > 25);
@@ -167,7 +214,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return substantiveReflections[idx];
   }, [substantiveReflections, reflections, resurfacedIndexOffset]);
 
-  // Titles waiting for words (finished or in library with no notes)
+  // Titles waiting for a note (completed or in library with no notes)
   const waitingForWords = useMemo(() => {
     const list: any[] = [];
     seriesList.forEach((s) => {
@@ -179,6 +226,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             targetId: season.id,
             title: s.title,
             sub: `Season ${season.season_number} completed`,
+            href: `/anime/${s.id}?release=season-${season.id}`,
           });
         }
       });
@@ -189,7 +237,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             targetKind: 'movie',
             targetId: movie.id,
             title: s.title,
-            sub: `Film "${movie.title}" completed`,
+            sub: `Movie "${movie.title}" completed`,
+            href: `/anime/${s.id}?release=movie-${movie.id}`,
           });
         }
       });
@@ -203,6 +252,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           targetId: b.id,
           title: b.title,
           sub: b.author ? `by ${b.author}` : 'Book completed',
+          href: `/books/${b.id}`,
         });
       }
     });
@@ -214,7 +264,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           targetKind: 'character',
           targetId: c.id,
           title: c.name,
-          sub: c.series_title ? `Character in ${c.series_title}` : 'Character remembered',
+          sub: c.series_title ? `Character in ${c.series_title}` : 'Character',
+          href: `/characters/${c.id}`,
         });
       }
     });
@@ -222,7 +273,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return list.slice(0, 4);
   }, [seriesList, bookList, characterList]);
 
-  // Returns timeline excerpt (series title first!)
+  // Rewatches timeline excerpt (series title first!)
   const recentReturns = useMemo(() => {
     return rewatchList
       .filter((r) => r.notes?.trim())
@@ -230,7 +281,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       .slice(0, 3);
   }, [rewatchList]);
 
-  // Remembered Characters excerpt
+  // Characters excerpt
   const rememberedCharacters = useMemo(() => {
     return characterList.filter((c) => c.why?.trim()).slice(0, 3);
   }, [characterList]);
@@ -242,7 +293,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div>
           <div className="lamplight-desk-eyebrow">
             <Quote size={14} />
-            <span>Personal Viewing & Reading Desk</span>
+            <span>Home</span>
           </div>
           <h1 className="lamplight-desk-title">{greeting}</h1>
           <p className="lamplight-desk-meta">{todayLabel}</p>
@@ -254,29 +305,34 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             icon={<PenLine size={15} />}
             onClick={() => openComposer()}
           >
-            Write Reflection
+            Write Note
           </Button>
         </div>
       </header>
 
-      {/* 2. On the desk: In-progress titles */}
+      {/* 2. Continue Watching & Reading: In-progress titles */}
       <section aria-labelledby="continue-heading">
         <div className="lamplight-desk-section-head">
           <h2 id="continue-heading" className="lamplight-desk-section-title">
-            <span>On the Desk</span>
+            <span>Continue Watching & Reading</span>
             <span className="lamplight-desk-section-badge">{activeItems.length}</span>
           </h2>
-          <Button variant="ghost" size="sm" onClick={() => onNavigate('anime')}>
+          <Link viewTransition to="/anime" className="lamplight-desk-section-link">
             <span>View library</span>
             <ChevronRight size={14} />
-          </Button>
+          </Link>
         </div>
 
         {activeItems.length ? (
           <div className="lamplight-continue-grid">
             {activeItems.map((item) => (
               <article key={item.id} className="lamplight-continue-card">
-                <div style={{ width: 60, height: 90, flexShrink: 0 }}>
+                <Link
+                  viewTransition
+                  to={item.href}
+                  style={{ width: 60, height: 90, flexShrink: 0, display: 'block', textDecoration: 'none' }}
+                  aria-label={`Open ${item.title}`}
+                >
                   <Cover
                     title={item.title}
                     subtitle={item.context}
@@ -284,12 +340,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     variant={item.format === 'book' ? 'book' : 'poster'}
                     showTitle={false}
                   />
-                </div>
+                </Link>
 
                 <div className="lamplight-continue-info">
-                  <h3 className="lamplight-continue-title" onClick={item.open} title={`Open ${item.title}`}>
+                  <Link
+                    viewTransition
+                    to={item.href}
+                    className="lamplight-continue-title"
+                    title={`Open ${item.title}`}
+                  >
                     {item.title}
-                  </h3>
+                  </Link>
                   <span className="lamplight-continue-context">{item.context}</span>
 
                   <div className="lamplight-continue-actions">
@@ -317,7 +378,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             action={
               onOpenLogModal && (
                 <Button variant="secondary" onClick={onOpenLogModal}>
-                  Log a title
+                  Add a title
                 </Button>
               )
             }
@@ -325,14 +386,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
       </section>
 
-      {/* 3. Main Spread: Resurfaced Memory & Waiting for Words */}
+      {/* 3. Main Spread: A Note from Your Past & Waiting for a Note */}
       <div className="lamplight-desk-main-spread">
-        {/* Resurfaced Memory */}
+        {/* A Note from Your Past */}
         <section className="lamplight-resurfaced-wrap" aria-labelledby="resurfaced-heading">
           <div className="lamplight-desk-section-head">
             <h2 id="resurfaced-heading" className="lamplight-desk-section-title">
               <Sparkles size={16} color="var(--lamp)" />
-              <span>Resurfaced Memory</span>
+              <span>A Note from Your Past</span>
             </h2>
             {substantiveReflections.length > 1 && (
               <Button
@@ -353,10 +414,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 “{resurfaced.note}”
               </blockquote>
               <footer className="lamplight-resurfaced-source">
-                <div>
+                <Link viewTransition to={getReflectionHref(resurfaced)} className="lamplight-resurfaced-link">
                   <strong>{resurfaced.title}</strong>
                   <span style={{ opacity: 0.65, marginLeft: 6 }}>· {resurfaced.context}</span>
-                </div>
+                </Link>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {resurfaced.rating && <Rating score={resurfaced.rating} />}
                   {resurfaced.kind !== 'rewatch' && (
@@ -374,7 +435,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         })
                       }
                     >
-                      Add thought
+                      Add to note
                     </Button>
                   )}
                 </div>
@@ -382,16 +443,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </article>
           ) : (
             <div className="lamplight-resurfaced-paper" style={{ fontStyle: 'italic', color: 'var(--paper-ink-2)' }}>
-              Write your first reflection to seed the reading room.
+              Write your first note to see your past thoughts here.
             </div>
           )}
         </section>
 
-        {/* Waiting for Words */}
+        {/* Waiting for a Note */}
         <section aria-labelledby="waiting-heading">
           <div className="lamplight-desk-section-head">
             <h2 id="waiting-heading" className="lamplight-desk-section-title">
-              <span>Waiting for Words</span>
+              <span>Waiting for a Note</span>
               <span className="lamplight-desk-section-badge">{waitingForWords.length}</span>
             </h2>
           </div>
@@ -401,7 +462,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {waitingForWords.map((item) => (
                 <div key={item.id} className="lamplight-waiting-item">
                   <div>
-                    <h4 className="lamplight-waiting-title">{item.title}</h4>
+                    <Link viewTransition to={item.href} className="lamplight-waiting-title">
+                      {item.title}
+                    </Link>
                     <span className="lamplight-waiting-sub">{item.sub}</span>
                   </div>
                   <Button
@@ -425,35 +488,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           ) : (
             <div className="lamplight-waiting-list" style={{ color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic' }}>
-              Every completed title has its lesson kept.
+              Every completed title has a note.
             </div>
           )}
         </section>
       </div>
 
-      {/* 4. Bottom Grid: Seen Again (Returns) & People Remembered */}
+      {/* 4. Bottom Grid: Recent Rewatches & Characters */}
       <div className="lamplight-desk-bottom-grid">
-        {/* Seen Again Returns Shelf */}
+        {/* Recent Rewatches Shelf */}
         <section aria-labelledby="returns-heading">
           <div className="lamplight-desk-section-head">
             <h2 id="returns-heading" className="lamplight-desk-section-title">
               <RotateCcw size={15} color="var(--lamp)" />
-              <span>Seen Again</span>
+              <span>Recent Rewatches</span>
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => onNavigate('rewatches')}>
-              <span>All returns</span>
+            <Link viewTransition to="/journal?kind=rewatch" className="lamplight-desk-section-link">
+              <span>All rewatches</span>
               <ChevronRight size={14} />
-            </Button>
+            </Link>
           </div>
 
           {recentReturns.length ? (
             <div className="lamplight-desk-card-deck">
               {recentReturns.map((rewatch) => (
-                <button
+                <Link
                   key={rewatch.id}
-                  type="button"
+                  viewTransition
+                  to={getRewatchHref(rewatch, seriesList)}
                   className="lamplight-return-item"
-                  onClick={() => onNavigate('rewatches')}
                 >
                   <span className="lamplight-return-date">
                     {formatDate(rewatch.finish_date || rewatch.start_date)}
@@ -469,7 +532,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       “{rewatch.notes}”
                     </p>
                   </div>
-                </button>
+                </Link>
               ))}
             </div>
           ) : (
@@ -479,27 +542,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
         </section>
 
-        {/* People Remembered */}
+        {/* Characters */}
         <section aria-labelledby="people-heading">
           <div className="lamplight-desk-section-head">
             <h2 id="people-heading" className="lamplight-desk-section-title">
               <Sparkles size={15} color="var(--lamp)" />
-              <span>People Remembered</span>
+              <span>Characters</span>
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => onNavigate('characters')}>
-              <span>All people</span>
+            <Link viewTransition to="/characters" className="lamplight-desk-section-link">
+              <span>All characters</span>
               <ChevronRight size={14} />
-            </Button>
+            </Link>
           </div>
 
           {rememberedCharacters.length ? (
             <div className="lamplight-desk-card-deck">
               {rememberedCharacters.map((char) => (
-                <button
+                <Link
                   key={char.id}
-                  type="button"
+                  viewTransition
+                  to={`/characters/${char.id}`}
                   className="lamplight-person-item"
-                  onClick={() => onNavigate('characters')}
                 >
                   <div style={{ width: 40, height: 40, flexShrink: 0 }}>
                     <Cover
@@ -519,12 +582,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       “{char.why}”
                     </p>
                   </div>
-                </button>
+                </Link>
               ))}
             </div>
           ) : (
             <div className="lamplight-desk-card-deck" style={{ color: 'var(--text-3)', fontSize: 13 }}>
-              Remember the people whose choices gave you something to think about.
+              Keep notes on characters whose choices gave you something to think about.
             </div>
           )}
         </section>

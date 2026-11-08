@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AnimeSeries } from '../types';
 import { useJournalActions } from '../state/JournalContext';
 import { overallSeriesStatus } from '../lib/selectors/seriesStatus';
@@ -41,11 +42,22 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
   onOpenNewFranchiseModal,
 }) => {
   const { openComposer } = useJournalActions();
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [filterText, setFilterText] = useState(searchQuery || '');
-  const [sortBy, setSortBy] = useState<'recent' | 'rating' | 'title' | 'lesson'>('recent');
-  const [viewMode, setViewMode] = useState<'shelf' | 'list'>('shelf');
+  const [searchParams, setSearchParams] = useSearchParams();
 
+  const selectedStatus = searchParams.get('status') || 'ALL';
+  const filterText = searchParams.get('q') ?? (searchQuery || '');
+  const sortBy = (searchParams.get('sort') as 'recent' | 'rating' | 'title' | 'note' | 'lesson') || 'recent';
+  const viewMode = (searchParams.get('view') as 'shelf' | 'list') || 'shelf';
+
+  const updateParam = (key: string, value: string, defaultValue: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === defaultValue) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   // Extract helper for each series
   const enrichedSeries = useMemo(() => {
@@ -66,7 +78,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
         : null;
 
-      // Extract latest note/lesson
+      // Extract latest note
       let latestLesson = '';
       series.seasons?.forEach((s) => {
         if (s.notes?.trim()) latestLesson = s.notes;
@@ -82,11 +94,11 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       const totalSeasons = series.seasons?.length || 0;
       const totalMovies = series.movies?.length || 0;
       let label = totalSeasons === 0 && totalMovies === 0 ? 'No seasons yet' : '1 Season';
-      if (totalSeasons === 0 && totalMovies > 0) label = `${totalMovies} Film${totalMovies > 1 ? 's' : ''}`;
+      if (totalSeasons === 0 && totalMovies > 0) label = `${totalMovies} Movie${totalMovies > 1 ? 's' : ''}`;
       if (watchingSeason) label = `Watching · Season ${watchingSeason.season_number}`;
       else if (totalSeasons > 1 && totalMovies === 0) label = `${totalSeasons} Seasons`;
-      else if (totalSeasons === 1 && totalMovies > 0) label = `1 Season · ${totalMovies} Film${totalMovies > 1 ? 's' : ''}`;
-      else if (totalSeasons > 1 && totalMovies > 0) label = `${totalSeasons} Seasons · ${totalMovies} Films`;
+      else if (totalSeasons === 1 && totalMovies > 0) label = `1 Season · ${totalMovies} Movie${totalMovies > 1 ? 's' : ''}`;
+      else if (totalSeasons > 1 && totalMovies > 0) label = `${totalSeasons} Seasons · ${totalMovies} Movies`;
 
       const coverUrl =
         watchingSeason?.cover_image_url ||
@@ -113,8 +125,8 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
     const tabs = [
       { id: 'ALL', label: 'All', count: enrichedSeries.length },
       { id: 'WATCHING', label: 'Watching', count: count('WATCHING') },
-      { id: 'COMPLETED', label: 'Finished', count: count('COMPLETED') },
-      { id: 'PLAN_TO_WATCH', label: 'Up next', count: count('PLAN_TO_WATCH') },
+      { id: 'COMPLETED', label: 'Completed', count: count('COMPLETED') },
+      { id: 'PLAN_TO_WATCH', label: 'Plan to watch', count: count('PLAN_TO_WATCH') },
       { id: 'ON_HOLD', label: 'On hold', count: count('ON_HOLD') },
       { id: 'DROPPED', label: 'Dropped', count: count('DROPPED') },
     ];
@@ -137,7 +149,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       .sort((a, b) => {
         if (sortBy === 'rating') return (b.avgRating || 0) - (a.avgRating || 0);
         if (sortBy === 'title') return a.series.title.localeCompare(b.series.title);
-        if (sortBy === 'lesson') return (b.latestLesson ? 1 : 0) - (a.latestLesson ? 1 : 0);
+        if (sortBy === 'note' || sortBy === 'lesson') return (b.latestLesson ? 1 : 0) - (a.latestLesson ? 1 : 0);
         return b.series.id - a.series.id; // recent
       });
   }, [enrichedSeries, selectedStatus, filterText, sortBy]);
@@ -147,9 +159,9 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
       {/* Header */}
       <header className="lamplight-library-header">
         <div>
-          <h1 className="lamplight-library-title">Anime Journal</h1>
+          <h1 className="lamplight-library-title">Anime</h1>
           <p className="lamplight-library-desc">
-            Your viewing ledger, season notes, and memories kept from watching.
+            Series, seasons, movies, and the notes you kept along the way.
           </p>
         </div>
 
@@ -158,7 +170,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
           icon={<Plus size={15} />}
           onClick={onOpenNewFranchiseModal}
         >
-          Log Franchise
+          Add Anime
         </Button>
       </header>
 
@@ -171,7 +183,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
               key={tab.id}
               type="button"
               className={`lamplight-status-pill ${selectedStatus === tab.id ? 'is-active' : ''}`}
-              onClick={() => setSelectedStatus(tab.id)}
+              onClick={() => updateParam('status', tab.id, 'ALL')}
             >
               <span>{tab.label}</span>
               <span className="lamplight-pill-count">{tab.count}</span>
@@ -185,15 +197,16 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
             <Search size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)' }} />
             <input
               type="text"
-              placeholder="Search anime or lessons…"
+              placeholder="Search anime or notes…"
               value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
+              onChange={(e) => updateParam('q', e.target.value, '')}
             />
           </div>
 
           <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            value={sortBy === 'lesson' ? 'note' : sortBy}
+            onChange={(e) => updateParam('sort', e.target.value, 'recent')}
+            aria-label="Sort anime"
             style={{
               height: 36,
               background: 'var(--surface)',
@@ -209,14 +222,14 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
             <option value="recent">Recently added</option>
             <option value="rating">Rating (Highest)</option>
             <option value="title">Title (A-Z)</option>
-            <option value="lesson">Has reflection</option>
+            <option value="note">Has note</option>
           </select>
 
           <div className="lamplight-view-toggle">
             <button
               type="button"
               className={`lamplight-view-btn ${viewMode === 'shelf' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('shelf')}
+              onClick={() => updateParam('view', 'shelf', 'shelf')}
               title="Shelf Grid View"
             >
               <LayoutGrid size={15} />
@@ -224,7 +237,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
             <button
               type="button"
               className={`lamplight-view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('list')}
+              onClick={() => updateParam('view', 'list', 'shelf')}
               title="List View"
             >
               <ListIcon size={15} />
@@ -238,10 +251,11 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
         viewMode === 'shelf' ? (
           <div className="lamplight-shelf-grid">
             {filtered.map(({ series, overallStatus, avgRating, latestLesson, label, coverUrl, primarySeason, primaryMovie }) => (
-              <article
+              <Link
                 key={series.id}
+                viewTransition
+                to={`/anime/${series.id}`}
                 className="lamplight-card"
-                onClick={() => onOpenDetail?.(series.id)}
               >
                 <div className="lamplight-card-cover-wrap">
                   <Cover
@@ -271,6 +285,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                       type="button"
                       className="lamplight-card-empty-lesson"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         const release = primarySeason
                           ? { targetKind: 'season' as const, id: primarySeason.id }
@@ -285,20 +300,21 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                       }}
                     >
                       <PenLine size={13} />
-                      <span>Write what stayed</span>
+                      <span>Add note</span>
                     </button>
                   )}
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         ) : (
           <div className="lamplight-list-wrap">
             {filtered.map(({ series, overallStatus, avgRating, latestLesson, label, coverUrl }) => (
-              <div
+              <Link
                 key={series.id}
+                viewTransition
+                to={`/anime/${series.id}`}
                 className="lamplight-list-row"
-                onClick={() => onOpenDetail?.(series.id)}
               >
                 <div className="lamplight-list-left">
                   <div style={{ width: 44, height: 64, flexShrink: 0 }}>
@@ -323,18 +339,18 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                   <StatusMark status={overallStatus} />
                   {avgRating && <Rating score={avgRating} />}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )
       ) : (
         <EmptyState
           icon={<Film size={24} />}
-          title="No franchises found"
+          title="No series found"
           description={filterText ? `No titles matched "${filterText}".` : "Your anime library is waiting for its first title."}
           action={
             <Button variant="primary" icon={<Plus size={15} />} onClick={onOpenNewFranchiseModal}>
-              Log a franchise
+              Add anime
             </Button>
           }
         />

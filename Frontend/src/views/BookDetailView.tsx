@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Book } from '../types';
 import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Stepper, Button, EmptyState, Kbd } from '../ui';
@@ -27,7 +28,6 @@ interface BookDetailViewProps {
 
 export const BookDetailView: React.FC<BookDetailViewProps> = ({
   book,
-  onBack,
   onEdit,
   onDelete,
   onProgressDelta,
@@ -53,10 +53,10 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       setIsSavingLesson(true);
       await bookApi.update(book.id, { notes: lessonDraft.trim() });
       setIsEditingLesson(false);
-      addToast('Book reflection saved');
+      addToast('Book note saved');
       await refreshAll();
     } catch (err: any) {
-      addToast(`Error saving lesson: ${err.message}`, 'error');
+      addToast(`Error saving note: ${err.message}`, 'error');
     } finally {
       setIsSavingLesson(false);
     }
@@ -70,14 +70,15 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
     <div className="lamplight-folio">
       {/* Top back breadcrumb */}
       <div>
-        <button
-          onClick={onBack}
+        <Link
+          viewTransition
+          to="/books"
           className="lamplight-identity-back"
-          aria-label="Back to Bookshelf"
+          aria-label="Books"
         >
           <ArrowLeft size={16} />
-          <span>Back to Bookshelf</span>
-        </button>
+          <span>Books</span>
+        </Link>
       </div>
 
       <div className="lamplight-folio-grid">
@@ -331,17 +332,17 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             <header className="lamplight-lesson-folio-head">
               <div className="lamplight-lesson-folio-title">
                 <Quote size={18} className="lamplight-lesson-folio-icon" />
-                <span>Reading Reflection & What Stayed</span>
+                <span>Book Note</span>
               </div>
               {!isEditingLesson && (
                 <button
                   type="button"
                   className="lamplight-lesson-folio-edit-btn"
                   onClick={() => setIsEditingLesson(true)}
-                  aria-label="Edit reflection"
+                  aria-label="Edit note"
                 >
                   <PenLine size={13} />
-                  <span>{book.notes ? 'Edit words' : 'Write lesson'}</span>
+                  <span>{book.notes ? 'Edit note' : 'Write note'}</span>
                 </button>
               )}
             </header>
@@ -352,7 +353,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                   className="lamplight-lesson-textarea"
                   value={lessonDraft}
                   onChange={(e) => setLessonDraft(e.target.value)}
-                  placeholder="What idea, phrase, or lesson from this book stayed in your head? Write freely..."
+                  placeholder="What idea, phrase, or note from this book stayed in your head? Write freely..."
                   rows={8}
                   autoFocus
                   onKeyDown={(e) => {
@@ -384,7 +385,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                       onClick={handleSaveInlineLesson}
                       loading={isSavingLesson}
                     >
-                      Save Reflection
+                      Save Note
                     </Button>
                   </div>
                 </div>
@@ -400,8 +401,8 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
             ) : (
               <EmptyState
                 icon={<Quote size={28} />}
-                title="The page is still quiet"
-                description="What scene or idea lingered when you closed the cover? Record the passage or lesson so future you can return to it."
+                title="No note written yet"
+                description="What scene or idea lingered when you closed the cover? Write a note so future you can return to it."
                 action={
                   <Button
                     variant="primary"
@@ -409,7 +410,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
                     icon={<PenLine size={14} />}
                     onClick={() => setIsEditingLesson(true)}
                   >
-                    Write what stayed
+                    Write note
                   </Button>
                 }
               />

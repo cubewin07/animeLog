@@ -161,6 +161,8 @@
   transition: all var(--dur-fast) var(--ease-smooth);
   cursor: pointer;
   position: relative;
+  text-decoration: none;
+  color: inherit;
 }
 
 .lamplight-card:hover {
@@ -291,6 +293,8 @@
   transition: background-color var(--dur-fast) var(--ease-smooth);
   cursor: pointer;
   gap: var(--s-4);
+  text-decoration: none;
+  color: inherit;
 }
 
 .lamplight-list-row:last-child {

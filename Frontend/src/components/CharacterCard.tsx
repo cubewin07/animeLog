@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { FavoriteCharacter } from '../types';
 import { Cover } from '../ui';
 import { useJournalActions } from '../state/JournalContext';
@@ -35,7 +36,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
   const hasReflection = Boolean(character.why && character.why.trim().length > 0);
 
   return (
-    <div
+    <Link
+      viewTransition
+      to={`/characters/${character.id}`}
       className="lamplight-character-card"
       onClick={() => onClick?.(character)}
       style={{
@@ -49,16 +52,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
         border: '1px solid var(--line)',
         borderRadius: 'var(--r-lg)',
         boxShadow: 'var(--shadow-sm)',
-        cursor: onClick ? 'pointer' : 'default',
+        cursor: 'pointer',
+        textDecoration: 'none',
+        color: 'inherit',
         transition: 'transform var(--dur-fast) var(--ease-smooth), box-shadow var(--dur-fast) var(--ease-smooth), border-color var(--dur-fast) var(--ease-smooth)',
-      }}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={(e) => {
-        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
-          e.preventDefault();
-          onClick(character);
-        }
       }}
     >
       {/* Top Floating Actions */}
@@ -72,7 +69,10 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           gap: 4,
           zIndex: 2,
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
       >
         {onEdit && (
           <button
@@ -80,6 +80,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             className="btn btn-ghost"
             style={{ padding: 6, borderRadius: 'var(--r-sm)', color: 'var(--text-3)' }}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onEdit(character);
             }}
@@ -95,6 +96,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
             className="btn btn-ghost"
             style={{ padding: 6, borderRadius: 'var(--r-sm)', color: 'var(--red)' }}
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onDelete(character.id);
             }}
@@ -206,10 +208,13 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               border: '1px dashed var(--line)',
               background: 'var(--surface-sunken)',
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
           >
             <p style={{ margin: 0, fontSize: 12, color: 'var(--text-3)', fontStyle: 'italic', marginBottom: 6 }}>
-              No virtue or lesson recorded yet.
+              No note yet.
             </p>
             <button
               type="button"
@@ -223,7 +228,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
                 alignItems: 'center',
                 gap: 4,
               }}
-              onClick={() => {
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 openComposer({
                   targetKind: 'character',
                   id: character.id,
@@ -234,7 +241,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
               }}
             >
               <Plus size={12} />
-              <span>Write why they matter</span>
+              <span>Add note</span>
             </button>
           </div>
         )}
@@ -260,6 +267,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           <span>{imagesCount} {imagesCount === 1 ? 'still' : 'stills'} in gallery</span>
         </div>
       )}
-    </div>
+    </Link>
   );
 };

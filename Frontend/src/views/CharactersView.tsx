@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { FavoriteCharacter, ImageAsset } from '../types';
 import { CharacterCard } from '../components/CharacterCard';
 import { CharacterDetailModal } from '../components/CharacterDetailModal';
@@ -23,13 +24,40 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
   onOpenAddModal,
   onRefresh,
 }) => {
+  const { characterId } = useParams<{ characterId?: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [selectedCharacter, setSelectedCharacter] = useState<FavoriteCharacter | null>(null);
-  const [localQuery, setLocalQuery] = useState(searchQuery || '');
 
-  // Keep selectedCharacter in sync if list updates
-  const activeChar = selectedCharacter
-    ? characters.find((c) => c.id === selectedCharacter.id) || selectedCharacter
+  const localQuery = searchParams.get('q') ?? (searchQuery || '');
+
+  const updateQuery = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value) {
+      next.delete('q');
+    } else {
+      next.set('q', value);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  // Resolve active character from route param (:characterId) or local selection
+  const routeChar = characterId
+    ? characters.find((c) => c.id === Number(characterId)) || null
     : null;
+  const activeChar = routeChar
+    ? routeChar
+    : selectedCharacter
+      ? characters.find((c) => c.id === selectedCharacter.id) || selectedCharacter
+      : null;
+
+  const handleCloseDetail = () => {
+    setSelectedCharacter(null);
+    if (characterId) {
+      const qs = searchParams.toString();
+      navigate(`/characters${qs ? `?${qs}` : ''}`);
+    }
+  };
 
   const q = localQuery.toLowerCase().trim();
   const filtered = characters.filter((c) => {
@@ -125,7 +153,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
             }}
           >
             <User size={14} />
-            <span>People & Virtues</span>
+            <span>Library</span>
           </div>
           <h1
             style={{
@@ -135,10 +163,10 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
               lineHeight: 1.15,
             }}
           >
-            People Remembered
+            Characters
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: 15, marginTop: 6, maxWidth: 620, lineHeight: 1.5 }}>
-            The characters worth remembering—and the specific virtues, philosophies, and lessons they represent.
+            Characters worth remembering and the notes you kept about them.
           </p>
 
           <div
@@ -151,9 +179,9 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
               color: 'var(--text-3)',
             }}
           >
-            <span>{characters.length} {characters.length === 1 ? 'person' : 'people'} logged</span>
+            <span>{characters.length} {characters.length === 1 ? 'character' : 'characters'} logged</span>
             <span>·</span>
-            <span>{charactersWithWhyCount} with reflections</span>
+            <span>{charactersWithWhyCount} with notes</span>
           </div>
         </div>
 
@@ -163,7 +191,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
             icon={<Plus size={15} />}
             onClick={onOpenAddModal}
           >
-            Add Person
+            Add Character
           </Button>
         </div>
       </header>
@@ -183,9 +211,9 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
           <Search size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)' }} />
           <input
             type="text"
-            placeholder="Search characters by name, series, or virtue…"
+            placeholder="Search characters by name, series, or note…"
             value={localQuery}
-            onChange={(e) => setLocalQuery(e.target.value)}
+            onChange={(e) => updateQuery(e.target.value)}
             style={{
               width: '100%',
               height: 36,
@@ -203,7 +231,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
           {localQuery && (
             <button
               type="button"
-              onClick={() => setLocalQuery('')}
+              onClick={() => updateQuery('')}
               style={{
                 position: 'absolute',
                 right: 8,
@@ -226,11 +254,11 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
       {filtered.length === 0 ? (
         <EmptyState
           icon={<User size={32} />}
-          title={localQuery ? 'No characters match your search' : 'No people remembered yet'}
+          title={localQuery ? 'No characters match your search' : 'No characters yet'}
           description={
             localQuery
               ? `No characters found matching "${localQuery}".`
-              : 'Remember the figures who challenged your thinking or embodied virtues worth carrying.'
+              : 'Keep notes on characters whose choices gave you something to think about.'
           }
           action={
             !localQuery && (
@@ -264,7 +292,7 @@ export const CharactersView: React.FC<CharactersViewProps> = ({
       {activeChar && (
         <CharacterDetailModal
           isOpen={Boolean(activeChar)}
-          onClose={() => setSelectedCharacter(null)}
+          onClose={handleCloseDetail}
           character={activeChar}
           onEdit={onEdit}
           onSetCoverImage={handleSetCoverImage}

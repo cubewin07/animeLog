@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -59,7 +60,6 @@ const nextNoteEpisode = (season: AnimeSeason) => {
 export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   series,
   allRewatches = [],
-  onBack,
   onEditSeries,
   onAddSeason,
   onAddMovie,
@@ -71,18 +71,58 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   onAddCharacter,
 }) => {
   const { openComposer, addToast, refreshAll } = useJournalActions();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Active release selection
+  // Active release selection synced with ?release=season-<id> or ?release=movie-<id>
   const defaultSeason = series.seasons?.find((s) => s.status === 'WATCHING') || series.seasons?.[0];
-  const [selectedType, setSelectedType] = useState<'season' | 'movie'>(defaultSeason ? 'season' : 'movie');
-  const [selectedId, setSelectedId] = useState<number>(defaultSeason?.id || series.movies?.[0]?.id || 0);
+  const releaseParam = searchParams.get('release');
+
+  let selectedType: 'season' | 'movie' = defaultSeason ? 'season' : 'movie';
+  let selectedId: number = defaultSeason?.id || series.movies?.[0]?.id || 0;
+
+  if (releaseParam?.startsWith('season-')) {
+    const parsedId = Number(releaseParam.replace('season-', ''));
+    if (series.seasons?.some((s) => s.id === parsedId)) {
+      selectedType = 'season';
+      selectedId = parsedId;
+    }
+  } else if (releaseParam?.startsWith('movie-')) {
+    const parsedId = Number(releaseParam.replace('movie-', ''));
+    if (series.movies?.some((m) => m.id === parsedId)) {
+      selectedType = 'movie';
+      selectedId = parsedId;
+    }
+  }
+
+  const epParam = searchParams.get('ep');
+  const selectedEp = epParam ? Number(epParam) : null;
+
+  const selectRelease = (type: 'season' | 'movie', id: number) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('release', `${type}-${id}`);
+    next.delete('ep');
+    setSearchParams(next, { replace: true });
+  };
+
+  const selectEpisode = (epNum: number | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (currentSeason) {
+      next.set('release', `season-${currentSeason.id}`);
+    }
+    if (epNum === null) {
+      next.delete('ep');
+    } else {
+      next.set('ep', String(epNum));
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const currentSeason = series.seasons?.find((s) => s.id === selectedId) || series.seasons?.[0];
   const currentMovie = series.movies?.find((m) => m.id === selectedId) || series.movies?.[0];
 
   const activeRelease = selectedType === 'season' ? currentSeason : currentMovie;
 
-  // Inline lesson editing state
+  // Inline note editing state
   const [isEditingLesson, setIsEditingLesson] = useState(false);
   const [lessonDraft, setLessonDraft] = useState(activeRelease?.notes || '');
   const [isSavingLesson, setIsSavingLesson] = useState(false);
@@ -93,14 +133,14 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   const releaseTitle =
     selectedType === 'season'
       ? `Season ${(activeRelease as AnimeSeason)?.season_number || 1} · ${activeRelease?.title}`
-      : `Film · ${activeRelease?.title}`;
+      : `Movie · ${activeRelease?.title}`;
 
   const coverUrl =
     activeRelease?.cover_image_url ||
     (activeRelease as any)?.image_url ||
     series.cover_image_url;
 
-  // Save inline lesson
+  // Save inline note
   const handleSaveInlineLesson = async () => {
     if (!activeRelease) return;
     try {
@@ -111,16 +151,16 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
         await movieApi.update(activeRelease.id, { notes: lessonDraft.trim() });
       }
       setIsEditingLesson(false);
-      addToast('Lesson updated');
+      addToast('Note updated');
       refreshAll();
     } catch (err: any) {
-      addToast(`Error saving lesson: ${err.message}`, 'error');
+      addToast(`Error saving note: ${err.message}`, 'error');
     } finally {
       setIsSavingLesson(false);
     }
   };
 
-  // Episode memories mapped by episode number
+  // Episode notes mapped by episode number
   const episodeNotesMap = React.useMemo(() => {
     const map = new Map<number, EpisodeNote>();
     if (selectedType === 'season' && currentSeason?.episode_notes) {
@@ -130,6 +170,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
     }
     return map;
   }, [selectedType, currentSeason]);
+
+  const selectedEpisodeNote = selectedEp ? episodeNotesMap.get(selectedEp) : undefined;
 
   // Rewatches for active release
   const releaseRewatches = React.useMemo(() => {
@@ -146,10 +188,10 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
       <div className="lamplight-folio-grid">
         {/* Left Column: Identity & Release Navigation */}
         <aside className="lamplight-identity-col">
-          <button type="button" className="lamplight-identity-back" onClick={onBack}>
+          <Link viewTransition to="/anime" className="lamplight-identity-back">
             <ArrowLeft size={14} />
-            <span>Anime Journal</span>
-          </button>
+            <span>Anime</span>
+          </Link>
 
           <div className="lamplight-identity-cover-wrap">
             <Cover
@@ -218,7 +260,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
 
           {/* Release Switcher */}
           <div className="lamplight-release-nav">
-            <span className="lamplight-release-label">Releases & Seasons</span>
+            <span className="lamplight-release-label">Seasons & Movies</span>
             <div className="lamplight-release-pills">
               {series.seasons?.map((s) => (
                 <button
@@ -226,8 +268,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   type="button"
                   className={`lamplight-release-pill ${selectedType === 'season' && selectedId === s.id ? 'is-active' : ''}`}
                   onClick={() => {
-                    setSelectedType('season');
-                    setSelectedId(s.id);
+                    selectRelease('season', s.id);
                     setLessonDraft(s.notes || '');
                     setIsEditingLesson(false);
                   }}
@@ -243,13 +284,12 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   type="button"
                   className={`lamplight-release-pill ${selectedType === 'movie' && selectedId === m.id ? 'is-active' : ''}`}
                   onClick={() => {
-                    setSelectedType('movie');
-                    setSelectedId(m.id);
+                    selectRelease('movie', m.id);
                     setLessonDraft(m.notes || '');
                     setIsEditingLesson(false);
                   }}
                 >
-                  <span>Film: {m.title}</span>
+                  <span>Movie: {m.title}</span>
                   <StatusMark status={m.status} showLabel={false} />
                 </button>
               ))}
@@ -271,7 +311,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   onClick={() => onAddMovie(series)}
                   style={{ flex: 1, fontSize: 12 }}
                 >
-                  Film
+                  Movie
                 </Button>
               </div>
             </div>
@@ -294,7 +334,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 });
               }}
             >
-              Write Reflection
+              Write Note
             </Button>
 
             <Button
@@ -305,7 +345,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 else if (selectedType === 'movie' && currentMovie) onAddRewatchMovie(currentMovie);
               }}
             >
-              Log Return Pass
+              Log Rewatch
             </Button>
 
             <Button
@@ -313,19 +353,19 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               size="sm"
               onClick={() => onEditSeries(series)}
             >
-              Edit franchise details
+              Edit series
             </Button>
           </div>
         </aside>
 
         {/* Right Column: The Journal Folio Reading Spread */}
         <section className="lamplight-spread-col">
-          {/* 1. Main Lesson Paper */}
+          {/* 1. Main Note Paper */}
           <article className="lamplight-lesson-folio">
             <div className="lamplight-paper-rule" aria-hidden="true" />
 
             <header className="lamplight-lesson-folio-head">
-              <span>{releaseTitle} · Lesson & Takeaways</span>
+              <span>{releaseTitle} · {selectedType === 'season' ? 'Season Note' : 'Movie Note'}</span>
               <div>
                 {isEditingLesson ? (
                   <div style={{ display: 'flex', gap: 6 }}>
@@ -346,7 +386,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       setIsEditingLesson(true);
                     }}
                   >
-                    Edit lesson
+                    Edit note
                   </Button>
                 )}
               </div>
@@ -357,7 +397,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 className="lamplight-lesson-folio-textarea"
                 value={lessonDraft}
                 onChange={(e) => setLessonDraft(e.target.value)}
-                placeholder="Write the philosophical takeaways, emotional memories, and life lessons that stayed with you…"
+                placeholder="Write the thoughts, scenes, and notes you want to remember…"
                 autoFocus
               />
             ) : activeRelease?.notes?.trim() ? (
@@ -368,7 +408,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
               <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--paper-ink-2)' }}>
                 <Quote size={28} style={{ opacity: 0.35, marginBottom: 8 }} />
                 <p style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 18, marginBottom: 16 }}>
-                  No reflection written for this release yet.
+                  No note written yet.
                 </p>
                 <Button
                   variant="primary"
@@ -378,19 +418,19 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                     setIsEditingLesson(true);
                   }}
                 >
-                  Write what stayed
+                  Write note
                 </Button>
               </div>
             )}
           </article>
 
-          {/* 2. Episode Memories Grid (if Season) */}
+          {/* 2. Episode Notes Grid (if Season) */}
           {selectedType === 'season' && currentSeason && (
             <div className="lamplight-episode-grid-wrap">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)' }}>
-                    Episode Memories
+                    Episode Notes
                   </h3>
                   <p style={{ fontSize: 13, color: 'var(--text-3)' }}>
                     {episodeNotesMap.size} of {currentSeason.total_episodes || '—'} episodes noted
@@ -402,7 +442,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   icon={<Plus size={13} />}
                   onClick={() => onOpenEpisodeNotes(currentSeason)}
                 >
-                  Log Memory
+                  Add Episode Note
                 </Button>
               </div>
 
@@ -410,15 +450,16 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 <div className="lamplight-episode-cells">
                   {Array.from({ length: currentSeason.total_episodes }, (_, i) => i + 1).map((epNum) => {
                     const note = episodeNotesMap.get(epNum);
+                    const isSelected = selectedEp === epNum;
                     return (
                       <button
                         key={epNum}
                         type="button"
-                        className={`lamplight-episode-cell ${note ? 'has-note' : ''}`}
+                        className={`lamplight-episode-cell ${note ? 'has-note' : ''} ${isSelected ? 'is-selected' : ''}`}
                         title={note ? `Ep ${epNum}: "${note.note}"` : `Ep ${epNum} (Click to note)`}
                         onClick={() => {
-                          if (note) onOpenEpisodeNotes(currentSeason, note);
-                          else {
+                          selectEpisode(epNum);
+                          if (!note) {
                             openComposer({
                               targetKind: 'season',
                               id: currentSeason.id,
@@ -441,19 +482,63 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                   Total episodes not set for this season.
                 </p>
               )}
+
+              {selectedEp !== null && (
+                <div className="lamplight-then-now-card" style={{ marginTop: 8 }}>
+                  <div className="lamplight-then-now-meta">
+                    <span>
+                      Episode {selectedEp}
+                      {selectedEpisodeNote?.episode_title ? ` · ${selectedEpisodeNote.episode_title}` : ''}
+                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {selectedEpisodeNote?.rating && <span>★ {selectedEpisodeNote.rating}/10</span>}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (selectedEpisodeNote) {
+                            onOpenEpisodeNotes(currentSeason, selectedEpisodeNote);
+                          } else {
+                            openComposer({
+                              targetKind: 'season',
+                              id: currentSeason.id,
+                              title: series.title,
+                              context: `Season ${currentSeason.season_number}`,
+                              defaultKind: 'episode',
+                              episodeNumber: selectedEp,
+                            });
+                          }
+                        }}
+                      >
+                        {selectedEpisodeNote ? 'Edit episode note' : 'Write episode note'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => selectEpisode(null)}>
+                        Close
+                      </Button>
+                    </div>
+                  </div>
+                  {selectedEpisodeNote?.note ? (
+                    <p className="lamplight-then-now-body">“{selectedEpisodeNote.note}”</p>
+                  ) : (
+                    <p style={{ color: 'var(--text-3)', fontSize: 13, margin: 0 }}>
+                      No note for Episode {selectedEp} yet.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* 3. Returns Timeline: Then vs Now */}
+          {/* 3. Rewatches Timeline */}
           {releaseRewatches.length > 0 && (
             <div className="lamplight-returns-spread">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <RotateCcw size={16} color="var(--lamp)" />
-                  <span>Returns Over Time</span>
+                  <span>Rewatches</span>
                 </h3>
                 <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-                  {releaseRewatches.length} return pass{releaseRewatches.length > 1 ? 'es' : ''}
+                  {releaseRewatches.length} rewatch{releaseRewatches.length > 1 ? 'es' : ''}
                 </span>
               </div>
 
@@ -461,7 +546,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 {releaseRewatches.map((r, idx) => (
                   <div key={r.id} className="lamplight-then-now-card">
                     <div className="lamplight-then-now-meta">
-                      <span>Pass {idx + 1} · {formatDate(r.finish_date || r.start_date)}</span>
+                      <span>Rewatch {idx + 1} · {formatDate(r.finish_date || r.start_date)}</span>
                       {r.rating && <span>★ {r.rating}/10</span>}
                     </div>
                     {r.notes && (
@@ -475,12 +560,12 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             </div>
           )}
 
-          {/* 4. People Remembered in this Title */}
+          {/* 4. Characters in this Title */}
           <div className="lamplight-returns-spread">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Sparkles size={16} color="var(--lamp)" />
-                <span>People Remembered</span>
+                <span>Characters</span>
               </h3>
               <Button
                 variant="ghost"
@@ -488,15 +573,17 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                 icon={<Plus size={13} />}
                 onClick={() => onAddCharacter(series)}
               >
-                Add Person
+                Add Character
               </Button>
             </div>
 
             {series.favorite_characters?.length ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
                 {series.favorite_characters.map((char) => (
-                  <div
+                  <Link
                     key={char.id}
+                    viewTransition
+                    to={`/characters/${char.id}`}
                     style={{
                       background: 'var(--surface-raised)',
                       border: '1px solid var(--line)',
@@ -505,6 +592,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                       display: 'flex',
                       gap: 12,
                       alignItems: 'center',
+                      textDecoration: 'none',
+                      color: 'inherit',
                     }}
                   >
                     <div style={{ width: 44, height: 44, flexShrink: 0 }}>
@@ -522,12 +611,12 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
                         </p>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
               <p style={{ color: 'var(--text-3)', fontSize: 13, fontStyle: 'italic' }}>
-                No characters remembered yet from this series.
+                No characters added yet for this series.
               </p>
             )}
           </div>

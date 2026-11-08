@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useReflections, JournalReflection } from '../state/useReflections';
 import { useJournalActions } from '../state/JournalContext';
 import { Rating, Button, EmptyState } from '../ui';
@@ -19,24 +19,57 @@ import {
   X,
 } from 'lucide-react';
 
+function getReflectionHref(r: JournalReflection): string {
+  if (r.targetKind === 'season' && r.seriesId) {
+    const epParam = r.episodeNumber ? `&ep=${r.episodeNumber}` : '';
+    return `/anime/${r.seriesId}?release=season-${r.targetId}${epParam}`;
+  }
+  if (r.targetKind === 'movie' && r.seriesId) {
+    return `/anime/${r.seriesId}?release=movie-${r.targetId}`;
+  }
+  if (r.seriesId) {
+    return `/anime/${r.seriesId}`;
+  }
+  if (r.targetKind === 'book') {
+    return `/books/${r.targetId}`;
+  }
+  if (r.targetKind === 'character') {
+    return `/characters/${r.targetId}`;
+  }
+  return '/journal';
+}
+
 export const ReflectionsView: React.FC = () => {
   const { reflections } = useReflections();
-  const { openComposer, addToast } = useJournalActions();
-  const [filterQuery, setFilterQuery] = useState('');
-  const [selectedKind, setSelectedKind] = useState<string>('ALL');
+  const { openComposer, openAddRewatch, addToast } = useJournalActions();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const navigate = useNavigate();
+
+  const rawKind = searchParams.get('kind') || 'ALL';
+  const selectedKind = rawKind === 'film' ? 'movie' : rawKind;
+  const filterQuery = searchParams.get('q') || '';
+
+  const updateParam = (key: string, value: string, defaultValue: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === defaultValue) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const handleCopyQuote = (r: JournalReflection, e: React.MouseEvent) => {
     e.stopPropagation();
     navigator.clipboard.writeText(`"${r.note}" — ${r.title} (${r.context})`);
     setCopiedId(r.id);
-    addToast('Reflection copied to clipboard');
+    addToast('Note copied to clipboard');
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const filtered = reflections.filter((r) => {
-    const matchesKind = selectedKind === 'ALL' || r.kind === selectedKind;
+    const itemKind = r.kind === 'film' ? 'movie' : r.kind;
+    const matchesKind = selectedKind === 'ALL' || itemKind === selectedKind;
     const matchesSearch =
       !filterQuery.trim() ||
       r.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
@@ -45,22 +78,13 @@ export const ReflectionsView: React.FC = () => {
     return matchesKind && matchesSearch;
   });
 
-  const handleOpenTarget = (reflection: JournalReflection) => {
-    if (reflection.seriesId) {
-      navigate(`/anime/${reflection.seriesId}`);
-    } else if (reflection.targetKind === 'book') {
-      navigate(`/books/${reflection.targetId}`);
-    } else if (reflection.targetKind === 'character') {
-      navigate('/characters');
-    }
-  };
-
   const getKindIcon = (kind: string) => {
     switch (kind) {
       case 'season':
       case 'episode':
         return <Tv size={12} />;
       case 'film':
+      case 'movie':
         return <Film size={12} />;
       case 'book':
         return <BookOpen size={12} />;
@@ -76,19 +100,20 @@ export const ReflectionsView: React.FC = () => {
   const getKindLabel = (kind: string) => {
     switch (kind) {
       case 'season':
-        return 'Season Lesson';
+        return 'Season Note';
       case 'episode':
-        return 'Episode Memory';
+        return 'Episode Note';
       case 'film':
-        return 'Film Lesson';
+      case 'movie':
+        return 'Movie Note';
       case 'book':
-        return 'Book Takeaway';
+        return 'Book Note';
       case 'character':
-        return 'Person & Virtue';
+        return 'Character Note';
       case 'rewatch':
-        return 'Return Reflection';
+        return 'Rewatch Note';
       default:
-        return 'Reflection';
+        return 'Note';
     }
   };
 
@@ -96,7 +121,7 @@ export const ReflectionsView: React.FC = () => {
     ALL: reflections.length,
     season: reflections.filter((r) => r.kind === 'season').length,
     episode: reflections.filter((r) => r.kind === 'episode').length,
-    film: reflections.filter((r) => r.kind === 'film').length,
+    movie: reflections.filter((r) => r.kind === 'film').length,
     book: reflections.filter((r) => r.kind === 'book').length,
     character: reflections.filter((r) => r.kind === 'character').length,
     rewatch: reflections.filter((r) => r.kind === 'rewatch').length,
@@ -109,36 +134,45 @@ export const ReflectionsView: React.FC = () => {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--lamp)', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
             <Quote size={14} />
-            <span>Reading Room</span>
+            <span>Journal</span>
           </div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'clamp(28px, 3.2vw, 36px)', color: 'var(--text)', lineHeight: 1.15 }}>
-            What Stayed With You
+            Journal
           </h1>
           <p style={{ color: 'var(--text-2)', fontSize: 15, marginTop: 6, maxWidth: 620, lineHeight: 1.5 }}>
-            Every life lesson, philosophical thought, and takeaway written across titles, characters, and returns.
+            Every note written across seasons, episodes, movies, books, characters, and rewatches.
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          icon={<PenLine size={15} />}
-          onClick={() => openComposer()}
-        >
-          Write Reflection
-        </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Button
+            variant="secondary"
+            icon={<RotateCcw size={15} />}
+            onClick={() => openAddRewatch()}
+          >
+            Log Rewatch
+          </Button>
+          <Button
+            variant="primary"
+            icon={<PenLine size={15} />}
+            onClick={() => openComposer()}
+          >
+            Write Note
+          </Button>
+        </div>
       </header>
 
       {/* Filter Toolbar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', paddingBottom: 16, borderBottom: '1px solid var(--line)' }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {[
-            { id: 'ALL', label: 'All Reflections' },
+            { id: 'ALL', label: 'All Notes' },
             { id: 'season', label: 'Seasons' },
             { id: 'episode', label: 'Episodes' },
-            { id: 'film', label: 'Films' },
+            { id: 'movie', label: 'Movies' },
             { id: 'book', label: 'Books' },
-            { id: 'character', label: 'People' },
-            { id: 'rewatch', label: 'Returns' },
+            { id: 'character', label: 'Characters' },
+            { id: 'rewatch', label: 'Rewatches' },
           ].map((tab) => {
             const count = countsByKind[tab.id] || 0;
             const isActive = selectedKind === tab.id;
@@ -146,7 +180,7 @@ export const ReflectionsView: React.FC = () => {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setSelectedKind(tab.id)}
+                onClick={() => updateParam('kind', tab.id, 'ALL')}
                 style={{
                   background: isActive ? 'var(--lamp)' : 'var(--surface)',
                   color: isActive ? 'var(--text-inverse)' : 'var(--text-2)',
@@ -184,9 +218,9 @@ export const ReflectionsView: React.FC = () => {
           <Search size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)' }} />
           <input
             type="text"
-            placeholder="Search reflections & lessons…"
+            placeholder="Search notes…"
             value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
+            onChange={(e) => updateParam('q', e.target.value, '')}
             style={{
               width: '100%',
               height: 36,
@@ -204,7 +238,7 @@ export const ReflectionsView: React.FC = () => {
           {filterQuery && (
             <button
               type="button"
-              onClick={() => setFilterQuery('')}
+              onClick={() => updateParam('q', '', '')}
               style={{
                 position: 'absolute',
                 right: 8,
@@ -223,7 +257,7 @@ export const ReflectionsView: React.FC = () => {
         </div>
       </div>
 
-      {/* Reflections Masonry / Grid */}
+      {/* Notes Grid */}
       {filtered.length ? (
         <div
           style={{
@@ -292,15 +326,15 @@ export const ReflectionsView: React.FC = () => {
                       opacity: 0.7,
                       transition: 'opacity var(--dur-fast) ease',
                     }}
-                    title="Copy reflection to clipboard"
-                    aria-label="Copy reflection"
+                    title="Copy note to clipboard"
+                    aria-label="Copy note"
                   >
                     {copiedId === r.id ? <Check size={13} color="var(--green)" /> : <Copy size={13} />}
                   </button>
                 </div>
               </div>
 
-              {/* Reflection Body */}
+              {/* Note Body */}
               <div style={{ position: 'relative', paddingLeft: 16 }}>
                 <Quote
                   size={16}
@@ -338,21 +372,19 @@ export const ReflectionsView: React.FC = () => {
                   marginTop: 'auto',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => handleOpenTarget(r)}
+                <Link
+                  viewTransition
+                  to={getReflectionHref(r)}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: 4,
-                    background: 'none',
-                    border: 'none',
                     color: 'var(--paper-ink)',
                     fontWeight: 600,
                     fontSize: 12.5,
                     cursor: 'pointer',
                     textAlign: 'left',
-                    padding: 0,
+                    textDecoration: 'none',
                     transition: 'color var(--dur-fast) ease',
                   }}
                   title={`Open ${r.title}`}
@@ -360,7 +392,7 @@ export const ReflectionsView: React.FC = () => {
                   <span>{r.title}</span>
                   <span style={{ opacity: 0.6, fontWeight: 400 }}>· {r.context}</span>
                   <ArrowUpRight size={13} style={{ opacity: 0.7 }} />
-                </button>
+                </Link>
 
                 {r.rating != null && (
                   <Rating score={r.rating} max={10} />
@@ -372,15 +404,15 @@ export const ReflectionsView: React.FC = () => {
       ) : (
         <EmptyState
           icon={<Quote size={28} />}
-          title="No reflections found"
+          title="No notes found"
           description={
             filterQuery
-              ? `No reflections matched "${filterQuery}".`
-              : "You haven't written any thoughts or lessons in this category yet."
+              ? `No notes matched "${filterQuery}".`
+              : "You haven't written any notes in this category yet."
           }
           action={
             <Button variant="primary" icon={<PenLine size={15} />} onClick={() => openComposer()}>
-              Write a reflection
+              Write a note
             </Button>
           }
         />

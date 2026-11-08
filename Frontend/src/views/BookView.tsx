@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Book } from '../types';
 import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Button, EmptyState } from '../ui';
@@ -25,22 +26,33 @@ interface BookViewProps {
 export const BookView: React.FC<BookViewProps> = ({
   bookList,
   searchQuery,
-  onOpenDetail,
   onOpenNewModal,
 }) => {
   const { openComposer } = useJournalActions();
-  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
-  const [filterText, setFilterText] = useState(searchQuery || '');
-  const [sortBy, setSortBy] = useState<'recent' | 'rating' | 'title' | 'lesson'>('recent');
-  const [viewMode, setViewMode] = useState<'shelf' | 'list'>('shelf');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedStatus = searchParams.get('status') || 'ALL';
+  const filterText = searchParams.get('q') ?? (searchQuery || '');
+  const sortBy = (searchParams.get('sort') as 'recent' | 'rating' | 'title' | 'note' | 'lesson') || 'recent';
+  const viewMode = (searchParams.get('view') as 'shelf' | 'list') || 'shelf';
+
+  const updateParam = (key: string, value: string, defaultValue: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (!value || value === defaultValue) {
+      next.delete(key);
+    } else {
+      next.set(key, value);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const filterTabs = useMemo(() => {
     const count = (id: string) => bookList.filter((b) => b.status === id).length;
     const tabs = [
       { id: 'ALL', label: 'All', count: bookList.length },
       { id: 'READING', label: 'Reading', count: count('READING') },
-      { id: 'COMPLETED', label: 'Finished', count: count('COMPLETED') },
-      { id: 'PLAN_TO_READ', label: 'Up next', count: count('PLAN_TO_READ') },
+      { id: 'COMPLETED', label: 'Completed', count: count('COMPLETED') },
+      { id: 'PLAN_TO_READ', label: 'Plan to read', count: count('PLAN_TO_READ') },
       { id: 'ON_HOLD', label: 'On hold', count: count('ON_HOLD') },
       { id: 'DROPPED', label: 'Dropped', count: count('DROPPED') },
     ];
@@ -62,7 +74,7 @@ export const BookView: React.FC<BookViewProps> = ({
       .sort((a, b) => {
         if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
         if (sortBy === 'title') return a.title.localeCompare(b.title);
-        if (sortBy === 'lesson') return (b.notes ? 1 : 0) - (a.notes ? 1 : 0);
+        if (sortBy === 'note' || sortBy === 'lesson') return (b.notes ? 1 : 0) - (a.notes ? 1 : 0);
         return b.id - a.id;
       });
   }, [bookList, selectedStatus, filterText, sortBy]);
@@ -72,9 +84,9 @@ export const BookView: React.FC<BookViewProps> = ({
       {/* Header */}
       <header className="lamplight-library-header">
         <div>
-          <h1 className="lamplight-library-title">Book Journal</h1>
+          <h1 className="lamplight-library-title">Books</h1>
           <p className="lamplight-library-desc">
-            Pages read, philosophical insights, and life lessons kept from books.
+            Books read, reading progress, and the notes you kept from each book.
           </p>
         </div>
 
@@ -83,7 +95,7 @@ export const BookView: React.FC<BookViewProps> = ({
           icon={<Plus size={15} />}
           onClick={onOpenNewModal}
         >
-          Log Book
+          Add Book
         </Button>
       </header>
 
@@ -96,7 +108,7 @@ export const BookView: React.FC<BookViewProps> = ({
               key={tab.id}
               type="button"
               className={`lamplight-status-pill ${selectedStatus === tab.id ? 'is-active' : ''}`}
-              onClick={() => setSelectedStatus(tab.id)}
+              onClick={() => updateParam('status', tab.id, 'ALL')}
             >
               <span>{tab.label}</span>
               <span className="lamplight-pill-count">{tab.count}</span>
@@ -110,15 +122,16 @@ export const BookView: React.FC<BookViewProps> = ({
             <Search size={14} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--text-3)' }} />
             <input
               type="text"
-              placeholder="Search books or insights…"
+              placeholder="Search books or notes…"
               value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
+              onChange={(e) => updateParam('q', e.target.value, '')}
             />
           </div>
 
           <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
+            value={sortBy === 'lesson' ? 'note' : sortBy}
+            onChange={(e) => updateParam('sort', e.target.value, 'recent')}
+            aria-label="Sort books"
             style={{
               height: 36,
               background: 'var(--surface)',
@@ -134,14 +147,14 @@ export const BookView: React.FC<BookViewProps> = ({
             <option value="recent">Recently added</option>
             <option value="rating">Rating (Highest)</option>
             <option value="title">Title (A-Z)</option>
-            <option value="lesson">Has reflection</option>
+            <option value="note">Has note</option>
           </select>
 
           <div className="lamplight-view-toggle">
             <button
               type="button"
               className={`lamplight-view-btn ${viewMode === 'shelf' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('shelf')}
+              onClick={() => updateParam('view', 'shelf', 'shelf')}
               title="Shelf Grid View"
             >
               <LayoutGrid size={15} />
@@ -149,7 +162,7 @@ export const BookView: React.FC<BookViewProps> = ({
             <button
               type="button"
               className={`lamplight-view-btn ${viewMode === 'list' ? 'is-active' : ''}`}
-              onClick={() => setViewMode('list')}
+              onClick={() => updateParam('view', 'list', 'shelf')}
               title="List View"
             >
               <ListIcon size={15} />
@@ -165,10 +178,11 @@ export const BookView: React.FC<BookViewProps> = ({
             {filtered.map((book) => {
               const coverUrl = book.cover_image_url || book.image_url;
               return (
-                <article
+                <Link
                   key={book.id}
+                  viewTransition
+                  to={`/books/${book.id}`}
                   className="lamplight-card"
-                  onClick={() => onOpenDetail?.(book.id)}
                 >
                   <div className="lamplight-card-cover-wrap">
                     <Cover
@@ -200,6 +214,7 @@ export const BookView: React.FC<BookViewProps> = ({
                         type="button"
                         className="lamplight-card-empty-lesson"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           openComposer({
                             targetKind: 'book',
@@ -211,11 +226,11 @@ export const BookView: React.FC<BookViewProps> = ({
                         }}
                       >
                         <PenLine size={13} />
-                        <span>Write what stayed</span>
+                        <span>Add note</span>
                       </button>
                     )}
                   </div>
-                </article>
+                </Link>
               );
             })}
           </div>
@@ -224,10 +239,11 @@ export const BookView: React.FC<BookViewProps> = ({
             {filtered.map((book) => {
               const coverUrl = book.cover_image_url || book.image_url;
               return (
-                <div
+                <Link
                   key={book.id}
+                  viewTransition
+                  to={`/books/${book.id}`}
                   className="lamplight-list-row"
-                  onClick={() => onOpenDetail?.(book.id)}
                 >
                   <div className="lamplight-list-left">
                     <div style={{ width: 44, height: 64, flexShrink: 0 }}>
@@ -254,7 +270,7 @@ export const BookView: React.FC<BookViewProps> = ({
                     <StatusMark status={book.status} />
                     {book.rating && <Rating score={book.rating} />}
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -263,10 +279,10 @@ export const BookView: React.FC<BookViewProps> = ({
         <EmptyState
           icon={<BookOpen size={24} />}
           title="No books found"
-          description={filterText ? `No books matched "${filterText}".` : "Your book journal is waiting for its first title."}
+          description={filterText ? `No books matched "${filterText}".` : "Your book library is waiting for its first title."}
           action={
             <Button variant="primary" icon={<Plus size={15} />} onClick={onOpenNewModal}>
-              Log a book
+              Add book
             </Button>
           }
         />
