@@ -121,29 +121,29 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
     if (!target) return [];
     if (target.targetKind === 'season') {
       return [
-        { id: 'lesson', label: 'Season Lesson' },
-        { id: 'episode', label: 'Episode Memory' },
-        { id: 'return', label: 'Return Pass' },
+        { id: 'lesson', label: 'Season Note' },
+        { id: 'episode', label: 'Episode Note' },
+        { id: 'return', label: 'Rewatch Note' },
       ];
     }
     if (target.targetKind === 'movie') {
       return [
-        { id: 'lesson', label: 'Film Takeaway' },
-        { id: 'return', label: 'Return Pass' },
+        { id: 'lesson', label: 'Movie Note' },
+        { id: 'return', label: 'Rewatch Note' },
       ];
     }
     if (target.targetKind === 'book') {
-      return [{ id: 'lesson', label: 'Book Lesson' }];
+      return [{ id: 'lesson', label: 'Book Note' }];
     }
     if (target.targetKind === 'character') {
-      return [{ id: 'why', label: 'Why They Matter' }];
+      return [{ id: 'why', label: 'Character Note' }];
     }
     return [];
   }, [target]);
 
   const handleSave = async () => {
     if (!target || !note.trim()) {
-      addToast('Please write your reflection before saving.', 'info');
+      addToast('Please write your note before saving.', 'info');
       return;
     }
 
@@ -170,7 +170,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             notes: finalNote,
             ...(rating ? { rating } : {}),
           });
-          addToast('Season reflection saved');
+          addToast('Season note saved');
         } else if (kind === 'episode') {
           if (existing.episodeNoteId) {
             await episodeNoteApi.update(existing.episodeNoteId, {
@@ -185,7 +185,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
               ...(rating ? { rating } : {}),
             });
           }
-          addToast(`Episode ${episodeNumber} memory recorded`);
+          addToast(`Episode ${episodeNumber} note saved`);
         } else if (kind === 'return') {
           await rewatchApi.create({
             target_type: 'season',
@@ -194,7 +194,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             ...(rating ? { rating } : {}),
             start_date: new Date().toISOString().split('T')[0],
           });
-          addToast('Return pass recorded');
+          addToast('Rewatch note saved');
         } else {
           throw new Error('This note type is not available for a season.');
         }
@@ -204,7 +204,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             notes: finalNote,
             ...(rating ? { rating } : {}),
           });
-          addToast('Film reflection saved');
+          addToast('Movie note saved');
         } else if (kind === 'return') {
           await rewatchApi.create({
             target_type: 'movie',
@@ -213,7 +213,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             ...(rating ? { rating } : {}),
             start_date: new Date().toISOString().split('T')[0],
           });
-          addToast('Return pass recorded');
+          addToast('Rewatch note saved');
         } else {
           throw new Error('This note type is not available for a movie.');
         }
@@ -222,12 +222,12 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
           notes: finalNote,
           ...(rating ? { rating } : {}),
         });
-        addToast('Book reflection saved');
+        addToast('Book note saved');
       } else if (target.targetKind === 'character') {
         await characterApi.update(target.id, {
           why: finalNote,
         });
-        addToast('Character reflection saved');
+        addToast('Character note saved');
       } else {
         throw new Error('This note type is not available for that title.');
       }
@@ -236,7 +236,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       refreshAll();
       onClose();
     } catch (err: any) {
-      console.error('Error saving reflection:', err);
+      console.error('Error saving note:', err);
       addToast(`Error saving: ${err.message}`, 'error');
     } finally {
       setIsSubmitting(false);
@@ -258,7 +258,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <PenLine size={18} color="var(--lamp)" />
-          <span>Write Reflection</span>
+          <span>Write Note</span>
         </div>
       }
       footer={
@@ -281,7 +281,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
               loading={isSubmitting}
               disabled={!target || !note.trim()}
             >
-              <span>Save Reflection</span>
+              <span>Save Note</span>
               <Kbd>⌘↵</Kbd>
             </Button>
           </div>
@@ -291,7 +291,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       <div className="lamplight-composer-form" onKeyDown={handleKeyDown}>
         {/* Step 1: Target Title */}
         <div className="lamplight-composer-field">
-          <label className="lamplight-composer-label">Reflecting on</label>
+          <label className="lamplight-composer-label">Writing about</label>
           <TargetPicker
             value={target}
             onChange={(selected) => {
@@ -309,7 +309,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         {/* Step 2: Kind Selection */}
         {availableKinds.length > 1 && (
           <div className="lamplight-composer-field">
-            <label className="lamplight-composer-label">Reflection Type</label>
+            <label className="lamplight-composer-label">Note Type</label>
             <div className="lamplight-composer-kinds">
               {availableKinds.map((k) => (
                 <button
@@ -388,23 +388,23 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
           </div>
         )}
 
-        {/* Step 3: Reflection Paper Textarea */}
+        {/* Step 3: Note Paper Textarea */}
         <div className="lamplight-composer-field">
           <label className="lamplight-composer-label">
             {kind === 'episode'
-              ? `What stayed with you in Episode ${episodeNumber}?`
+              ? `Episode ${episodeNumber} Note`
               : kind === 'why'
-              ? 'Why did this character matter to you?'
+              ? 'Character Note'
               : kind === 'return'
-              ? 'What changed or deepened upon returning?'
-              : 'What idea or lesson stayed with you?'}
+              ? 'Rewatch Note'
+              : 'Your Note'}
           </label>
 
           <Paper
             editable
             value={note}
             onChange={(val) => setNote(val)}
-            placeholder="Record the philosophical insight, emotional memory, or takeaway that stayed after the credits…"
+            placeholder="Write the thoughts, scenes, or ideas you want to remember…"
           />
         </div>
 

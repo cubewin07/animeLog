@@ -90,7 +90,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
       seriesId: s.id,
       seriesTitle: s.title,
       title: m.title,
-      label: `${s.title} — Film: ${m.title}`,
+      label: `${s.title} — Movie: ${m.title}`,
     }))
   );
 
@@ -254,7 +254,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               <RotateCcw size={18} />
             </div>
             <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>
-              {editRewatch ? 'Edit Rewatch Reflection' : 'Log Rewatch Pass'}
+              {editRewatch ? 'Edit Rewatch' : 'Log Rewatch'}
             </h3>
           </div>
           <button className="btn-icon" onClick={onClose} aria-label="Close dialog">
@@ -298,7 +298,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                   }}
                 >
                   <Layers size={15} />
-                  <span>Franchise</span>
+                  <span>Series</span>
                 </button>
                 <button
                   type="button"
@@ -338,7 +338,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                   }}
                 >
                   <Film size={15} />
-                  <span>Film</span>
+                  <span>Movie</span>
                 </button>
                 <button
                   type="button"
@@ -370,13 +370,13 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               {targetType === 'series' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select Franchise
+                    Select Series
                   </label>
                   <CustomSelect
                     value={selectedSeriesId || ''}
                     onChange={(val) => setSelectedSeriesId(Number(val))}
                     options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
-                    placeholder="Select a franchise..."
+                    placeholder="Select a series..."
                     searchable
                   />
                 </div>
@@ -385,7 +385,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               {targetType === 'season' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select TV Season
+                    Select Season
                   </label>
                   <CustomSelect
                     value={selectedSeasonId || ''}
@@ -399,7 +399,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                           label: `Season ${sea.season_number}: ${sea.title}`,
                         })),
                       }))}
-                    placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select TV season...'}
+                    placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select season...'}
                     disabled={allSeasons.length === 0}
                     searchable
                   />
@@ -409,7 +409,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               {targetType === 'movie' && (
                 <div>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select Film
+                    Select Movie
                   </label>
                   <CustomSelect
                     value={selectedMovieId || ''}
@@ -420,10 +420,10 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
                         group: s.title,
                         options: (s.movies || []).map((m) => ({
                           value: m.id,
-                          label: `Film: ${m.title}`,
+                          label: `Movie: ${m.title}`,
                         })),
                       }))}
-                    placeholder={allMovies.length === 0 ? 'No films available' : 'Select film...'}
+                    placeholder={allMovies.length === 0 ? 'No movies available' : 'Select movie...'}
                     disabled={allMovies.length === 0}
                     searchable
                   />
@@ -485,14 +485,14 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
             </div>
           )}
 
-          {/* Deepened Notes First */}
+          {/* Rewatch Note */}
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              How did your perspective change? (Deepened Lessons & Memories)
+              Rewatch Note
             </label>
             <textarea
               rows={5}
-              placeholder="What new details did you notice on this rewatch? How did your thoughts or emotions evolve compared to your first pass?"
+              placeholder="What new details did you notice on this rewatch? How did your thoughts change?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="form-textarea"
@@ -545,7 +545,7 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {editRewatch ? 'Update Reflection' : 'Record Rewatch'}
+              {editRewatch ? 'Update Rewatch' : 'Log Rewatch'}
             </button>
           </div>
         </form>
@@ -670,7 +670,7 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               <Sparkles size={18} />
             </div>
             <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>
-              {editCharacter ? `Edit: ${editCharacter.name}` : 'Remember a Character'}
+              {editCharacter ? `Edit: ${editCharacter.name}` : 'Add Character'}
             </h3>
           </div>
           <button className="btn-icon" onClick={onClose} aria-label="Close dialog">
@@ -697,13 +697,13 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
 
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Associated Franchise
+              Series
             </label>
             <CustomSelect
               value={seriesId}
               onChange={(val) => setSeriesId(Number(val))}
               options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
-              placeholder="Select franchise..."
+              placeholder="Select series..."
               searchable
             />
           </div>
@@ -722,14 +722,14 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             />
           </div>
 
-          {/* Why Worth Remembering (Prominent, 16px font) */}
+          {/* Character Note (Prominent, 16px font) */}
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Why is this character worth remembering? (Lesson / Ideal)
+              Character Note
             </label>
             <textarea
               rows={6}
-              placeholder="What actions, philosophies, or moments made them unforgettable to you?"
+              placeholder="What moments or choices made this character memorable to you?"
               value={why}
               onChange={(e) => setWhy(e.target.value)}
               className="form-textarea"

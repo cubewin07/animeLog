@@ -147,7 +147,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
               </div>
               <div>
                 <h3 style={{ fontSize: 17, color: 'var(--text-desk)', margin: 0, fontWeight: 600 }}>
-                  Character Reflection
+                  Character Note
                 </h3>
               </div>
             </div>
@@ -163,7 +163,7 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
                   style={{ gap: 6 }}
                 >
                   <PenLine size={14} />
-                  <span>Edit Reflection</span>
+                  <span>Edit Note</span>
                 </button>
               )}
               <button className="btn-icon" onClick={onClose} aria-label="Close modal">
@@ -281,11 +281,11 @@ export const CharacterDetailModal: React.FC<CharacterDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Why Worth Remembering (Character Reflection Plate) */}
+            {/* Character Note Plate */}
             <CharacterReflectionPlate
               why={character.why}
               characterName={character.name}
-              label="WHY THEY MATTERED TO ME"
+              label="CHARACTER NOTE"
               onEdit={
                 onEdit
                   ? () => {

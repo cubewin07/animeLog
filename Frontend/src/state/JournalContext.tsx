@@ -620,30 +620,30 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       if (id) {
         await seriesApi.update(id, data);
-        addToast('Franchise updated');
+        addToast('Series updated');
       } else {
         await seriesApi.create(data);
-        addToast('New franchise recorded');
+        addToast('Series added');
       }
       setEntryModalOpen(false);
       await refreshAll();
     } catch (err: any) {
-      addToast(`Error saving franchise: ${err.message}`, 'error');
+      addToast(`Error saving series: ${err.message}`, 'error');
     }
   };
 
   const handleDeleteSeries = (id: number) => {
     requestConfirm({
-      title: 'Delete Franchise',
-      message: 'Are you sure you want to delete this franchise? All seasons, movies, and notes will be permanently removed.',
+      title: 'Delete Series',
+      message: 'Are you sure you want to delete this series? All seasons, movies, and notes will be permanently removed.',
       confirmLabel: 'Delete Forever',
       onConfirm: async () => {
         try {
           await seriesApi.delete(id);
-          addToast('Franchise deleted');
+          addToast('Series deleted');
           await refreshAll();
         } catch (err: any) {
-          addToast(`Error deleting franchise: ${err.message}`, 'error');
+          addToast(`Error deleting series: ${err.message}`, 'error');
         }
       },
     });
@@ -779,10 +779,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       if (id) {
         await characterApi.update(id, data);
-        addToast('Character reflection updated');
+        addToast('Character note updated');
       } else {
         await characterApi.create(data);
-        addToast('Character remembered');
+        addToast('Character added');
       }
       setCharacterModalOpen(false);
       await refreshAll();
@@ -794,7 +794,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const handleDeleteCharacter = (id: number) => {
     requestConfirm({
       title: 'Delete Character',
-      message: 'Are you sure you want to remove this character from your remembered list?',
+      message: 'Are you sure you want to remove this character from your library?',
       confirmLabel: 'Remove Character',
       onConfirm: async () => {
         try {
@@ -812,30 +812,30 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       if (id) {
         await rewatchApi.update(id, data);
-        addToast('Rewatch pass updated');
+        addToast('Rewatch updated');
       } else {
         await rewatchApi.create(data);
-        addToast('Rewatch pass recorded');
+        addToast('Rewatch logged');
       }
       setRewatchModalOpen(false);
       await refreshAll();
     } catch (err: any) {
-      addToast(`Error saving rewatch pass: ${err.message}`, 'error');
+      addToast(`Error saving rewatch: ${err.message}`, 'error');
     }
   };
 
   const handleDeleteRewatch = (id: number) => {
     requestConfirm({
       title: 'Delete Rewatch',
-      message: 'Are you sure you want to delete this return reflection pass?',
-      confirmLabel: 'Delete Pass',
+      message: 'Are you sure you want to delete this rewatch?',
+      confirmLabel: 'Delete Rewatch',
       onConfirm: async () => {
         try {
           await rewatchApi.delete(id);
-          addToast('Rewatch pass deleted');
+          addToast('Rewatch deleted');
           await refreshAll();
         } catch (err: any) {
-          addToast(`Error deleting rewatch pass: ${err.message}`, 'error');
+          addToast(`Error deleting rewatch: ${err.message}`, 'error');
         }
       },
     });
@@ -845,26 +845,26 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       if (id) {
         await episodeNoteApi.update(id, data);
-        addToast('Episode memory updated');
+        addToast('Episode note updated');
       } else {
         await episodeNoteApi.create(data);
-        addToast('Episode memory recorded');
+        addToast('Episode note saved');
       }
       setEpisodeNoteModalOpen(false);
       await refreshAll();
     } catch (err: any) {
-      addToast(`Error saving episode memory: ${err.message}`, 'error');
+      addToast(`Error saving episode note: ${err.message}`, 'error');
     }
   };
 
   const handleDeleteEpisodeNote = async (id: number) => {
     try {
       await episodeNoteApi.delete(id);
-      addToast('Episode memory deleted');
+      addToast('Episode note deleted');
       setEpisodeNoteModalOpen(false);
       await refreshAll();
     } catch (err: any) {
-      addToast(`Error deleting episode memory: ${err.message}`, 'error');
+      addToast(`Error deleting episode note: ${err.message}`, 'error');
     }
   };
 

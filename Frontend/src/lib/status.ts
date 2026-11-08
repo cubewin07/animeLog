@@ -18,27 +18,27 @@ export const STATUS_META: Record<AnimeStatus | BookStatus, StatusMeta> = {
     tone: 'reading',
   },
   COMPLETED: {
-    label: 'Finished',
+    label: 'Completed',
     dotColor: 'var(--status-completed-color)',
     tone: 'completed',
   },
   PLAN_TO_WATCH: {
-    label: 'Up next',
+    label: 'Plan to watch',
     dotColor: 'var(--status-plan-color)',
     tone: 'plan',
   },
   PLAN_TO_READ: {
-    label: 'Up next',
+    label: 'Plan to read',
     dotColor: 'var(--status-plan-color)',
     tone: 'plan',
   },
   ON_HOLD: {
-    label: 'Paused',
+    label: 'On hold',
     dotColor: 'var(--status-hold-color)',
     tone: 'hold',
   },
   DROPPED: {
-    label: 'Set aside',
+    label: 'Dropped',
     dotColor: 'var(--status-dropped-color)',
     tone: 'dropped',
   },

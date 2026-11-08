@@ -190,7 +190,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
       if (activeTab === 'new-franchise') {
         if (!title.trim()) {
-          setErrorMsg('Franchise title is required.');
+          setErrorMsg('Series title is required.');
           return;
         }
         await onSaveSeries({
@@ -233,7 +233,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         });
       } else if (activeTab === 'add-movie') {
         if (!title.trim()) {
-          setErrorMsg('Film title is required.');
+          setErrorMsg('Movie title is required.');
           return;
         }
         await onSaveMovie({
@@ -272,7 +272,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         );
       } else if (activeTab === 'edit-series') {
         if (!title.trim()) {
-          setErrorMsg('Franchise title is required.');
+          setErrorMsg('Series title is required.');
           return;
         }
         await onSaveSeries(
@@ -309,7 +309,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
         );
       } else if (activeTab === 'edit-movie') {
         if (!title.trim()) {
-          setErrorMsg('Film title is required.');
+          setErrorMsg('Movie title is required.');
           return;
         }
         await onSaveMovie(
@@ -340,16 +340,16 @@ export const EntryModal: React.FC<EntryModalProps> = ({
 
   const getHeaderTitle = () => {
     if (isEditing) {
-      if (editTarget?.type === 'series') return 'Edit Franchise';
+      if (editTarget?.type === 'series') return 'Edit Series';
       if (editTarget?.type === 'season') return `Edit Season: ${editTarget.data.title}`;
-      if (editTarget?.type === 'movie') return `Edit Film: ${editTarget.data.title}`;
+      if (editTarget?.type === 'movie') return `Edit Movie: ${editTarget.data.title}`;
       if (editTarget?.type === 'book') return `Edit Book: ${editTarget.data.title}`;
     }
-    if (activeTab === 'new-franchise') return 'Log New Anime Franchise';
-    if (activeTab === 'add-season') return 'Add TV Season';
-    if (activeTab === 'add-movie') return 'Add Anime Film';
-    if (activeTab === 'book') return 'Log Book Entry';
-    return 'Log Journal Entry';
+    if (activeTab === 'new-franchise') return 'Add Anime Series';
+    if (activeTab === 'add-season') return 'Add Season';
+    if (activeTab === 'add-movie') return 'Add Movie';
+    if (activeTab === 'book') return 'Add Book';
+    return 'Add Entry';
   };
 
   return (
@@ -410,7 +410,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('new-franchise')}
             >
-              <Film size={14} /> New Franchise
+              <Film size={14} /> New Series
             </button>
             <button
               type="button"
@@ -426,7 +426,7 @@ export const EntryModal: React.FC<EntryModalProps> = ({
               style={{ fontSize: 13, padding: '5px 12px' }}
               onClick={() => setActiveTab('add-movie')}
             >
-              <Clapperboard size={14} /> + Film
+              <Clapperboard size={14} /> + Movie
             </button>
             <button
               type="button"
@@ -492,17 +492,17 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             />
           )}
 
-          {/* Franchise Selector when adding season/movie */}
+          {/* Series Selector when adding season/movie */}
           {(activeTab === 'add-season' || activeTab === 'add-movie') && (
             <div>
               <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                Target Franchise <span style={{ color: 'var(--danger)' }}>*</span>
+                Target Series <span style={{ color: 'var(--danger)' }}>*</span>
               </label>
               <CustomSelect
                 value={seriesId}
                 onChange={(val) => setSeriesId(Number(val))}
                 options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
-                placeholder="Select a franchise..."
+                placeholder="Select a series..."
                 searchable
               />
             </div>
@@ -512,11 +512,11 @@ export const EntryModal: React.FC<EntryModalProps> = ({
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
               {activeTab === 'new-franchise' || activeTab === 'edit-series'
-                ? 'Franchise Title'
+                ? 'Series Title'
                 : activeTab === 'add-season' || activeTab === 'edit-season'
                 ? 'Season Title'
                 : activeTab === 'add-movie' || activeTab === 'edit-movie'
-                ? 'Film Title'
+                ? 'Movie Title'
                 : 'Book Title'}{' '}
               <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
@@ -613,15 +613,15 @@ export const EntryModal: React.FC<EntryModalProps> = ({
             </div>
           )}
 
-          {/* 2. NOTES & LESSONS FIRST (Prominent, 16px font, 6-8 rows) */}
+          {/* 2. NOTES FIRST (Prominent, 16px font, 6-8 rows) */}
           {activeTab !== 'edit-series' && (
             <div>
               <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-                Memories, Insights & Lessons (Takeaway)
+                Note
               </label>
               <textarea
                 rows={6}
-                placeholder="Record the philosophical insights, emotional impressions, or life lessons this title left with you..."
+                placeholder="Write the thoughts, scenes, or ideas you want to remember..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="form-textarea"
@@ -725,8 +725,8 @@ export const EntryModal: React.FC<EntryModalProps> = ({
                     activeTab === 'book' || activeTab === 'edit-book'
                       ? 'Book Cover Image'
                       : activeTab === 'new-franchise' || activeTab === 'edit-series'
-                      ? 'Franchise Poster / Cover'
-                      : 'Release Poster / Still'
+                      ? 'Series Poster / Cover'
+                      : 'Season or Movie Poster'
                   }
                   imageId={coverImageId}
                   imageUrl={coverImageUrl}

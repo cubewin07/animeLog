@@ -12,7 +12,7 @@ interface CharacterReflectionPlateProps {
 export const CharacterReflectionPlate: React.FC<CharacterReflectionPlateProps> = ({
   why,
   characterName,
-  label = 'WHY THEY MATTERED TO ME',
+  label = 'CHARACTER NOTE',
   onEdit,
   className = '',
 }) => {
@@ -46,7 +46,7 @@ export const CharacterReflectionPlate: React.FC<CharacterReflectionPlateProps> =
               gap: 5,
               color: 'var(--text-desk-muted)',
             }}
-            title="Edit character reflection"
+            title="Edit character note"
           >
             <PenLine size={12} />
             <span>Edit</span>
@@ -54,7 +54,7 @@ export const CharacterReflectionPlate: React.FC<CharacterReflectionPlateProps> =
         )}
       </div>
 
-      {/* Reflection Content */}
+      {/* Note Content */}
       {hasText ? (
         <div className="character-reflection-body">
           <p className="character-reflection-text">{why}</p>
@@ -63,8 +63,8 @@ export const CharacterReflectionPlate: React.FC<CharacterReflectionPlateProps> =
         <div className="character-reflection-empty">
           <p className="character-reflection-empty-text">
             {characterName
-              ? `No reflection recorded yet. What virtue, ideal, or memory did ${characterName} leave with you?`
-              : 'No character reflection recorded yet. Record why this character made a lasting impression.'}
+              ? `No note recorded yet for ${characterName}.`
+              : 'No character note recorded yet.'}
           </p>
           {onEdit && (
             <button
@@ -81,7 +81,7 @@ export const CharacterReflectionPlate: React.FC<CharacterReflectionPlateProps> =
               }}
             >
               <PenLine size={13} />
-              <span>Record Reflection</span>
+              <span>Write Note</span>
             </button>
           )}
         </div>

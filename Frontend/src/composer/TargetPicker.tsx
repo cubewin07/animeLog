@@ -69,7 +69,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
           targetKind: 'movie',
           id: movie.id,
           title: s.title,
-          context: `Film · ${movie.title}`,
+          context: `Movie · ${movie.title}`,
           defaultKind: 'lesson',
         };
         if (movie.status === 'WATCHING') active.push(item);
@@ -143,7 +143,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
               </div>
             </>
           ) : (
-            <span style={{ color: 'var(--text-3)' }}>Select a title or person to reflect on…</span>
+            <span style={{ color: 'var(--text-3)' }}>Select a title or character to write about…</span>
           )}
         </div>
         <ChevronDown size={16} color="var(--text-3)" />
@@ -226,7 +226,7 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Plus size={14} />
-                  <span>Can't find it? Log new title →</span>
+                  <span>Can't find it? Add new title →</span>
                 </div>
               </button>
             </div>

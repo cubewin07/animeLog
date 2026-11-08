@@ -113,7 +113,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!note.trim()) {
-      setErrorMsg('Please write your takeaway or memory for this episode.');
+      setErrorMsg('Please write your note for this episode.');
       return;
     }
     try {
@@ -183,7 +183,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
               <BookmarkCheck size={18} />
             </div>
             <div>
-              <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>Episode Memories</h3>
+              <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>Episode Notes</h3>
               <p style={{ fontSize: 12, color: 'var(--text-desk-muted)' }}>
                 Season {season.season_number}: {season.title}
               </p>
@@ -295,15 +295,15 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
             </div>
           </div>
 
-          {/* Episode Note / Takeaway (Primary, large 16px textarea) */}
+          {/* Episode Note (Primary, large 16px textarea) */}
           <div>
             <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Episode Memory & Lesson <span style={{ color: 'var(--danger)' }}>*</span>
+              Episode Note <span style={{ color: 'var(--danger)' }}>*</span>
             </label>
             <textarea
               rows={6}
               required
-              placeholder="What specifically happened in this episode that made you think or feel deeply?"
+              placeholder="What happened in this episode that you want to remember?"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className="form-textarea"
@@ -347,7 +347,7 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {selectedNote ? 'Update Memory' : 'Save Memory'}
+                {selectedNote ? 'Update Note' : 'Save Note'}
               </button>
             </div>
           </div>
