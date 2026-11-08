@@ -10,6 +10,10 @@ import { GlobalModals } from './GlobalModals';
 import { preloadPages } from './pages';
 import './transitions.css';
 
+export interface AppOutletContext {
+  onOpenExport: () => void;
+}
+
 const PageSkeleton: React.FC = () => (
   <div aria-busy="true" aria-label="Loading your journal" style={{ display: 'grid', gap: 16 }}>
     <Skeleton height={44} width="40%" />
@@ -21,7 +25,7 @@ const PageSkeleton: React.FC = () => (
 const LoadFailed: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
   <div role="alert" style={{ padding: 40, textAlign: 'center' }}>
     <h2 style={{ marginBottom: 8 }}>Couldn’t load your journal</h2>
-    <p style={{ marginBottom: 16, color: 'var(--text-2)' }}>
+    <p style={{ marginBottom: 16, color: 'var(--kf-text-2)' }}>
       The server didn’t respond. Check that Django is running, then try again.
     </p>
     <button type="button" className="btn btn-primary" onClick={onRetry}>
@@ -61,7 +65,7 @@ export const AppLayout: React.FC = () => {
   }, []);
 
   return (
-    <AppShell onOpenExport={() => setExportOpen(true)}>
+    <AppShell>
       <Overlays />
       <ScrollRestoration />
       {loading ? (
@@ -72,7 +76,7 @@ export const AppLayout: React.FC = () => {
         // The key lets a crashed page recover when you navigate away from it
         <ErrorBoundary key={pathname}>
           <Suspense fallback={<PageSkeleton />}>
-            <Outlet />
+            <Outlet context={{ onOpenExport: () => setExportOpen(true) } satisfies AppOutletContext} />
           </Suspense>
         </ErrorBoundary>
       )}

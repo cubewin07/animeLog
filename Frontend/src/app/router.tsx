@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter, RouteObject } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
 import {
   AnimePage,
@@ -8,10 +8,10 @@ import {
   CharactersPage,
   FranchisePage,
   HomePage,
-  MediaPage,
+  JournalPage,
+  MePage,
   PageNotFound,
-  ReflectionsPage,
-  RewatchesPage,
+  SettingsPage,
 } from './pages';
 
 const routes: RouteObject[] = [
@@ -19,14 +19,20 @@ const routes: RouteObject[] = [
     element: <AppLayout />,
     children: [
       { path: '/', element: <HomePage /> },
+      { path: '/library', element: <Navigate to="/anime" replace /> },
       { path: '/anime', element: <AnimePage /> },
       { path: '/anime/:seriesId', element: <FranchisePage /> },
       { path: '/books', element: <BooksPage /> },
       { path: '/books/:bookId', element: <BookPage /> },
-      { path: '/reflections', element: <ReflectionsPage /> },
       { path: '/characters', element: <CharactersPage /> },
-      { path: '/rewatches', element: <RewatchesPage /> },
-      { path: '/media', element: <MediaPage /> },
+      { path: '/characters/:characterId', element: <CharactersPage /> },
+      { path: '/journal', element: <JournalPage /> },
+      { path: '/me', element: <MePage /> },
+      { path: '/me/recap/:year', element: <MePage /> },
+      { path: '/settings', element: <SettingsPage /> },
+      { path: '/reflections', element: <Navigate to="/journal" replace /> },
+      { path: '/rewatches', element: <Navigate to="/journal?kind=rewatch" replace /> },
+      { path: '/media', element: <Navigate to="/settings" replace /> },
       { path: '*', element: <PageNotFound /> },
     ],
   },
