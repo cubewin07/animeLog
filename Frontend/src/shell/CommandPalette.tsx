@@ -1,166 +1,148 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useDialog } from '../ui/Sheet/useDialog';
-import { useNavigate } from 'react-router-dom';
+import { useAppNavigate } from '../app/useAppNavigate';
 import { useJournalActions, useJournalData } from '../state/JournalContext';
 import { useReflections } from '../state/useReflections';
 import { Kbd } from '../ui';
+import { buildPaletteItems, PaletteItem } from './paletteSearch';
 import {
   BookOpen,
   Film,
   PenLine,
-  Quote,
+  Play,
+  Plus,
   Search,
   Sparkles,
-  Plus,
+  Zap,
 } from 'lucide-react';
 import './CommandPalette.css';
 
 export interface CommandPaletteProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenShortcuts?: () => void;
 }
 
-export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose }) => {
+const iconForKind = (item: PaletteItem) => {
+  switch (item.kind) {
+    case 'recent':
+      return <Play size={15} color="var(--kf-brand)" />;
+    case 'action':
+      return <Zap size={15} color="var(--kf-brand)" />;
+    case 'anime':
+      return <Film size={15} color="var(--kf-text-2)" />;
+    case 'book':
+      return <BookOpen size={15} color="var(--kf-text-2)" />;
+    case 'character':
+      return <Sparkles size={15} color="var(--kf-gold)" />;
+    case 'note':
+      return <PenLine size={15} color="var(--kf-brand)" />;
+  }
+};
+
+export const CommandPalette: React.FC<CommandPaletteProps> = ({
+  isOpen,
+  onClose,
+  onOpenShortcuts,
+}) => {
   const { seriesList, bookList, characterList } = useJournalData();
-  const { openComposer, openNewFranchiseModal, openNewBookModal } = useJournalActions();
+  const {
+    openComposer,
+    openNewFranchiseModal,
+    openNewBookModal,
+    openAddCharacterModal,
+    openAddRewatch,
+    handleSeasonProgressDelta,
+    handleMovieProgressDelta,
+    handleBookProgressDelta,
+    addToast,
+  } = useJournalActions();
   const { reflections } = useReflections();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
+  const navigate = useAppNavigate();
 
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      setTimeout(() => inputRef.current?.focus(), 40);
     }
   }, [isOpen]);
 
   const dialogRef = useRef<HTMLDivElement>(null);
   useDialog(dialogRef, isOpen, onClose);
 
-  // Aggregate and filter items
   const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-
-    const actions = [
+    return buildPaletteItems(
+      query,
+      { seriesList, bookList, characterList, reflections },
       {
-        id: 'action-write',
-        type: 'action',
-        title: 'Write Reflection…',
-        meta: 'Add a thought, lesson, or takeaway (W)',
-        icon: <PenLine size={15} color="var(--lamp)" />,
-        run: () => {
+        navigate: (to) => {
           onClose();
-          openComposer();
+          navigate(to);
         },
-      },
-      {
-        id: 'action-log-anime',
-        type: 'action',
-        title: 'Log New Anime Franchise…',
-        meta: 'Add a new series to your catalog',
-        icon: <Plus size={15} />,
-        run: () => {
+        openComposer: (target) => {
+          onClose();
+          openComposer(target);
+        },
+        openNewSeries: () => {
           onClose();
           openNewFranchiseModal();
         },
-      },
-      {
-        id: 'action-log-book',
-        type: 'action',
-        title: 'Log New Book…',
-        meta: 'Record a new book or light novel',
-        icon: <Plus size={15} />,
-        run: () => {
+        openNewBook: () => {
           onClose();
           openNewBookModal();
         },
-      },
-    ];
-
-    if (!q) {
-      return actions;
-    }
-
-    const matches: any[] = [];
-
-    // Search Actions
-    actions.forEach((a) => {
-      if (a.title.toLowerCase().includes(q)) matches.push(a);
-    });
-
-    // Search Anime Series
-    seriesList.forEach((s) => {
-      if (s.title.toLowerCase().includes(q) || s.romaji_title?.toLowerCase().includes(q)) {
-        matches.push({
-          id: `anime-${s.id}`,
-          type: 'anime',
-          title: s.title,
-          meta: `${s.seasons?.length || 1} seasons · Anime`,
-          icon: <Film size={15} />,
-          run: () => {
-            onClose();
-            navigate(`/anime/${s.id}`);
-          },
-        });
+        openNewCharacter: () => {
+          onClose();
+          openAddCharacterModal();
+        },
+        openNewRewatch: () => {
+          onClose();
+          openAddRewatch();
+        },
+        openShortcuts: () => {
+          onClose();
+          onOpenShortcuts?.();
+        },
+        seasonDelta: (seasonId, delta) => {
+          onClose();
+          handleSeasonProgressDelta(seasonId, delta);
+          addToast('Episode logged (+1)');
+        },
+        movieDelta: (movieId, delta) => {
+          onClose();
+          handleMovieProgressDelta(movieId, delta);
+          addToast(`+${delta} min logged`);
+        },
+        bookDelta: (bookId, delta) => {
+          onClose();
+          handleBookProgressDelta(bookId, delta);
+          addToast(`+${delta} pages logged`);
+        },
       }
-    });
-
-    // Search Books
-    bookList.forEach((b) => {
-      if (b.title.toLowerCase().includes(q) || b.author?.toLowerCase().includes(q)) {
-        matches.push({
-          id: `book-${b.id}`,
-          type: 'book',
-          title: b.title,
-          meta: b.author ? `by ${b.author} · Book` : 'Book',
-          icon: <BookOpen size={15} />,
-          run: () => {
-            onClose();
-            navigate(`/books/${b.id}`);
-          },
-        });
-      }
-    });
-
-    // Search Characters
-    characterList.forEach((c) => {
-      if (c.name.toLowerCase().includes(q) || c.series_title?.toLowerCase().includes(q)) {
-        matches.push({
-          id: `char-${c.id}`,
-          type: 'character',
-          title: c.name,
-          meta: c.series_title ? `${c.series_title} · Character` : 'Character',
-          icon: <Sparkles size={15} />,
-          run: () => {
-            onClose();
-            navigate('/characters');
-          },
-        });
-      }
-    });
-
-    // Search Reflections full text
-    reflections.forEach((r) => {
-      if (r.note.toLowerCase().includes(q)) {
-        matches.push({
-          id: `refl-${r.id}`,
-          type: 'reflection',
-          title: `"${r.note.slice(0, 70)}…"`,
-          meta: `${r.title} (${r.context})`,
-          icon: <Quote size={15} color="var(--lamp)" />,
-          run: () => {
-            onClose();
-            navigate('/reflections');
-          },
-        });
-      }
-    });
-
-    return matches.slice(0, 12);
-  }, [query, seriesList, bookList, characterList, reflections, openComposer, openNewFranchiseModal, openNewBookModal, navigate, onClose]);
+    );
+  }, [
+    query,
+    seriesList,
+    bookList,
+    characterList,
+    reflections,
+    navigate,
+    onClose,
+    openComposer,
+    openNewFranchiseModal,
+    openNewBookModal,
+    openAddCharacterModal,
+    openAddRewatch,
+    onOpenShortcuts,
+    handleSeasonProgressDelta,
+    handleMovieProgressDelta,
+    handleBookProgressDelta,
+    addToast,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -188,15 +170,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
       }}
       role="dialog"
       aria-modal="true"
+      aria-label="Search titles, characters, notes and actions"
     >
       <div className="lamplight-palette">
         <div className="lamplight-palette-search-wrap">
-          <Search size={18} color="var(--text-3)" />
+          <Search size={18} color="var(--kf-text-2)" />
           <input
             ref={inputRef}
             type="text"
             className="lamplight-palette-input"
-            placeholder="Search titles, characters, thoughts or run an action…"
+            placeholder="Search titles, characters, notes, or type “+1 Frieren”, “write about…”"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
@@ -207,35 +190,51 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
           <Kbd>Esc</Kbd>
         </div>
 
-        <div className="lamplight-palette-results">
+        <div className="lamplight-palette-results" role="listbox">
           {filteredItems.length ? (
             filteredItems.map((item, idx) => (
               <button
                 key={item.id}
                 type="button"
+                role="option"
+                aria-selected={idx === selectedIndex}
                 className={`lamplight-palette-item ${idx === selectedIndex ? 'is-selected' : ''}`}
                 onClick={item.run}
                 onMouseEnter={() => setSelectedIndex(idx)}
               >
                 <div className="lamplight-palette-item-left">
-                  {item.icon}
-                  <div>
+                  {iconForKind(item)}
+                  <div style={{ minWidth: 0 }}>
                     <div className="lamplight-palette-item-title">{item.title}</div>
                     <div className="lamplight-palette-item-meta">{item.meta}</div>
                   </div>
                 </div>
-                <Kbd>↵</Kbd>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                  {item.badge && <span className="lamplight-palette-badge">{item.badge}</span>}
+                  <Kbd>↵</Kbd>
+                </div>
               </button>
             ))
           ) : (
-            <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--text-3)', fontSize: 14 }}>
-              No matches found for "{query}".
+            <div className="lamplight-palette-empty">
+              <p>No matches found for “{query}”.</p>
+              <button
+                type="button"
+                className="lamplight-palette-add-btn"
+                onClick={() => {
+                  onClose();
+                  openNewFranchiseModal();
+                }}
+              >
+                <Plus size={14} />
+                <span>Add a new title</span>
+              </button>
             </div>
           )}
         </div>
 
         <footer className="lamplight-palette-footer">
-          <span>Navigate with ↑ ↓, press Enter to select</span>
+          <span>Try “+1”, “write about”, or any word from your notes</span>
           <div style={{ display: 'flex', gap: 6 }}>
             <Kbd>↑</Kbd>
             <Kbd>↓</Kbd>
@@ -246,4 +245,3 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ isOpen, onClose 
     </div>
   );
 };
-
