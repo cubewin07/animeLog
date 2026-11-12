@@ -28,6 +28,7 @@ Source of truth: `Backend/animeLog/models.py`.
 | `FavoriteCharacter` | A character worth remembering. `why` is the lesson. |
 | `Genre` | Shared tag across anime and books. |
 | `Studio` | Anime-only production studio. |
+| `ActivityEvent` | Timestamped journal progress and writing milestones powering streaks, XP, and calendar views. |
 
 Do not add quote/highlight/tag models unless asked. Extend the existing ones.
 

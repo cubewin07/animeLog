@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 12, Final polish.** Phases 0 to 11 are done, and search-first Add Title plus Keyframe Settings & Media Library are live.
+**All phases (0 to 12) are complete.** The Keyframe redesign, progression layer, and Phase 12 legacy/GSAP/CSS cleanup are finished and verified.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -12,8 +12,8 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Backend && .venv/bin/python manage.py runserver
    cd Frontend && npm run dev
    ```
-3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 12 in [README.md](./README.md), then update this file in the same commit as the work.
+3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`).
+4. See [Frontend/AGENTS.md](../../../Frontend/AGENTS.md) and [Frontend/design.md](../../../Frontend/design.md) for current conventions and token reference.
 
 ## Status
 
@@ -31,7 +31,15 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 9 | Journal | ✅ Done | `c4269e3` | Rereading is enjoyable |
 | 10 | Me and Recap | ✅ Done | `0132c1b` | Reason to return |
 | 11 | Add title and Settings | ✅ Done | `df83715` | Adding takes under 15 seconds |
-| 12 | Final polish | 👉 **Next** | | Final sign-off |
+| 12 | Final polish | ✅ Done | `c85925f` | Full suite & E2E clean |
+
+## Phase 12 checklist
+
+- [x] Removed `gsap` and `@gsap/react` from `Frontend/package.json` / `package-lock.json`, deleted `Frontend/src/utils/animations.ts`, migrated `Toast.tsx` and `MediaLibraryModal.tsx` onto pure CSS transitions + `useDialog`
+- [x] Deleted legacy `Frontend/src/views/`, replaced legacy components (`EntryModal`, `CharacterCard`, `CharacterDetailModal`, `CharacterReflectionPlate`, `EpisodeMemoryModal`, `ProgressStepper`, `RewatchDetailModal`, `RewatchTimeline`, `Custom*`, `SeasonNumberPicker`), unused legacy `src/ui/` primitives (`Button`, `EmptyState`, `Paper`, `Progress`, `Rating`, `StatusMark`), dev-only `src/features/style-guide/` + `/__style` route, `RewatchesPage` loader/wrapper, and `detail-redesign.css` / `dashboard.css`
+- [x] Pruned dead rules from `Frontend/src/index.css` and consolidated shared components, shell, composer, and UI stylesheets onto `--kf-*` tokens (`tokens.css`, `keyframe.css`, `base.css`) with zero undefined CSS custom properties
+- [x] Updated `AGENTS.md`, `Frontend/AGENTS.md`, and `Frontend/design.md` to match the Keyframe design system and stack
+- [x] Verified Backend tests (`65` passing, no pending migrations), Frontend checks (`typecheck`, `lint`, `vitest` 15 files / 184 tests, `vite build`), and full Playwright E2E across 13 routes at `1440×900` and `390×844` plus full add/progress/undo/append-note/complete/reload/delete flow against a temp DB copy
 
 ## Phase 11 checklist
 
@@ -128,11 +136,9 @@ Test flows that write data against a copy of the database, never the real `Backe
 - **Reading journal data:** use `useJournalData`, `useJournalActions` or `useJournalUI` from `Frontend/src/state/JournalContext.tsx`. Each one re-renders only for what it covers, and actions never change identity.
 - **Progress changes** go through `handleSeasonProgressDelta` and its movie and book versions. `Frontend/src/lib/journal/progress.ts` predicts the server's result, so if the rules in `_update_release_progress` change, change both.
 - **Routes** are in `Frontend/src/app/router.tsx`, and page wiring is in `Frontend/src/app/pages.tsx`.
-- **Dialogs:** any new dialog should use `useDialog` (`Frontend/src/ui/Sheet/useDialog.ts`). Older modals have its keyboard behavior but keep their own look and GSAP animation until they are rebuilt in Phases 7 to 11. GSAP is removed in Phase 12.
-- **Saved copy:** the last journal is stored in the browser as `animelog_snapshot_v1`. Change the version in `Frontend/src/state/journalCache.ts` if the data's shape changes.
-- **The `/__style` page saves nothing** and is left out of production builds. Remove it in Phase 12.
-- **Stepping back from a finished release reopens it.** −1 returns it to Watching, and clears the finish date only if it was set today. This replaced earlier behavior on purpose, to support Undo.
-- **Series and seasons can't currently be deleted from the UI.** The buttons were lost in the last redesign. They return in the title page menu in Phase 7.
+- **Dialogs:** dialogs use `useDialog` (`Frontend/src/ui/Sheet/useDialog.ts`) or native `<dialog>` with `overscroll-behavior: contain` and zero GSAP dependencies.
+- **Saved copy:** the last journal is stored in the browser as `animelog_snapshot_v2`. Change the version in `Frontend/src/state/journalCache.ts` if the data's shape changes.
+- **Series and season deletion** is available from the Title Page `⋯` Manage menu via `ConfirmDialog`.
 
 ## Not yet tested
 
