@@ -338,6 +338,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     subtitle={item.context}
                     imageUrl={item.cover}
                     variant={item.format === 'book' ? 'book' : 'poster'}
+                    size="thumb"
                     showTitle={false}
                   />
                 </Link>
@@ -569,6 +570,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       title={char.name}
                       imageUrl={char.cover_image_url || char.image_url}
                       variant="portrait"
+                      size="thumb"
                     />
                   </div>
                   <div>

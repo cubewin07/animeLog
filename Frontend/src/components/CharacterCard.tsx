@@ -127,6 +127,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({
           title={character.name}
           imageUrl={charImg}
           variant="portrait"
+          size="thumb"
         />
       </div>
 

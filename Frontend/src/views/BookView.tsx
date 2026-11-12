@@ -252,6 +252,7 @@ export const BookView: React.FC<BookViewProps> = ({
                         subtitle={book.author}
                         imageUrl={coverUrl}
                         variant="book"
+                        size="thumb"
                       />
                     </div>
                     <div className="lamplight-list-title-wrap">

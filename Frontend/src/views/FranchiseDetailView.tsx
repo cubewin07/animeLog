@@ -11,6 +11,7 @@ import {
 import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Stepper, Button } from '../ui';
 import { formatDate } from '../lib/format';
+import { useCoverAccent } from '../lib/color/useCoverAccent';
 import { rewatchesForRelease } from '../lib/selectors/rewatches';
 import { seasonApi, movieApi } from '../api/client';
 import {
@@ -140,6 +141,8 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
     (activeRelease as any)?.image_url ||
     series.cover_image_url;
 
+  const { accent: titleAccent, onImageReady } = useCoverAccent(series.title, coverUrl);
+
   // Save inline note
   const handleSaveInlineLesson = async () => {
     if (!activeRelease) return;
@@ -184,7 +187,7 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
   }, [allRewatches, selectedType, activeRelease, series.id]);
 
   return (
-    <div className="lamplight-folio">
+    <div className="lamplight-folio" style={{ '--title-accent': titleAccent } as React.CSSProperties}>
       <div className="lamplight-folio-grid">
         {/* Left Column: Identity & Release Navigation */}
         <aside className="lamplight-identity-col">
@@ -193,12 +196,18 @@ export const FranchiseDetailView: React.FC<FranchiseDetailViewProps> = ({
             <span>Anime</span>
           </Link>
 
-          <div className="lamplight-identity-cover-wrap">
+          <div
+            className="lamplight-identity-cover-wrap"
+            style={{ boxShadow: `0 22px 44px -22px color-mix(in srgb, ${titleAccent} 55%, transparent)` }}
+          >
             <Cover
               title={series.title}
               subtitle={series.romaji_title}
               imageUrl={coverUrl}
               variant="poster"
+              size="hero"
+              fetchPriority="high"
+              onImageReady={onImageReady}
             />
           </div>
 

@@ -4,6 +4,7 @@ import { Book } from '../types';
 import { useJournalActions } from '../state/JournalContext';
 import { Cover, StatusMark, Rating, Stepper, Button, EmptyState, Kbd } from '../ui';
 import { formatDate } from '../lib/format';
+import { useCoverAccent } from '../lib/color/useCoverAccent';
 import { bookApi } from '../api/client';
 import {
   ArrowLeft,
@@ -47,6 +48,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   }, [book.notes]);
 
   const coverUrl = book.cover_image_url || (book.cover_image as any)?.image_url;
+  const { accent: titleAccent, onImageReady } = useCoverAccent(book.title, coverUrl);
 
   const handleSaveInlineLesson = async () => {
     try {
@@ -67,7 +69,7 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
   const progressPercent = totalPages > 0 ? Math.min(100, Math.round((currentProgress / totalPages) * 100)) : 0;
 
   return (
-    <div className="lamplight-folio">
+    <div className="lamplight-folio" style={{ '--title-accent': titleAccent } as React.CSSProperties}>
       {/* Top back breadcrumb */}
       <div>
         <Link
@@ -84,11 +86,17 @@ export const BookDetailView: React.FC<BookDetailViewProps> = ({
       <div className="lamplight-folio-grid">
         {/* Left Column: Book Identity & Progress */}
         <aside className="lamplight-identity-col">
-          <div className="lamplight-identity-cover-wrap">
+          <div
+            className="lamplight-identity-cover-wrap"
+            style={{ boxShadow: `0 22px 44px -22px color-mix(in srgb, ${titleAccent} 55%, transparent)` }}
+          >
             <Cover
               variant="book"
               title={book.title}
               imageUrl={coverUrl}
+              size="hero"
+              fetchPriority="high"
+              onImageReady={onImageReady}
             />
           </div>
 

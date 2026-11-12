@@ -322,6 +322,7 @@ export const AnimeView: React.FC<AnimeViewProps> = ({
                       title={series.title}
                       imageUrl={coverUrl}
                       variant="poster"
+                      size="thumb"
                       showTitle={false}
                     />
                   </div>
