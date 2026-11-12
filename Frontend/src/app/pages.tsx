@@ -5,7 +5,8 @@ import { useReflections } from '../state/useReflections';
 import { LibraryTabs } from '../shell/LibraryTabs';
 import { useAppNavigate } from './useAppNavigate';
 import type { AppOutletContext } from './AppLayout';
-import { Download, Flame, Sparkles, Trophy, Upload } from 'lucide-react';
+import { Download, Flame, ImagePlus, Sparkles, Trophy, Upload } from 'lucide-react';
+import { buildFindArtItems, summarizeFindArt } from '../features/find-art/findArtQueue';
 
 // Each page loads on first visit, and `preloadPages` fetches the rest while the browser is idle
 const loaders = {
@@ -18,6 +19,7 @@ const loaders = {
   characters: () => import('../views/CharactersView'),
   rewatches: () => import('../views/RewatchesView'),
   media: () => import('../views/MediaView'),
+  findArt: () => import('../features/find-art/FindArtPage'),
 };
 
 const DashboardView = lazy(() => loaders.dashboard().then((m) => ({ default: m.DashboardView })));
@@ -29,6 +31,7 @@ const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default:
 const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m.CharactersView })));
 const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
 const MediaView = lazy(() => loaders.media().then((m) => ({ default: m.MediaView })));
+export const FindArtPage = lazy(() => loaders.findArt().then((m) => ({ default: m.FindArtPage })));
 
 export function preloadPages() {
   Object.values(loaders).forEach((load) => load().catch(() => {}));
@@ -457,8 +460,14 @@ export const MePage: React.FC = () => {
 };
 
 export const SettingsPage: React.FC = () => {
+  const { seriesList, bookList, characterList } = useJournalData();
   const { addToast, requestConfirm } = useJournalActions();
   const outlet = useOutletContext<AppOutletContext | undefined>();
+
+  const findArtSummary = useMemo(
+    () => summarizeFindArt(buildFindArtItems({ seriesList, bookList, characterList })),
+    [seriesList, bookList, characterList]
+  );
 
   const [prefs, setPrefs] = useState(() => {
     try {
@@ -560,6 +569,84 @@ export const SettingsPage: React.FC = () => {
             />
           </label>
         ))}
+      </section>
+
+      <section
+        aria-label="Find Art"
+        style={{
+          background: 'var(--kf-panel)',
+          border: '1px solid var(--kf-line-strong)',
+          borderRadius: 'var(--kf-radius-lg)',
+          padding: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: '1 1 280px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ImagePlus size={18} color="var(--kf-brand)" />
+            <h2
+              style={{
+                margin: 0,
+                fontFamily: 'var(--kf-font-display)',
+                fontStretch: '82%',
+                fontSize: 'var(--kf-text-lg)',
+                fontWeight: 800,
+                color: 'var(--kf-text)',
+              }}
+            >
+              Find Art
+            </h2>
+            <span
+              style={{
+                padding: '2px 8px',
+                borderRadius: 'var(--kf-radius)',
+                background:
+                  findArtSummary.missing > 0
+                    ? 'color-mix(in srgb, var(--kf-brand) 16%, transparent)'
+                    : 'color-mix(in srgb, var(--kf-completed) 16%, transparent)',
+                color: findArtSummary.missing > 0 ? 'var(--kf-brand)' : 'var(--kf-completed)',
+                fontSize: 'var(--kf-text-xs)',
+                fontWeight: 700,
+              }}
+            >
+              {findArtSummary.missing > 0
+                ? `${findArtSummary.missing} missing`
+                : `All ${findArtSummary.total} saved`}
+            </span>
+          </div>
+          <p style={{ margin: 0, fontSize: 'var(--kf-text-sm)', color: 'var(--kf-text-2)' }}>
+            {findArtSummary.missing > 0
+              ? `${findArtSummary.missing} of ${findArtSummary.total} entries (anime, books, and characters) don’t have cover art yet. Review matches or upload local art one step at a time.`
+              : `All ${findArtSummary.total} entries already have cover art. You can still review matches or swap artwork anytime.`}
+          </p>
+        </div>
+
+        <Link
+          viewTransition
+          to="/settings/find-art"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            minHeight: 44,
+            padding: '0 18px',
+            borderRadius: 'var(--kf-radius)',
+            background: 'var(--kf-brand)',
+            color: 'var(--kf-on-fill)',
+            textDecoration: 'none',
+            fontFamily: 'var(--kf-font-ui)',
+            fontSize: 'var(--kf-text-sm)',
+            fontWeight: 700,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>{findArtSummary.missing > 0 ? 'Open Find Art' : 'Review Cover Art'}</span>
+        </Link>
       </section>
 
       <MediaView onNotify={addToast} onRequestConfirm={requestConfirm} />

@@ -253,6 +253,14 @@ export function buildPaletteItems(
       run: () => cb.navigate('/settings'),
     },
     {
+      id: 'action-find-art',
+      kind: 'action',
+      title: 'Find cover art…',
+      meta: 'Match or upload artwork for anime, books and characters',
+      keywords: 'find art cover artwork poster portrait jikan openlibrary',
+      run: () => cb.navigate('/settings/find-art'),
+    },
+    {
       id: 'action-shortcuts',
       kind: 'action',
       title: 'Keyboard shortcuts',
