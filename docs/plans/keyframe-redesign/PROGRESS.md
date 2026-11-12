@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 6, Home and Quick Log.** Phases 0 to 5 are done, and `ActivityEvent` tracking plus the XP, streak, and 20-achievement progression engine are live.
+**Next up: Phase 7, Anime library and title page.** Phases 0 to 6 are done, and Home, Quick Log, Finale celebration, and Keyframe Composer are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 6 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 7 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -25,13 +25,20 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 3 | Shell and navigation | ✅ Done | `fa06d84` | You can find everything easily |
 | 4 | Find Art | ✅ Done | `85fd848` | The app starts to look like yours |
 | 5 | Activity and progression | ✅ Done | `0a59346` | Numbers look right against your data |
-| 6 | Home and Quick Log | 👉 **Next** | | The main habit loop works |
-| 7 | Anime library and title page | Not started | | Core browsing |
+| 6 | Home and Quick Log | ✅ Done | `57e3fdc` | The main habit loop works |
+| 7 | Anime library and title page | 👉 **Next** | | Core browsing |
 | 8 | Characters and Books | Not started | | Collection feel |
 | 9 | Journal | Not started | | Rereading is enjoyable |
 | 10 | Me and Recap | Not started | | Reason to return |
 | 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 6 checklist
+
+- [x] Keyframe `HomePage` (`Frontend/src/features/home/`) with most-recent Hero (`--title-accent`, blurred key art, `+1 Episode` / `Note`), Continue row, Momentum Today strip (XP, streak, weekly episodes, nearest achievement), A note from your past on `NotePaper`, Finish the story cards, and Next up shelf
+- [x] Post-`+1` non-blocking `QuickLogBar` with quick 1–10 score pills, 1-line note (append-safe), `Full note` handoff, and instant `Undo`
+- [x] Native `<dialog>` `FinaleCelebration` modal when completing a season/movie/book with `celebrations` enabled, XP breakdown, `"What stayed with you?"` paper note, and `downloadQuoteCard` sharing
+- [x] Keyframe `Composer` side drawer / mobile sheet preserving existing-note preview, `Add to note` default, explicit `Edit full note` toggle, autosaved drafts, and `⌘↵` save
 
 ## Phase 5 checklist
 
