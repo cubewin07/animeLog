@@ -3,6 +3,7 @@ from django.contrib.contenttypes.admin import GenericTabularInline
 from django.utils.html import format_html
 
 from .models import (
+    ActivityEvent,
     AnimeMovie,
     AnimeSeason,
     AnimeSeries,
@@ -181,3 +182,19 @@ class BookAdmin(admin.ModelAdmin):
     list_filter = ("status", "rating", "genres")
     search_fields = ("title", "author", "notes")
     filter_horizontal = ("genres",)
+
+
+@admin.register(ActivityEvent)
+class ActivityEventAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "kind",
+        "target_type",
+        "target_id",
+        "title",
+        "delta",
+        "backfilled",
+        "created_at",
+    )
+    list_filter = ("kind", "target_type", "backfilled")
+    search_fields = ("title",)

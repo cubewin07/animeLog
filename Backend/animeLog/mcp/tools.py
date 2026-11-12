@@ -31,6 +31,13 @@ from animeLog.models import (
     Rewatch,
     Studio,
 )
+from animeLog.services.activity import (
+    record_book_activity,
+    record_character_activity,
+    record_episode_note_activity,
+    record_release_activity,
+    record_rewatch_activity,
+)
 
 
 def _get_or_create_genres(genre_names: list[str] | None) -> list[Genre]:
@@ -449,6 +456,8 @@ def log_anime_series(
             studio_objs = _get_or_create_studios(studios)
             season.studios.set(studio_objs)
 
+        record_release_activity(season, prev_progress=0, prev_status="", prev_notes="")
+
     return {
         "success": True,
         "message": f"Successfully created anime series '{series.title}' with {season.title}.",
@@ -509,6 +518,8 @@ def add_anime_season(
             studio_objs = _get_or_create_studios(studios)
             season.studios.set(studio_objs)
 
+        record_release_activity(season, prev_progress=0, prev_status="", prev_notes="")
+
     return {
         "success": True,
         "message": f"Added season '{season.title}' (Season {season.season_number}) to series '{series.title}'.",
@@ -565,6 +576,8 @@ def add_anime_movie(
             studio_objs = _get_or_create_studios(studios)
             movie.studios.set(studio_objs)
 
+        record_release_activity(movie, prev_progress=0, prev_status="", prev_notes="")
+
     return {
         "success": True,
         "message": f"Added movie '{movie.title}' to series '{series.title}'.",
@@ -601,9 +614,13 @@ def update_anime_progress(
     norm_type = target_type.lower().strip()
     if norm_type == "season":
         try:
-            item = AnimeSeason.objects.get(pk=target_id)
+            item = AnimeSeason.objects.select_related("series").get(pk=target_id)
         except AnimeSeason.DoesNotExist:
             return {"success": False, "error": f"Season with ID {target_id} not found."}
+
+        prev_progress = item.progress
+        prev_status = item.status
+        prev_notes = item.notes or ""
 
         item.progress = progress
         if status:
@@ -623,6 +640,12 @@ def update_anime_progress(
         if notes is not None:
             item.notes = notes.strip()
         item.save()
+        record_release_activity(
+            item,
+            prev_progress=prev_progress,
+            prev_status=prev_status,
+            prev_notes=prev_notes,
+        )
 
         return {
             "success": True,
@@ -634,9 +657,13 @@ def update_anime_progress(
 
     elif norm_type == "movie":
         try:
-            movie = AnimeMovie.objects.get(pk=target_id)
+            movie = AnimeMovie.objects.select_related("series").get(pk=target_id)
         except AnimeMovie.DoesNotExist:
             return {"success": False, "error": f"Movie with ID {target_id} not found."}
+
+        prev_progress = movie.progress_minutes
+        prev_status = movie.status
+        prev_notes = movie.notes or ""
 
         movie.progress_minutes = progress
         if status:
@@ -656,6 +683,12 @@ def update_anime_progress(
         if notes is not None:
             movie.notes = notes.strip()
         movie.save()
+        record_release_activity(
+            movie,
+            prev_progress=prev_progress,
+            prev_status=prev_status,
+            prev_notes=prev_notes,
+        )
 
         return {
             "success": True,
@@ -687,9 +720,16 @@ def add_episode_note(
         rating: Optional episode rating (1-10)
     """
     try:
-        season = AnimeSeason.objects.get(pk=season_id)
+        season = AnimeSeason.objects.select_related("series").get(pk=season_id)
     except AnimeSeason.DoesNotExist:
         return {"success": False, "error": f"Season with ID {season_id} not found."}
+
+    prev_note = (
+        EpisodeNote.objects.filter(season=season, episode_number=episode_number)
+        .values_list("note", flat=True)
+        .first()
+        or ""
+    )
 
     ep_note, created = EpisodeNote.objects.update_or_create(
         season=season,
@@ -700,6 +740,7 @@ def add_episode_note(
             "rating": rating,
         },
     )
+    record_episode_note_activity(ep_note, prev_note="" if created else prev_note)
 
     action = "Created" if created else "Updated"
     return {
@@ -766,6 +807,7 @@ def log_rewatch(
         start_date=start_date or (date.today() if not finish_date else None),
         finish_date=finish_date,
     )
+    record_rewatch_activity(rewatch)
 
     return {
         "success": True,
@@ -794,6 +836,7 @@ def add_favorite_character(series_id: int, name: str, why: str) -> dict[str, Any
         name=name.strip(),
         why=why.strip() if why else None,
     )
+    record_character_activity(char, created=True)
 
     return {
         "success": True,
@@ -875,9 +918,13 @@ def update_anime_season(
         studios: Studio names producing this season
     """
     try:
-        season = AnimeSeason.objects.get(pk=season_id)
+        season = AnimeSeason.objects.select_related("series").get(pk=season_id)
     except AnimeSeason.DoesNotExist:
         return {"success": False, "error": f"Season with ID {season_id} not found."}
+
+    prev_progress = season.progress
+    prev_status = season.status
+    prev_notes = season.notes or ""
 
     if title is not None:
         season.title = title.strip()
@@ -901,6 +948,12 @@ def update_anime_season(
         season.finish_date = finish_date or None
 
     season.save()
+    record_release_activity(
+        season,
+        prev_progress=prev_progress,
+        prev_status=prev_status,
+        prev_notes=prev_notes,
+    )
 
     if studios is not None:
         studio_objs = _get_or_create_studios(studios)
@@ -944,9 +997,13 @@ def update_anime_movie(
         studios: Production studios
     """
     try:
-        movie = AnimeMovie.objects.get(pk=movie_id)
+        movie = AnimeMovie.objects.select_related("series").get(pk=movie_id)
     except AnimeMovie.DoesNotExist:
         return {"success": False, "error": f"Movie with ID {movie_id} not found."}
+
+    prev_progress = movie.progress_minutes
+    prev_status = movie.status
+    prev_notes = movie.notes or ""
 
     if title is not None:
         movie.title = title.strip()
@@ -968,6 +1025,12 @@ def update_anime_movie(
         movie.finish_date = finish_date or None
 
     movie.save()
+    record_release_activity(
+        movie,
+        prev_progress=prev_progress,
+        prev_status=prev_status,
+        prev_notes=prev_notes,
+    )
 
     if studios is not None:
         studio_objs = _get_or_create_studios(studios)
@@ -1050,12 +1113,15 @@ def update_favorite_character(
     except FavoriteCharacter.DoesNotExist:
         return {"success": False, "error": f"Favorite character with ID {character_id} not found."}
 
+    prev_why = char.why or ""
+
     if name is not None:
         char.name = name.strip()
     if why is not None:
         char.why = why.strip() if why else None
 
     char.save()
+    record_character_activity(char, created=False, prev_why=prev_why)
 
     return {
         "success": True,
@@ -1112,6 +1178,8 @@ def log_book(
             genre_objs = _get_or_create_genres(genres)
             book.genres.set(genre_objs)
 
+        record_book_activity(book, prev_progress=0, prev_status="", prev_notes="")
+
     return {
         "success": True,
         "message": f"Logged book '{book.title}' by {book.author or 'Unknown'}.",
@@ -1143,6 +1211,10 @@ def update_book_progress(
     except Book.DoesNotExist:
         return {"success": False, "error": f"Book with ID {book_id} not found."}
 
+    prev_progress = book.progress
+    prev_status = book.status
+    prev_notes = book.notes or ""
+
     book.progress = progress
     if status:
         s_val = status.upper().strip()
@@ -1161,6 +1233,12 @@ def update_book_progress(
     if notes is not None:
         book.notes = notes.strip()
     book.save()
+    record_book_activity(
+        book,
+        prev_progress=prev_progress,
+        prev_status=prev_status,
+        prev_notes=prev_notes,
+    )
 
     return {
         "success": True,
@@ -1206,6 +1284,10 @@ def update_book(
     except Book.DoesNotExist:
         return {"success": False, "error": f"Book with ID {book_id} not found."}
 
+    prev_progress = book.progress
+    prev_status = book.status
+    prev_notes = book.notes or ""
+
     if title is not None:
         book.title = title.strip()
     if author is not None:
@@ -1228,6 +1310,12 @@ def update_book(
         book.finish_date = finish_date or None
 
     book.save()
+    record_book_activity(
+        book,
+        prev_progress=prev_progress,
+        prev_status=prev_status,
+        prev_notes=prev_notes,
+    )
 
     if genres is not None:
         genre_objs = _get_or_create_genres(genres)
@@ -1373,6 +1461,7 @@ def smart_log_anime(
             if match.get("studios"):
                 studios = _get_or_create_studios(match["studios"])
                 movie.studios.set(studios)
+            record_release_activity(movie, prev_progress=0, prev_status="", prev_notes="")
             release_id = movie.id
             release_type = "movie"
         else:
@@ -1391,6 +1480,7 @@ def smart_log_anime(
             if match.get("studios"):
                 studios = _get_or_create_studios(match["studios"])
                 season.studios.set(studios)
+            record_release_activity(season, prev_progress=0, prev_status="", prev_notes="")
             release_id = season.id
             release_type = "season"
 

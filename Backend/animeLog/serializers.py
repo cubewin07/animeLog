@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
+    ActivityEvent,
     AnimeMovie,
     AnimeSeason,
     AnimeSeries,
@@ -712,3 +713,19 @@ class JournalStatsSerializer(serializers.Serializer):
     totalLessons = serializers.IntegerField()
     rewatchesCount = serializers.IntegerField()
     charactersCount = serializers.IntegerField()
+
+
+class ActivityEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityEvent
+        fields = [
+            "id",
+            "kind",
+            "target_type",
+            "target_id",
+            "title",
+            "delta",
+            "backfilled",
+            "created_at",
+        ]
+        read_only_fields = fields

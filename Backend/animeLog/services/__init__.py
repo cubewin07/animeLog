@@ -2,6 +2,7 @@
 Services package for AnimeLog.
 """
 
+from .activity import record_activity
 from .export import format_blockquote, generate_journal_markdown
 from .importer import import_journal_json, import_mal_username
 from .metadata_lookup import (
@@ -13,6 +14,7 @@ from .metadata_lookup import (
 )
 
 __all__ = [
+    "record_activity",
     "format_blockquote",
     "generate_journal_markdown",
     "import_journal_json",
