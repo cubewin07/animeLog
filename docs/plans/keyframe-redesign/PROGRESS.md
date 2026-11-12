@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 5, Activity and progression.** Phases 0 to 4 are done, and the Find Art guided screen, Cloudinary thumbnail pipeline, and per-title cover accent caching are live.
+**Next up: Phase 6, Home and Quick Log.** Phases 0 to 5 are done, and `ActivityEvent` tracking plus the XP, streak, and 20-achievement progression engine are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 5 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 6 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -24,14 +24,21 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 2 | Smooth engine | ✅ Done | `8c3a901` | +1 feels instant |
 | 3 | Shell and navigation | ✅ Done | `fa06d84` | You can find everything easily |
 | 4 | Find Art | ✅ Done | `85fd848` | The app starts to look like yours |
-| 5 | Activity and progression | 👉 **Next** | | Numbers look right against your data |
-| 6 | Home and Quick Log | Not started | | The main habit loop works |
+| 5 | Activity and progression | ✅ Done | `0a59346` | Numbers look right against your data |
+| 6 | Home and Quick Log | 👉 **Next** | | The main habit loop works |
 | 7 | Anime library and title page | Not started | | Core browsing |
 | 8 | Characters and Books | Not started | | Collection feel |
 | 9 | Journal | Not started | | Rereading is enjoyable |
 | 10 | Me and Recap | Not started | | Reason to return |
 | 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 5 checklist
+
+- [x] `ActivityEvent` model (`EPISODE_PROGRESS`, `MOVIE_PROGRESS`, `BOOK_PROGRESS`, `NOTE_WRITTEN`, `CHARACTER_ADDED`, `REWATCH_LOGGED`, `COMPLETED`) with `0008_activityevent` schema migration and `0009_backfill_activity` data migration (`backfilled=True`)
+- [x] Activity hooks on REST views (`_update_release_progress`, seasons, movies, books, episode notes, rewatches, characters) and MCP tools, leaving bulk import untouched
+- [x] `GET /api/activity/` endpoint supporting `?since=` and `?limit=`, wired via `activityApi.list` into `JournalContext` (`activityList` + `animelog_snapshot_v2` cache + optimistic progress updates)
+- [x] Progression engine (`Frontend/src/lib/progression/`): XP weights (`1/5/10/15/20`), levels (`Newcomer` through `Sensei`), streak with 1-rest-day forgiveness per 7-day window (ignoring backfill and negative undo), and all 20 achievements (`progression.test.ts` verified)
 
 ## Phase 4 checklist
 
