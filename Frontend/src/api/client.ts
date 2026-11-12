@@ -1,4 +1,5 @@
 import {
+  ActivityEvent,
   AnimeMovie,
   AnimeSeason,
   AnimeSeries,
@@ -506,6 +507,12 @@ export const studioApi = {
 export const statsApi = {
   async getStats(): Promise<JournalStats> {
     return fetchJson<JournalStats>(`${API_BASE}/stats/`);
+  },
+};
+
+export const activityApi = {
+  async list(params?: { since?: string; limit?: number }): Promise<ActivityEvent[]> {
+    return fetchJson<ActivityEvent[]>(`${API_BASE}/activity/${withQuery(params)}`);
   },
 };
 

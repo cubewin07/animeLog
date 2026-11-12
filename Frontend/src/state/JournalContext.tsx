@@ -9,6 +9,8 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityEvent,
+  ActivityKind,
   AnimeMovie,
   AnimeSeason,
   AnimeSeries,
@@ -21,6 +23,7 @@ import {
   Studio,
 } from '../types';
 import {
+  activityApi,
   bookApi,
   characterApi,
   episodeNoteApi,
@@ -64,6 +67,7 @@ interface JournalContextValue {
   bookList: Book[];
   rewatchList: Rewatch[];
   characterList: FavoriteCharacter[];
+  activityList: ActivityEvent[];
   genres: Genre[];
   studios: Studio[];
   stats: JournalStats;
@@ -179,6 +183,7 @@ type DataKeys =
   | 'bookList'
   | 'rewatchList'
   | 'characterList'
+  | 'activityList'
   | 'genres'
   | 'studios'
   | 'stats';
@@ -235,6 +240,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bookList, setBookList] = useState<Book[]>(snapshot?.bookList ?? []);
   const [rewatchList, setRewatchList] = useState<Rewatch[]>(snapshot?.rewatchList ?? []);
   const [characterList, setCharacterList] = useState<FavoriteCharacter[]>(snapshot?.characterList ?? []);
+  const [activityList, setActivityList] = useState<ActivityEvent[]>(snapshot?.activityList ?? []);
   const [genres, setGenres] = useState<Genre[]>(snapshot?.genres ?? []);
   const [studios, setStudios] = useState<Studio[]>(snapshot?.studios ?? []);
   const [stats, setStats] = useState<JournalStats>(snapshot?.stats ?? {
@@ -347,6 +353,24 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const fetchId = useRef(0);
   const refreshWhenIdle = useRef(false);
   const progressQueue = useRef<ProgressQueue<ProgressRecord> | null>(null);
+  const nextSyntheticActivityId = useRef(-1);
+
+  const appendLocalActivity = useCallback(
+    (kind: ActivityKind, targetType: string, targetId: number, title: string, delta: number) => {
+      const event: ActivityEvent = {
+        id: nextSyntheticActivityId.current--,
+        kind,
+        target_type: targetType,
+        target_id: targetId,
+        title,
+        delta,
+        backfilled: false,
+        created_at: new Date().toISOString(),
+      };
+      setActivityList((prev) => [event, ...prev]);
+    },
+    []
+  );
 
   const refreshAll = useCallback(async () => {
     // Progress taps still being saved would be overwritten by older server data, so wait for them
@@ -356,12 +380,13 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     const id = ++fetchId.current;
     try {
-      const [s, b, r, c, stt] = await Promise.all([
+      const [s, b, r, c, stt, act] = await Promise.all([
         seriesApi.list(),
         bookApi.list(),
         rewatchApi.list(),
         characterApi.list(),
         statsApi.getStats(),
+        activityApi.list().catch(() => [] as ActivityEvent[]),
       ]);
       if (id !== fetchId.current) return;
       if (progressQueue.current?.busy) {
@@ -373,6 +398,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRewatchList(r);
       setCharacterList(c);
       setStats(stt);
+      setActivityList(act);
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }
@@ -383,7 +409,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const id = ++fetchId.current;
     setLoadFailed(false);
     try {
-      const [s, b, r, c, g, st, stt] = await Promise.all([
+      const [s, b, r, c, g, st, stt, act] = await Promise.all([
         seriesApi.list(),
         bookApi.list(),
         rewatchApi.list(),
@@ -391,6 +417,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         genreApi.list(),
         studioApi.list(),
         statsApi.getStats(),
+        activityApi.list().catch(() => [] as ActivityEvent[]),
       ]);
       setGenres(g);
       setStudios(st);
@@ -403,6 +430,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRewatchList(r);
       setCharacterList(c);
       setStats(stt);
+      setActivityList(act);
     } catch (err) {
       console.error('Failed to load data:', err);
       if (hasSnapshot) {
@@ -430,10 +458,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     if (loading || loadFailed) return;
     const timer = setTimeout(() => {
-      saveSnapshot({ seriesList, bookList, rewatchList, characterList, genres, studios, stats });
+      saveSnapshot({ seriesList, bookList, rewatchList, characterList, activityList, genres, studios, stats });
     }, SNAPSHOT_SAVE_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats]);
+  }, [loading, loadFailed, seriesList, bookList, rewatchList, characterList, activityList, genres, studios, stats]);
 
   // Instant progress: the screen changes now, the queue saves in the background
   const [queue] = useState(
@@ -688,6 +716,13 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const next = season && nextSeasonState(season, delta);
     if (!season || !next) return;
     setSeriesList((list) => patchSeason(list, next));
+    const displayTitle = season.series_title ? `${season.series_title} — ${season.title}` : season.title;
+    appendLocalActivity('EPISODE_PROGRESS', 'season', id, displayTitle, delta);
+    if (next.status === 'COMPLETED' && season.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'season', id, displayTitle, 1);
+    } else if (season.status === 'COMPLETED' && next.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'season', id, displayTitle, -1);
+    }
     queue.enqueue(`season-${id}`, delta, season, (d) => seasonApi.updateProgress(id, d));
   };
 
@@ -730,6 +765,13 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const next = movie && nextMovieState(movie, delta);
     if (!movie || !next) return;
     setSeriesList((list) => patchMovie(list, next));
+    const displayTitle = movie.series_title ? `${movie.series_title} — ${movie.title}` : movie.title;
+    appendLocalActivity('MOVIE_PROGRESS', 'movie', id, displayTitle, delta);
+    if (next.status === 'COMPLETED' && movie.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'movie', id, displayTitle, 1);
+    } else if (movie.status === 'COMPLETED' && next.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'movie', id, displayTitle, -1);
+    }
     queue.enqueue(`movie-${id}`, delta, movie, (d) => movieApi.updateProgress(id, d));
   };
 
@@ -772,6 +814,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const next = book && nextBookState(book, delta);
     if (!book || !next) return;
     setBookList((list) => patchBook(list, next));
+    appendLocalActivity('BOOK_PROGRESS', 'book', id, book.title, delta);
+    if (next.status === 'COMPLETED' && book.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'book', id, book.title, 1);
+    } else if (book.status === 'COMPLETED' && next.status !== 'COMPLETED') {
+      appendLocalActivity('COMPLETED', 'book', id, book.title, -1);
+    }
     queue.enqueue(`book-${id}`, delta, book, (d) => bookApi.updateProgress(id, d));
   };
 
@@ -876,6 +924,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     bookList,
     rewatchList,
     characterList,
+    activityList,
     genres,
     studios,
     stats,
@@ -958,8 +1007,19 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [actions] = useState(() => buildStableActions(value, latestValue));
 
   const data = useMemo<JournalData>(
-    () => ({ loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats }),
-    [loading, loadFailed, seriesList, bookList, rewatchList, characterList, genres, studios, stats]
+    () => ({
+      loading,
+      loadFailed,
+      seriesList,
+      bookList,
+      rewatchList,
+      characterList,
+      activityList,
+      genres,
+      studios,
+      stats,
+    }),
+    [loading, loadFailed, seriesList, bookList, rewatchList, characterList, activityList, genres, studios, stats]
   );
 
   const ui = useMemo<JournalUI>(
