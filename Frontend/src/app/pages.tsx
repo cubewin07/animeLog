@@ -11,8 +11,8 @@ import { buildFindArtItems, summarizeFindArt } from '../features/find-art/findAr
 // Each page loads on first visit, and `preloadPages` fetches the rest while the browser is idle
 const loaders = {
   dashboard: () => import('../features/home/HomePage'),
-  anime: () => import('../views/AnimeView'),
-  franchise: () => import('../views/FranchiseDetailView'),
+  anime: () => import('../features/library/AnimeLibraryPage'),
+  franchise: () => import('../features/title/TitlePage'),
   books: () => import('../views/BookView'),
   book: () => import('../views/BookDetailView'),
   reflections: () => import('../views/ReflectionsView'),
@@ -23,8 +23,8 @@ const loaders = {
 };
 
 const KeyframeHomeView = lazy(() => loaders.dashboard().then((m) => ({ default: m.HomePage })));
-const AnimeView = lazy(() => loaders.anime().then((m) => ({ default: m.AnimeView })));
-const FranchiseDetailView = lazy(() => loaders.franchise().then((m) => ({ default: m.FranchiseDetailView })));
+const AnimeLibraryView = lazy(() => loaders.anime().then((m) => ({ default: m.AnimeLibraryPage })));
+const FranchiseDetailView = lazy(() => loaders.franchise().then((m) => ({ default: m.TitlePage })));
 const BookView = lazy(() => loaders.books().then((m) => ({ default: m.BookView })));
 const BookDetailView = lazy(() => loaders.book().then((m) => ({ default: m.BookDetailView })));
 const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default: m.ReflectionsView })));
@@ -54,37 +54,12 @@ const NotFound: React.FC<{ title: string; message: string; backLabel: string; on
 
 export const HomePage: React.FC = () => <KeyframeHomeView />;
 
-export const AnimePage: React.FC = () => {
-  const { seriesList } = useJournalData();
-  const { searchQuery } = useJournalUI();
-  const a = useJournalActions();
-  const navigate = useAppNavigate();
-  return (
-    <>
-      <LibraryTabs />
-      <AnimeView
-        seriesList={seriesList}
-        searchQuery={searchQuery}
-        onOpenDetail={(id) => navigate(`/anime/${id}`)}
-        onEditSeries={a.openEditSeriesModal}
-        onDeleteSeries={a.handleDeleteSeries}
-        onAddSeason={a.openAddSeasonModal}
-        onAddMovie={a.openAddMovieModal}
-        onEditSeason={a.openEditSeasonModal}
-        onDeleteSeason={a.handleDeleteSeason}
-        onSeasonProgressDelta={a.handleSeasonProgressDelta}
-        onEditMovie={a.openEditMovieModal}
-        onDeleteMovie={a.handleDeleteMovie}
-        onMovieProgressDelta={a.handleMovieProgressDelta}
-        onOpenEpisodeNotes={a.openEpisodeNotesModal}
-        onAddRewatchSeason={a.openAddRewatchSeason}
-        onAddRewatchMovie={a.openAddRewatchMovie}
-        onAddCharacter={a.openAddCharacterModal}
-        onOpenNewFranchiseModal={a.openNewFranchiseModal}
-      />
-    </>
-  );
-};
+export const AnimePage: React.FC = () => (
+  <>
+    <LibraryTabs />
+    <AnimeLibraryView />
+  </>
+);
 
 export const FranchisePage: React.FC = () => {
   const { seriesId } = useParams<{ seriesId: string }>();
