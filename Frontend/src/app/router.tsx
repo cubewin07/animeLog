@@ -13,6 +13,7 @@ import {
   JournalPage,
   MePage,
   PageNotFound,
+  RecapPage,
   SettingsPage,
 } from './pages';
 
@@ -30,7 +31,7 @@ const routes: RouteObject[] = [
       { path: '/characters/:characterId', element: <CharacterPage /> },
       { path: '/journal', element: <JournalPage /> },
       { path: '/me', element: <MePage /> },
-      { path: '/me/recap/:year', element: <MePage /> },
+      { path: '/me/recap/:year', element: <RecapPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/settings/find-art', element: <FindArtPage /> },
       { path: '/reflections', element: <Navigate to="/journal" replace /> },

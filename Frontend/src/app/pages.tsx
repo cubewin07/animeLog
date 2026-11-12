@@ -1,11 +1,10 @@
 import React, { lazy, useMemo, useState } from 'react';
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
-import { useReflections } from '../state/useReflections';
 import { LibraryTabs } from '../shell/LibraryTabs';
 import { useAppNavigate } from './useAppNavigate';
 import type { AppOutletContext } from './AppLayout';
-import { Download, Flame, ImagePlus, Sparkles, Trophy, Upload } from 'lucide-react';
+import { Download, ImagePlus, Upload } from 'lucide-react';
 import { buildFindArtItems, summarizeFindArt } from '../features/find-art/findArtQueue';
 
 // Each page loads on first visit, and `preloadPages` fetches the rest while the browser is idle
@@ -18,6 +17,8 @@ const loaders = {
   reflections: () => import('../features/journal/JournalPage'),
   characters: () => import('../features/characters/CharactersPage'),
   characterDetail: () => import('../features/characters/CharacterDetailPage'),
+  me: () => import('../features/me/MePage'),
+  recap: () => import('../features/me/RecapPage'),
   rewatches: () => import('../views/RewatchesView'),
   media: () => import('../views/MediaView'),
   findArt: () => import('../features/find-art/FindArtPage'),
@@ -31,6 +32,8 @@ const BookDetailView = lazy(() => loaders.book().then((m) => ({ default: m.BookD
 const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default: m.JournalPage })));
 const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m.CharactersPage })));
 const CharacterDetailView = lazy(() => loaders.characterDetail().then((m) => ({ default: m.CharacterDetailPage })));
+const KeyframeMeView = lazy(() => loaders.me().then((m) => ({ default: m.MePage })));
+const KeyframeRecapView = lazy(() => loaders.recap().then((m) => ({ default: m.RecapPage })));
 const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
 const MediaView = lazy(() => loaders.media().then((m) => ({ default: m.MediaView })));
 export const FindArtPage = lazy(() => loaders.findArt().then((m) => ({ default: m.FindArtPage })));
@@ -140,209 +143,9 @@ export const RewatchesPage: React.FC = () => {
   );
 };
 
-const LEVEL_NAMES = [
-  { minXp: 0, level: 1, name: 'Newcomer', nextXp: 50 },
-  { minXp: 50, level: 2, name: 'Regular', nextXp: 150 },
-  { minXp: 150, level: 3, name: 'Binger', nextXp: 300 },
-  { minXp: 300, level: 4, name: 'Otaku', nextXp: 500 },
-  { minXp: 500, level: 5, name: 'Critic', nextXp: 800 },
-  { minXp: 800, level: 6, name: 'Sensei', nextXp: 1200 },
-];
+export const MePage: React.FC = () => <KeyframeMeView />;
 
-export const MePage: React.FC = () => {
-  const { year } = useParams<{ year?: string }>();
-  const { seriesList, bookList, characterList, rewatchList } = useJournalData();
-  const { reflections } = useReflections();
-
-  const summary = useMemo(() => {
-    let episodesWatched = 0;
-    let episodeNotes = 0;
-    let seasonOrMovieNotes = 0;
-    let finishedReleases = 0;
-
-    seriesList.forEach((s) => {
-      s.seasons?.forEach((sea) => {
-        episodesWatched += sea.progress || 0;
-        episodeNotes += sea.episode_notes?.filter((n) => n.note?.trim()).length || 0;
-        if (sea.notes?.trim()) seasonOrMovieNotes += 1;
-        if (sea.status === 'COMPLETED') finishedReleases += 1;
-      });
-      s.movies?.forEach((m) => {
-        if (m.notes?.trim()) seasonOrMovieNotes += 1;
-        if (m.status === 'COMPLETED') finishedReleases += 1;
-      });
-    });
-
-    const bookNotes = bookList.filter((b) => b.notes?.trim()).length;
-    const charNotes = characterList.filter((c) => c.why?.trim()).length;
-    const rewatchNotes = rewatchList.filter((r) => r.notes?.trim()).length;
-
-    const xp =
-      episodesWatched * 1 +
-      episodeNotes * 5 +
-      charNotes * 10 +
-      (seasonOrMovieNotes + bookNotes + rewatchNotes) * 15 +
-      finishedReleases * 20;
-
-    const tier = [...LEVEL_NAMES].reverse().find((t) => xp >= t.minXp) ?? LEVEL_NAMES[0];
-    const progressPct = Math.min(100, Math.round(((xp - tier.minXp) / Math.max(1, tier.nextXp - tier.minXp)) * 100));
-
-    return {
-      xp,
-      tier,
-      progressPct,
-      episodesWatched,
-      finishedReleases,
-      notesCount: reflections.length,
-      charactersCount: characterList.length,
-      rewatchesCount: rewatchList.length,
-    };
-  }, [seriesList, bookList, characterList, rewatchList, reflections.length]);
-
-  const currentYear = year || String(new Date().getFullYear());
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--kf-font-display)', fontStretch: '82%', fontSize: 'var(--kf-text-xl)', fontWeight: 800, color: 'var(--kf-text)' }}>
-            {year ? `${year} Recap` : 'Me'}
-          </h1>
-          <p style={{ color: 'var(--kf-text-2)', fontSize: 'var(--kf-text-sm)', marginTop: 4 }}>
-            Your level, achievements, watching stats and collection highlights.
-          </p>
-        </div>
-        {!year ? (
-          <Link
-            viewTransition
-            to={`/me/recap/${currentYear}`}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 14px',
-              borderRadius: 'var(--kf-radius)',
-              background: 'var(--kf-panel)',
-              border: '1px solid var(--kf-line-strong)',
-              color: 'var(--kf-text)',
-              textDecoration: 'none',
-              fontSize: 'var(--kf-text-sm)',
-              fontWeight: 600,
-            }}
-          >
-            <Sparkles size={15} color="var(--kf-gold)" />
-            <span>{currentYear} Recap</span>
-          </Link>
-        ) : (
-          <Link
-            viewTransition
-            to="/me"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              padding: '8px 14px',
-              borderRadius: 'var(--kf-radius)',
-              background: 'var(--kf-panel)',
-              border: '1px solid var(--kf-line-strong)',
-              color: 'var(--kf-text)',
-              textDecoration: 'none',
-              fontSize: 'var(--kf-text-sm)',
-              fontWeight: 600,
-            }}
-          >
-            <span>Back to Me</span>
-          </Link>
-        )}
-      </header>
-
-      <section
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: 16,
-        }}
-        aria-label="Level and stats"
-      >
-        <div
-          style={{
-            background: 'var(--kf-panel)',
-            border: '1px solid var(--kf-line)',
-            borderRadius: 'var(--kf-radius-lg)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--kf-gold)' }}>
-            Level {summary.tier.level}
-          </span>
-          <strong style={{ fontFamily: 'var(--kf-font-display)', fontSize: 24, color: 'var(--kf-text)' }}>
-            {summary.tier.name}
-          </strong>
-          <div style={{ height: 6, borderRadius: 999, background: 'var(--kf-bg)', overflow: 'hidden' }}>
-            <div style={{ width: `${summary.progressPct}%`, height: '100%', background: 'var(--kf-gold)' }} />
-          </div>
-          <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>
-            {summary.xp} XP earned from watching and writing notes
-          </span>
-        </div>
-
-        <div
-          style={{
-            background: 'var(--kf-panel)',
-            border: '1px solid var(--kf-line)',
-            borderRadius: 'var(--kf-radius-lg)',
-            padding: 20,
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 12,
-          }}
-        >
-          <div>
-            <strong style={{ fontSize: 22, display: 'block', color: 'var(--kf-text)' }}>{summary.episodesWatched}</strong>
-            <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>Episodes watched</span>
-          </div>
-          <div>
-            <strong style={{ fontSize: 22, display: 'block', color: 'var(--kf-text)' }}>{summary.notesCount}</strong>
-            <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>Notes written</span>
-          </div>
-          <div>
-            <strong style={{ fontSize: 22, display: 'block', color: 'var(--kf-text)' }}>{summary.finishedReleases}</strong>
-            <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>Completed seasons & movies</span>
-          </div>
-          <div>
-            <strong style={{ fontSize: 22, display: 'block', color: 'var(--kf-text)' }}>{summary.charactersCount}</strong>
-            <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>Character cards</span>
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: 'var(--kf-panel)',
-            border: '1px solid var(--kf-line)',
-            borderRadius: 'var(--kf-radius-lg)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            gap: 8,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--kf-gold)' }}>
-            <Trophy size={18} />
-            <Flame size={18} />
-            <strong style={{ color: 'var(--kf-text)' }}>Achievements & Activity Calendar</strong>
-          </div>
-          <p style={{ fontSize: 13, color: 'var(--kf-text-2)', margin: 0 }}>
-            Full activity calendar, streak history, achievements and story recap arrive in Phases 5 and 10.
-          </p>
-        </div>
-      </section>
-    </div>
-  );
-};
+export const RecapPage: React.FC = () => <KeyframeRecapView />;
 
 export const SettingsPage: React.FC = () => {
   const { seriesList, bookList, characterList } = useJournalData();
