@@ -10,7 +10,7 @@ import { buildFindArtItems, summarizeFindArt } from '../features/find-art/findAr
 
 // Each page loads on first visit, and `preloadPages` fetches the rest while the browser is idle
 const loaders = {
-  dashboard: () => import('../views/DashboardView'),
+  dashboard: () => import('../features/home/HomePage'),
   anime: () => import('../views/AnimeView'),
   franchise: () => import('../views/FranchiseDetailView'),
   books: () => import('../views/BookView'),
@@ -22,7 +22,7 @@ const loaders = {
   findArt: () => import('../features/find-art/FindArtPage'),
 };
 
-const DashboardView = lazy(() => loaders.dashboard().then((m) => ({ default: m.DashboardView })));
+const KeyframeHomeView = lazy(() => loaders.dashboard().then((m) => ({ default: m.HomePage })));
 const AnimeView = lazy(() => loaders.anime().then((m) => ({ default: m.AnimeView })));
 const FranchiseDetailView = lazy(() => loaders.franchise().then((m) => ({ default: m.FranchiseDetailView })));
 const BookView = lazy(() => loaders.books().then((m) => ({ default: m.BookView })));
@@ -52,37 +52,7 @@ const NotFound: React.FC<{ title: string; message: string; backLabel: string; on
   </div>
 );
 
-export const HomePage: React.FC = () => {
-  const { stats, seriesList, bookList, characterList, rewatchList } = useJournalData();
-  const actions = useJournalActions();
-  const navigate = useAppNavigate();
-  return (
-    <DashboardView
-      stats={stats}
-      seriesList={seriesList}
-      bookList={bookList}
-      characterList={characterList}
-      rewatchList={rewatchList}
-      onNavigate={(tab, id) => {
-        if (tab === 'anime' && id) navigate(`/anime/${id}`);
-        else if (tab === 'books' && id) navigate(`/books/${id}`);
-        else if (tab === 'characters' && id) navigate(`/characters/${id}`);
-        else if (tab === 'rewatches') navigate('/journal?kind=rewatch');
-        else if (tab === 'reflections') navigate('/journal');
-        else if (tab === 'dashboard' || tab === 'home') navigate('/');
-        else navigate(`/${tab}`);
-      }}
-      onSeasonProgressDelta={actions.handleSeasonProgressDelta}
-      onMovieProgressDelta={actions.handleMovieProgressDelta}
-      onProgressBook={actions.handleBookProgressDelta}
-      onEditSeason={(_, season) => actions.openEditSeasonModal(season)}
-      onEditMovie={(_, movie) => actions.openEditMovieModal(movie)}
-      onEditBook={actions.openEditBookModal}
-      onOpenLogModal={actions.openNewFranchiseModal}
-      onToast={actions.addToast}
-    />
-  );
-};
+export const HomePage: React.FC = () => <KeyframeHomeView />;
 
 export const AnimePage: React.FC = () => {
   const { seriesList } = useJournalData();
