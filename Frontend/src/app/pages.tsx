@@ -1,11 +1,8 @@
-import React, { lazy, useMemo, useState } from 'react';
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import React, { lazy } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
 import { LibraryTabs } from '../shell/LibraryTabs';
 import { useAppNavigate } from './useAppNavigate';
-import type { AppOutletContext } from './AppLayout';
-import { Download, ImagePlus, Upload } from 'lucide-react';
-import { buildFindArtItems, summarizeFindArt } from '../features/find-art/findArtQueue';
 
 // Each page loads on first visit, and `preloadPages` fetches the rest while the browser is idle
 const loaders = {
@@ -20,7 +17,7 @@ const loaders = {
   me: () => import('../features/me/MePage'),
   recap: () => import('../features/me/RecapPage'),
   rewatches: () => import('../views/RewatchesView'),
-  media: () => import('../views/MediaView'),
+  settings: () => import('../features/settings/SettingsPage'),
   findArt: () => import('../features/find-art/FindArtPage'),
 };
 
@@ -35,7 +32,7 @@ const CharacterDetailView = lazy(() => loaders.characterDetail().then((m) => ({ 
 const KeyframeMeView = lazy(() => loaders.me().then((m) => ({ default: m.MePage })));
 const KeyframeRecapView = lazy(() => loaders.recap().then((m) => ({ default: m.RecapPage })));
 const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
-const MediaView = lazy(() => loaders.media().then((m) => ({ default: m.MediaView })));
+const KeyframeSettingsView = lazy(() => loaders.settings().then((m) => ({ default: m.SettingsPage })));
 export const FindArtPage = lazy(() => loaders.findArt().then((m) => ({ default: m.FindArtPage })));
 
 export function preloadPages() {
@@ -147,200 +144,7 @@ export const MePage: React.FC = () => <KeyframeMeView />;
 
 export const RecapPage: React.FC = () => <KeyframeRecapView />;
 
-export const SettingsPage: React.FC = () => {
-  const { seriesList, bookList, characterList } = useJournalData();
-  const { addToast, requestConfirm } = useJournalActions();
-  const outlet = useOutletContext<AppOutletContext | undefined>();
-
-  const findArtSummary = useMemo(
-    () => summarizeFindArt(buildFindArtItems({ seriesList, bookList, characterList })),
-    [seriesList, bookList, characterList]
-  );
-
-  const [prefs, setPrefs] = useState(() => {
-    try {
-      const raw = localStorage.getItem('animelog_game_prefs_v1');
-      if (raw) return JSON.parse(raw) as { xp: boolean; streak: boolean; celebrations: boolean };
-    } catch {
-      // ignore
-    }
-    return { xp: true, streak: true, celebrations: true };
-  });
-
-  const togglePref = (key: 'xp' | 'streak' | 'celebrations') => {
-    setPrefs((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      localStorage.setItem('animelog_game_prefs_v1', JSON.stringify(next));
-      return next;
-    });
-  };
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-      <header style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontFamily: 'var(--kf-font-display)', fontStretch: '82%', fontSize: 'var(--kf-text-xl)', fontWeight: 800, color: 'var(--kf-text)' }}>
-            Settings
-          </h1>
-          <p style={{ color: 'var(--kf-text-2)', fontSize: 'var(--kf-text-sm)', marginTop: 4 }}>
-            Backup and import your journal, adjust progression features, and manage your media library.
-          </p>
-        </div>
-
-        {outlet?.onOpenExport && (
-          <button
-            type="button"
-            onClick={outlet.onOpenExport}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              minHeight: 40,
-              padding: '0 16px',
-              borderRadius: 'var(--kf-radius)',
-              background: 'var(--kf-brand)',
-              color: 'var(--kf-on-fill)',
-              border: 'none',
-              fontFamily: 'var(--kf-font-ui)',
-              fontSize: 'var(--kf-text-sm)',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={15} />
-            <Upload size={15} />
-            <span>Export & Import</span>
-          </button>
-        )}
-      </header>
-
-      <section
-        aria-label="Progression preferences"
-        style={{
-          background: 'var(--kf-panel)',
-          border: '1px solid var(--kf-line)',
-          borderRadius: 'var(--kf-radius-lg)',
-          padding: 20,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16,
-        }}
-      >
-        {[
-          { key: 'xp' as const, title: 'XP & Levels', desc: 'Earn XP from watching and writing notes' },
-          { key: 'streak' as const, title: 'Weekly Streak', desc: 'Track active days with 1 rest day per week' },
-          { key: 'celebrations' as const, title: 'Finale Celebrations', desc: 'Celebrate completing a season or book' },
-        ].map((item) => (
-          <label
-            key={item.key}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 12,
-              padding: 12,
-              background: 'var(--kf-bg)',
-              border: '1px solid var(--kf-line)',
-              borderRadius: 'var(--kf-radius)',
-              cursor: 'pointer',
-            }}
-          >
-            <div>
-              <strong style={{ display: 'block', fontSize: 14, color: 'var(--kf-text)' }}>{item.title}</strong>
-              <span style={{ fontSize: 12, color: 'var(--kf-text-2)' }}>{item.desc}</span>
-            </div>
-            <input
-              type="checkbox"
-              checked={prefs[item.key]}
-              onChange={() => togglePref(item.key)}
-              style={{ width: 18, height: 18, accentColor: 'var(--kf-brand)' }}
-            />
-          </label>
-        ))}
-      </section>
-
-      <section
-        aria-label="Find Art"
-        style={{
-          background: 'var(--kf-panel)',
-          border: '1px solid var(--kf-line-strong)',
-          borderRadius: 'var(--kf-radius-lg)',
-          padding: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, flex: '1 1 280px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ImagePlus size={18} color="var(--kf-brand)" />
-            <h2
-              style={{
-                margin: 0,
-                fontFamily: 'var(--kf-font-display)',
-                fontStretch: '82%',
-                fontSize: 'var(--kf-text-lg)',
-                fontWeight: 800,
-                color: 'var(--kf-text)',
-              }}
-            >
-              Find Art
-            </h2>
-            <span
-              style={{
-                padding: '2px 8px',
-                borderRadius: 'var(--kf-radius)',
-                background:
-                  findArtSummary.missing > 0
-                    ? 'color-mix(in srgb, var(--kf-brand) 16%, transparent)'
-                    : 'color-mix(in srgb, var(--kf-completed) 16%, transparent)',
-                color: findArtSummary.missing > 0 ? 'var(--kf-brand)' : 'var(--kf-completed)',
-                fontSize: 'var(--kf-text-xs)',
-                fontWeight: 700,
-              }}
-            >
-              {findArtSummary.missing > 0
-                ? `${findArtSummary.missing} missing`
-                : `All ${findArtSummary.total} saved`}
-            </span>
-          </div>
-          <p style={{ margin: 0, fontSize: 'var(--kf-text-sm)', color: 'var(--kf-text-2)' }}>
-            {findArtSummary.missing > 0
-              ? `${findArtSummary.missing} of ${findArtSummary.total} entries (anime, books, and characters) don’t have cover art yet. Review matches or upload local art one step at a time.`
-              : `All ${findArtSummary.total} entries already have cover art. You can still review matches or swap artwork anytime.`}
-          </p>
-        </div>
-
-        <Link
-          viewTransition
-          to="/settings/find-art"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 8,
-            minHeight: 44,
-            padding: '0 18px',
-            borderRadius: 'var(--kf-radius)',
-            background: 'var(--kf-brand)',
-            color: 'var(--kf-on-fill)',
-            textDecoration: 'none',
-            fontFamily: 'var(--kf-font-ui)',
-            fontSize: 'var(--kf-text-sm)',
-            fontWeight: 700,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>{findArtSummary.missing > 0 ? 'Open Find Art' : 'Review Cover Art'}</span>
-        </Link>
-      </section>
-
-      <MediaView onNotify={addToast} onRequestConfirm={requestConfirm} />
-    </div>
-  );
-};
+export const SettingsPage: React.FC = () => <KeyframeSettingsView />;
 
 export const PageNotFound: React.FC = () => {
   const navigate = useNavigate();
