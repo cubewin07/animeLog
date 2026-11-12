@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 11, Add title and Settings.** Phases 0 to 10 are done, and the Keyframe Journal (Read mode, Then vs Now), Me dashboard (activity heatmap, 20 achievements, analytics), and Yearly Recap story deck are live.
+**Next up: Phase 12, Final polish.** Phases 0 to 11 are done, and search-first Add Title plus Keyframe Settings & Media Library are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 11 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 12 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -30,8 +30,14 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 8 | Characters and Books | ✅ Done | `a2fbf30` | Collection feel |
 | 9 | Journal | ✅ Done | `c4269e3` | Rereading is enjoyable |
 | 10 | Me and Recap | ✅ Done | `0132c1b` | Reason to return |
-| 11 | Add title and Settings | 👉 **Next** | | Adding takes under 15 seconds |
-| 12 | Final polish | Not started | | Final sign-off |
+| 11 | Add title and Settings | ✅ Done | `df83715` | Adding takes under 15 seconds |
+| 12 | Final polish | 👉 **Next** | | Final sign-off |
+
+## Phase 11 checklist
+
+- [x] Search-first `AddTitleModal` and focused sub-forms (`Frontend/src/features/add-title/`) replacing `EntryModal`, with `"Or fill in manually"`, fast Status/Progress/Rating completion, and `"More details"` `<details>` disclosure
+- [x] Keyframe restyle of `QuickModals`, `EpisodeNoteModal`, and `ExportModal` with `NotePaper`, `--kf-*` tokens, `useDialog`, and zero GSAP
+- [x] Keyframe `SettingsPage` and `MediaPanel` (`Frontend/src/features/settings/`) with `animelog_game_prefs_v1` toggles, live Find Art card, Export & Import action, and media folder/asset manager
 
 ## Phase 10 checklist
 
