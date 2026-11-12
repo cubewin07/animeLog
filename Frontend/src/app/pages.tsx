@@ -13,10 +13,11 @@ const loaders = {
   dashboard: () => import('../features/home/HomePage'),
   anime: () => import('../features/library/AnimeLibraryPage'),
   franchise: () => import('../features/title/TitlePage'),
-  books: () => import('../views/BookView'),
-  book: () => import('../views/BookDetailView'),
+  books: () => import('../features/books/BooksLibraryPage'),
+  book: () => import('../features/books/BookDetailPage'),
   reflections: () => import('../views/ReflectionsView'),
-  characters: () => import('../views/CharactersView'),
+  characters: () => import('../features/characters/CharactersPage'),
+  characterDetail: () => import('../features/characters/CharacterDetailPage'),
   rewatches: () => import('../views/RewatchesView'),
   media: () => import('../views/MediaView'),
   findArt: () => import('../features/find-art/FindArtPage'),
@@ -25,10 +26,11 @@ const loaders = {
 const KeyframeHomeView = lazy(() => loaders.dashboard().then((m) => ({ default: m.HomePage })));
 const AnimeLibraryView = lazy(() => loaders.anime().then((m) => ({ default: m.AnimeLibraryPage })));
 const FranchiseDetailView = lazy(() => loaders.franchise().then((m) => ({ default: m.TitlePage })));
-const BookView = lazy(() => loaders.books().then((m) => ({ default: m.BookView })));
-const BookDetailView = lazy(() => loaders.book().then((m) => ({ default: m.BookDetailView })));
+const BookView = lazy(() => loaders.books().then((m) => ({ default: m.BooksLibraryPage })));
+const BookDetailView = lazy(() => loaders.book().then((m) => ({ default: m.BookDetailPage })));
 const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default: m.ReflectionsView })));
-const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m.CharactersView })));
+const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m.CharactersPage })));
+const CharacterDetailView = lazy(() => loaders.characterDetail().then((m) => ({ default: m.CharacterDetailPage })));
 const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
 const MediaView = lazy(() => loaders.media().then((m) => ({ default: m.MediaView })));
 export const FindArtPage = lazy(() => loaders.findArt().then((m) => ({ default: m.FindArtPage })));
@@ -110,75 +112,13 @@ export const FranchisePage: React.FC = () => {
   );
 };
 
-export const BooksPage: React.FC = () => {
-  const { bookList } = useJournalData();
-  const { searchQuery } = useJournalUI();
-  const a = useJournalActions();
-  const navigate = useAppNavigate();
-  return (
-    <>
-      <LibraryTabs />
-      <BookView
-        bookList={bookList}
-        searchQuery={searchQuery}
-        onOpenDetail={(id) => navigate(`/books/${id}`)}
-        onEdit={a.openEditBookModal}
-        onDelete={a.handleDeleteBook}
-        onProgressDelta={a.handleBookProgressDelta}
-        onOpenNewModal={a.openNewBookModal}
-      />
-    </>
-  );
-};
+export const BooksPage: React.FC = () => <BookView />;
 
-export const BookPage: React.FC = () => {
-  const { bookId } = useParams<{ bookId: string }>();
-  const { bookList } = useJournalData();
-  const a = useJournalActions();
-  const navigate = useAppNavigate();
-  const onBack = () => navigate('/books');
-  const book = bookList.find((b) => b.id === Number(bookId));
+export const BookPage: React.FC = () => <BookDetailView />;
 
-  if (!book) {
-    return (
-      <NotFound
-        title="Book not found"
-        message="This book isn’t in your journal."
-        backLabel="Back to Books"
-        onBack={onBack}
-      />
-    );
-  }
+export const CharactersPage: React.FC = () => <CharactersView />;
 
-  return (
-    <BookDetailView
-      book={book}
-      onBack={onBack}
-      onEdit={a.openEditBookModal}
-      onDelete={a.handleDeleteBook}
-      onProgressDelta={a.handleBookProgressDelta}
-    />
-  );
-};
-
-export const CharactersPage: React.FC = () => {
-  const { characterList } = useJournalData();
-  const { searchQuery } = useJournalUI();
-  const a = useJournalActions();
-  return (
-    <>
-      <LibraryTabs />
-      <CharactersView
-        characters={characterList}
-        searchQuery={searchQuery}
-        onEdit={a.openEditCharacterModal}
-        onDelete={a.handleDeleteCharacter}
-        onOpenAddModal={() => a.openAddCharacterModal()}
-        onRefresh={a.refreshAll}
-      />
-    </>
-  );
-};
+export const CharacterPage: React.FC = () => <CharacterDetailView />;
 
 export const JournalPage: React.FC = () => <ReflectionsView />;
 
