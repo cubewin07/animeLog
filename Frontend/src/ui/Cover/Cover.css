@@ -128,3 +128,10 @@
   box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .lamplight-cover,
+  .lamplight-cover-img {
+    transition: none;
+  }
+}
+

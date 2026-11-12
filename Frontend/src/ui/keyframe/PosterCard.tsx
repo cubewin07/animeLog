@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { PenLine } from 'lucide-react';
-import { clampAccent, dominantColor, titleAccent } from '../../lib/color/accent';
+import { useCoverAccent } from '../../lib/color/useCoverAccent';
 import { CoverArt } from './CoverArt';
 import { ScoreTag, StatusTag } from './StatusTag';
 import './PosterCard.css';
@@ -27,7 +27,7 @@ export const PosterCard: React.FC<PosterCardProps> = ({
   progress,
   latestNote,
 }) => {
-  const [accent, setAccent] = useState(() => titleAccent(title));
+  const { accent, onImageReady, onCorsBlocked } = useCoverAccent(title, imageUrl);
   const percent = progress?.total ? Math.min(100, (progress.current / progress.total) * 100) : 0;
 
   return (
@@ -37,10 +37,8 @@ export const PosterCard: React.FC<PosterCardProps> = ({
           title={title}
           imageUrl={imageUrl}
           accent={accent}
-          onImageReady={(image) => {
-            const color = dominantColor(image);
-            if (color) setAccent(clampAccent(color));
-          }}
+          onImageReady={onImageReady}
+          onCorsBlocked={onCorsBlocked}
         />
         <div className="kf-poster-score"><ScoreTag score={score} /></div>
         {!latestNote && (

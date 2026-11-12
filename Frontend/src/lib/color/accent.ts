@@ -1,5 +1,7 @@
 /** Turns any cover color into an accent that stays readable on Keyframe's dark surfaces. */
 
+import { getClothTone } from '../hash';
+
 type Rgb = [number, number, number];
 
 const toLinear = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -106,4 +108,12 @@ export function titleAccent(title: string): string {
   for (const char of title.trim().toLowerCase()) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   const hue = ((hash % 360) * Math.PI) / 180;
   return rgbToHex(oklchToRgb(0.8, 0.13, hue).rgb);
+}
+
+/**
+ * Derives a readable fallback accent from the title's bookbinder cloth tone (`getClothTone`),
+ * clamped so it always meets >= 4.5:1 contrast on Keyframe dark surfaces.
+ */
+export function titleFallbackAccent(title: string): string {
+  return clampAccent(getClothTone(title).accent);
 }
