@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 9, Journal.** Phases 0 to 8 are done, and Keyframe Characters (with tier upgrades & gallery) and Books are live.
+**Next up: Phase 11, Add title and Settings.** Phases 0 to 10 are done, and the Keyframe Journal (Read mode, Then vs Now), Me dashboard (activity heatmap, 20 achievements, analytics), and Yearly Recap story deck are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 9 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 11 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -28,10 +28,21 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 6 | Home and Quick Log | ✅ Done | `57e3fdc` | The main habit loop works |
 | 7 | Anime library and title page | ✅ Done | `a29217d` | Core browsing |
 | 8 | Characters and Books | ✅ Done | `a2fbf30` | Collection feel |
-| 9 | Journal | 👉 **Next** | | Rereading is enjoyable |
-| 10 | Me and Recap | Not started | | Reason to return |
-| 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
+| 9 | Journal | ✅ Done | `c4269e3` | Rereading is enjoyable |
+| 10 | Me and Recap | ✅ Done | `0132c1b` | Reason to return |
+| 11 | Add title and Settings | 👉 **Next** | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 10 checklist
+
+- [x] Keyframe `MePage` (`Frontend/src/features/me/`) with Level & XP bar, streak card with auto-forgiven rest-day guidance, GitHub-style activity calendar from `activityList`, all 20 achievements (unlocked + in-progress), analytics (episodes, hours, top genres, top studios, 1–10 rating spread, seasonal breakdown), Hall of Fame, and Top Characters
+- [x] Interactive swipeable `RecapPage` (`/me/recap/:year`) with 6 story slides, Arrow-key & touch-swipe controls, full-color vs calm sketch edition threshold, and downloadable Recap & Quote cards
+
+## Phase 9 checklist
+
+- [x] Keyframe `JournalPage` (`Frontend/src/features/journal/`) with monthly chronological timeline, artwork links alongside every entry on `NotePaper`, URL-synced kind filters & full-text search
+- [x] Single-note `<dialog>` `Read mode` with `ArrowLeft`/`ArrowRight` navigation and `Make card` (`downloadQuoteCard`)
+- [x] Dedicated `Then vs Now` timeline for the `Rewatch` filter comparing original vs rewatch notes & rating deltas
 
 ## Phase 8 checklist
 
