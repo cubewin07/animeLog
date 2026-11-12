@@ -49,7 +49,7 @@ import { ProgressQueue } from '../lib/journal/progressQueue';
 import { loadSnapshot, saveSnapshot } from './journalCache';
 import { getGamePrefs } from '../lib/progression';
 import { ToastMessage } from '../components/Toast';
-import type { EntryModalMode } from '../components/EntryModal';
+import type { EntryModalMode } from '../features/add-title/AddTitleModal';
 
 export interface QuickLogPrompt {
   kind: 'season' | 'movie' | 'book';

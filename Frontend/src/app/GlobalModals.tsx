@@ -2,7 +2,9 @@ import React, { lazy, Suspense, useState } from 'react';
 import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 
-const EntryModal = lazy(() => import('../components/EntryModal').then((m) => ({ default: m.EntryModal })));
+const AddTitleModal = lazy(() =>
+  import('../features/add-title/AddTitleModal').then((m) => ({ default: m.AddTitleModal }))
+);
 const EpisodeNoteModal = lazy(() =>
   import('../components/EpisodeNoteModal').then((m) => ({ default: m.EpisodeNoteModal }))
 );
@@ -35,7 +37,7 @@ export const GlobalModals: React.FC<{ exportOpen: boolean; onCloseExport: () => 
     <ErrorBoundary>
       <Suspense fallback={null}>
         {entryOpened && (
-          <EntryModal
+          <AddTitleModal
             isOpen={ui.entryModalOpen}
             onClose={() => a.setEntryModalOpen(false)}
             mode={ui.entryModalMode}

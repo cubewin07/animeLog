@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useDialog } from '../ui/Sheet/useDialog';
+import React, { useId, useRef, useState } from 'react';
+import { Film, Layers, Minus, PlayCircle, Plus, RotateCcw, Sparkles, Tv, X } from 'lucide-react';
 import {
   AnimeMovie,
   AnimeSeason,
@@ -8,16 +8,17 @@ import {
   Rewatch,
   RewatchTargetType,
 } from '../types';
-import { X, RotateCcw, Tv, Film, Layers, PlayCircle, Sparkles } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { EASING, prefersReducedMotion } from '../utils/animations';
+import { useDialog } from '../ui/Sheet/useDialog';
+import { KfButton, NotePaper } from '../ui/keyframe';
 import { ImageUploadField } from './ImageUploadField';
-import { CustomSelect } from './CustomSelect';
-import { CustomDatePicker } from './CustomDatePicker';
-import { CustomNumberInput } from './CustomNumberInput';
-import { CustomRatingInput } from './CustomRatingInput';
 import { SmartMetadataSearch } from './SmartMetadataSearch';
+import '../features/add-title/AddTitle.css';
+
+const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+function todayIso(): string {
+  return new Date().toISOString().split('T')[0];
+}
 
 interface RewatchModalProps {
   isOpen: boolean;
@@ -43,8 +44,9 @@ interface RewatchModalProps {
   ) => Promise<void>;
 }
 
-export const RewatchModal: React.FC<RewatchModalProps> = ({
-  isOpen,
+const RewatchModalInner: React.FC<
+  Omit<RewatchModalProps, 'isOpen'> & { titleId: string }
+> = ({
   onClose,
   targetSeries,
   targetSeason,
@@ -53,25 +55,8 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
   editRewatch,
   seriesList = [],
   onSave,
+  titleId,
 }) => {
-  const [targetType, setTargetType] = useState<RewatchTargetType>('season');
-  const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(null);
-  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(null);
-  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(null);
-  const [episodeNumber, setEpisodeNumber] = useState<number | ''>(1);
-  const [episodeTitle, setEpisodeTitle] = useState('');
-
-  const [rating, setRating] = useState<number | null>(10);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [finishDate, setFinishDate] = useState('');
-  const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const overlayRef = useRef<HTMLDivElement>(null);
-  useDialog(overlayRef, isOpen, onClose);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  // All seasons and movies flattened for quick lookups
   const allSeasons = seriesList.flatMap((s) =>
     (s.seasons || []).map((sea) => ({
       id: sea.id,
@@ -94,99 +79,73 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
     }))
   );
 
+  const initialType: RewatchTargetType = editRewatch
+    ? editRewatch.target_type || (editRewatch.movie ? 'movie' : 'season')
+    : targetEpisodeNumber && targetSeason
+    ? 'episode'
+    : targetMovie
+    ? 'movie'
+    : targetSeason
+    ? 'season'
+    : targetSeries
+    ? 'series'
+    : 'season';
+
+  const [targetType, setTargetType] = useState<RewatchTargetType>(initialType);
+  const [selectedSeriesId, setSelectedSeriesId] = useState<number | null>(() => {
+    if (editRewatch && initialType === 'series') return editRewatch.target_id;
+    if (targetSeries) return targetSeries.id;
+    return seriesList[0]?.id ?? null;
+  });
+  const [selectedSeasonId, setSelectedSeasonId] = useState<number | null>(() => {
+    if (editRewatch && (initialType === 'season' || initialType === 'episode')) {
+      return editRewatch.target_id;
+    }
+    if (targetSeason) return targetSeason.id;
+    return allSeasons[0]?.id ?? null;
+  });
+  const [selectedMovieId, setSelectedMovieId] = useState<number | null>(() => {
+    if (editRewatch && initialType === 'movie') return editRewatch.target_id;
+    if (targetMovie) return targetMovie.id;
+    return allMovies[0]?.id ?? null;
+  });
+  const [episodeNumber, setEpisodeNumber] = useState<number>(() => {
+    if (editRewatch) return editRewatch.episode_number || 1;
+    if (targetEpisodeNumber) return targetEpisodeNumber;
+    return 1;
+  });
+  const [episodeTitle, setEpisodeTitle] = useState(editRewatch?.episode_title || '');
+  const [rating, setRating] = useState<number | null>(
+    editRewatch ? editRewatch.rating || null : 10
+  );
+  const [startDate, setStartDate] = useState(editRewatch ? editRewatch.start_date || '' : todayIso());
+  const [finishDate, setFinishDate] = useState(editRewatch ? editRewatch.finish_date || '' : '');
+  const [notes, setNotes] = useState(editRewatch?.notes || '');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
   const activeSeason = allSeasons.find((s) => s.id === selectedSeasonId);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
+  const slateLabel = (() => {
     if (editRewatch) {
-      const tType = editRewatch.target_type || (editRewatch.movie ? 'movie' : 'season');
-      setTargetType(tType);
-
-      if (tType === 'series') {
-        setSelectedSeriesId(editRewatch.target_id);
-      } else if (tType === 'season' || tType === 'episode') {
-        setSelectedSeasonId(editRewatch.target_id);
-        setEpisodeNumber(editRewatch.episode_number || 1);
-        setEpisodeTitle(editRewatch.episode_title || '');
-      } else if (tType === 'movie') {
-        setSelectedMovieId(editRewatch.target_id);
-      }
-
-      setRating(editRewatch.rating || null);
-      setStartDate(editRewatch.start_date || '');
-      setFinishDate(editRewatch.finish_date || '');
-      setNotes(editRewatch.notes || '');
-    } else if (targetEpisodeNumber && targetSeason) {
-      setTargetType('episode');
-      setSelectedSeasonId(targetSeason.id);
-      setEpisodeNumber(targetEpisodeNumber);
-      setEpisodeTitle('');
-      setRating(10);
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setFinishDate('');
-      setNotes('');
-    } else if (targetMovie) {
-      setTargetType('movie');
-      setSelectedMovieId(targetMovie.id);
-      setRating(10);
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setFinishDate('');
-      setNotes('');
-    } else if (targetSeason) {
-      setTargetType('season');
-      setSelectedSeasonId(targetSeason.id);
-      setRating(10);
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setFinishDate('');
-      setNotes('');
-    } else if (targetSeries) {
-      setTargetType('series');
-      setSelectedSeriesId(targetSeries.id);
-      setRating(10);
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setFinishDate('');
-      setNotes('');
-    } else {
-      if (seriesList.length > 0) {
-        setSelectedSeriesId(seriesList[0].id);
-      }
-      if (allSeasons.length > 0) {
-        setSelectedSeasonId(allSeasons[0].id);
-      }
-      if (allMovies.length > 0) {
-        setSelectedMovieId(allMovies[0].id);
-      }
-      setEpisodeNumber(1);
-      setEpisodeTitle('');
-      setRating(10);
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setFinishDate('');
-      setNotes('');
+      return editRewatch.release_title || editRewatch.series_title || 'Rewatch';
     }
-  }, [isOpen, targetSeries, targetSeason, targetMovie, targetEpisodeNumber, editRewatch, seriesList]);
-
-  useGSAP(
-    () => {
-      if (!isOpen || prefersReducedMotion()) return;
-      if (overlayRef.current) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
-      }
-      if (modalRef.current) {
-        gsap.fromTo(
-          modalRef.current,
-          { opacity: 0, scale: 0.95, y: 12 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
-        );
-      }
-    },
-    { dependencies: [isOpen] }
-  );
-
-  if (!isOpen) return null;
+    if (targetType === 'series') {
+      return seriesList.find((s) => s.id === selectedSeriesId)?.title || 'Series';
+    }
+    if (targetType === 'movie') {
+      return allMovies.find((m) => m.id === selectedMovieId)?.title || 'Movie';
+    }
+    if (targetType === 'episode') {
+      return activeSeason ? `${activeSeason.seriesTitle} · Ep ${episodeNumber}` : `Ep ${episodeNumber}`;
+    }
+    return activeSeason ? `${activeSeason.seriesTitle} · S${activeSeason.seasonNumber}` : 'Season';
+  })();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
+
     let targetId: number | null = null;
     let epNum: number | null = null;
     let epTitle: string | null = null;
@@ -199,11 +158,14 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
       targetId = selectedMovieId;
     } else if (targetType === 'episode') {
       targetId = selectedSeasonId;
-      epNum = typeof episodeNumber === 'number' && episodeNumber > 0 ? episodeNumber : 1;
+      epNum = episodeNumber > 0 ? episodeNumber : 1;
       epTitle = episodeTitle.trim() || null;
     }
 
-    if (!targetId) return;
+    if (!targetId) {
+      setErrorMsg('Please select what you rewatched.');
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -221,334 +183,350 @@ export const RewatchModal: React.FC<RewatchModalProps> = ({
         editRewatch?.id
       );
       onClose();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save rewatch.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div ref={overlayRef} className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div ref={modalRef} className="modal-container" style={{ maxWidth: '540px' }} onClick={(e) => e.stopPropagation()}>
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-desk-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--desk-surface)',
-                color: 'var(--text-desk)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <RotateCcw size={18} />
-            </div>
-            <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>
-              {editRewatch ? 'Edit Rewatch' : 'Log Rewatch'}
-            </h3>
+    <>
+      <header className="kf-dialog-header">
+        <div className="kf-dialog-header-main">
+          <div className="kf-dialog-badge" aria-hidden="true">
+            <RotateCcw size={18} />
           </div>
-          <button className="btn-icon" onClick={onClose} aria-label="Close dialog">
-            <X size={16} />
-          </button>
+          <div className="kf-dialog-title-wrap">
+            <h2 id={titleId} className="kf-dialog-title">
+              {editRewatch ? 'Edit Rewatch' : 'Log Rewatch'}
+            </h2>
+            <p className="kf-dialog-subtitle">Record another pass and how your view evolved</p>
+          </div>
         </div>
+        <button type="button" className="kf-dialog-close" onClick={onClose} aria-label="Close dialog">
+          <X size={18} />
+        </button>
+      </header>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Target Type Selector */}
+      <form onSubmit={handleSubmit} className="kf-dialog-form">
+        <div className="kf-dialog-body">
+          {errorMsg && (
+            <div className="kf-form-error" role="alert">
+              {errorMsg}
+            </div>
+          )}
+
           {!editRewatch && !targetSeason && !targetMovie && (
-            <div>
-              <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 8, fontWeight: 600 }}>
-                What did you rewatch?
-              </label>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: 6,
-                  backgroundColor: 'var(--desk)',
-                  padding: 4,
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-desk-subtle)',
-                }}
-              >
+            <div className="kf-field">
+              <span className="kf-label">What did you rewatch?</span>
+              <div className="kf-segmented-4" role="group" aria-label="Rewatch target type">
                 <button
                   type="button"
+                  className={`kf-seg-btn ${targetType === 'series' ? 'is-active' : ''}`}
+                  aria-pressed={targetType === 'series'}
                   onClick={() => setTargetType('series')}
-                  className="btn btn-ghost"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '8px 4px',
-                    fontSize: 12,
-                    borderRadius: 4,
-                    backgroundColor: targetType === 'series' ? 'var(--card-bg)' : 'transparent',
-                    boxShadow: targetType === 'series' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    fontWeight: targetType === 'series' ? 600 : 400,
-                  }}
                 >
-                  <Layers size={15} />
+                  <Layers size={15} aria-hidden="true" />
                   <span>Series</span>
                 </button>
                 <button
                   type="button"
+                  className={`kf-seg-btn ${targetType === 'season' ? 'is-active' : ''}`}
+                  aria-pressed={targetType === 'season'}
                   onClick={() => setTargetType('season')}
-                  className="btn btn-ghost"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '8px 4px',
-                    fontSize: 12,
-                    borderRadius: 4,
-                    backgroundColor: targetType === 'season' ? 'var(--card-bg)' : 'transparent',
-                    boxShadow: targetType === 'season' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    fontWeight: targetType === 'season' ? 600 : 400,
-                  }}
                 >
-                  <Tv size={15} />
+                  <Tv size={15} aria-hidden="true" />
                   <span>Season</span>
                 </button>
                 <button
                   type="button"
+                  className={`kf-seg-btn ${targetType === 'movie' ? 'is-active' : ''}`}
+                  aria-pressed={targetType === 'movie'}
                   onClick={() => setTargetType('movie')}
-                  className="btn btn-ghost"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '8px 4px',
-                    fontSize: 12,
-                    borderRadius: 4,
-                    backgroundColor: targetType === 'movie' ? 'var(--card-bg)' : 'transparent',
-                    boxShadow: targetType === 'movie' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    fontWeight: targetType === 'movie' ? 600 : 400,
-                  }}
                 >
-                  <Film size={15} />
+                  <Film size={15} aria-hidden="true" />
                   <span>Movie</span>
                 </button>
                 <button
                   type="button"
+                  className={`kf-seg-btn ${targetType === 'episode' ? 'is-active' : ''}`}
+                  aria-pressed={targetType === 'episode'}
                   onClick={() => setTargetType('episode')}
-                  className="btn btn-ghost"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 4,
-                    padding: '8px 4px',
-                    fontSize: 12,
-                    borderRadius: 4,
-                    backgroundColor: targetType === 'episode' ? 'var(--card-bg)' : 'transparent',
-                    boxShadow: targetType === 'episode' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                    fontWeight: targetType === 'episode' ? 600 : 400,
-                  }}
                 >
-                  <PlayCircle size={15} />
+                  <PlayCircle size={15} aria-hidden="true" />
                   <span>Episode</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Unified Single Target Dropdown */}
           {!editRewatch && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <>
               {targetType === 'series' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select Series
+                <div className="kf-field">
+                  <label htmlFor={`${titleId}-series`} className="kf-label">
+                    Series
                   </label>
-                  <CustomSelect
-                    value={selectedSeriesId || ''}
-                    onChange={(val) => setSelectedSeriesId(Number(val))}
-                    options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
-                    placeholder="Select a series..."
-                    searchable
-                  />
+                  <select
+                    id={`${titleId}-series`}
+                    value={selectedSeriesId ?? ''}
+                    onChange={(e) => setSelectedSeriesId(Number(e.target.value))}
+                    className="kf-select"
+                  >
+                    {seriesList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.title}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 
-              {targetType === 'season' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select Season
+              {(targetType === 'season' || targetType === 'episode') && (
+                <div className="kf-field">
+                  <label htmlFor={`${titleId}-season`} className="kf-label">
+                    Season
                   </label>
-                  <CustomSelect
-                    value={selectedSeasonId || ''}
-                    onChange={(val) => setSelectedSeasonId(Number(val))}
-                    options={seriesList
-                      .filter((s) => (s.seasons?.length ?? 0) > 0)
-                      .map((s) => ({
-                        group: s.title,
-                        options: (s.seasons || []).map((sea) => ({
-                          value: sea.id,
-                          label: `Season ${sea.season_number}: ${sea.title}`,
-                        })),
-                      }))}
-                    placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select season...'}
+                  <select
+                    id={`${titleId}-season`}
+                    value={selectedSeasonId ?? ''}
+                    onChange={(e) => setSelectedSeasonId(Number(e.target.value))}
                     disabled={allSeasons.length === 0}
-                    searchable
-                  />
+                    className="kf-select"
+                  >
+                    {allSeasons.length === 0 ? (
+                      <option value="">No seasons available</option>
+                    ) : (
+                      seriesList
+                        .filter((s) => (s.seasons?.length ?? 0) > 0)
+                        .map((s) => (
+                          <optgroup key={s.id} label={s.title}>
+                            {(s.seasons || []).map((sea) => (
+                              <option key={sea.id} value={sea.id}>
+                                Season {sea.season_number}: {sea.title}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                    )}
+                  </select>
                 </div>
               )}
 
               {targetType === 'movie' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                    Select Movie
+                <div className="kf-field">
+                  <label htmlFor={`${titleId}-movie`} className="kf-label">
+                    Movie
                   </label>
-                  <CustomSelect
-                    value={selectedMovieId || ''}
-                    onChange={(val) => setSelectedMovieId(Number(val))}
-                    options={seriesList
-                      .filter((s) => (s.movies?.length ?? 0) > 0)
-                      .map((s) => ({
-                        group: s.title,
-                        options: (s.movies || []).map((m) => ({
-                          value: m.id,
-                          label: `Movie: ${m.title}`,
-                        })),
-                      }))}
-                    placeholder={allMovies.length === 0 ? 'No movies available' : 'Select movie...'}
+                  <select
+                    id={`${titleId}-movie`}
+                    value={selectedMovieId ?? ''}
+                    onChange={(e) => setSelectedMovieId(Number(e.target.value))}
                     disabled={allMovies.length === 0}
-                    searchable
-                  />
+                    className="kf-select"
+                  >
+                    {allMovies.length === 0 ? (
+                      <option value="">No movies available</option>
+                    ) : (
+                      seriesList
+                        .filter((s) => (s.movies?.length ?? 0) > 0)
+                        .map((s) => (
+                          <optgroup key={s.id} label={s.title}>
+                            {(s.movies || []).map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.title}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))
+                    )}
+                  </select>
                 </div>
               )}
 
               {targetType === 'episode' && (
-                <>
-                  <div>
-                    <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                      Select Season
-                    </label>
-                    <CustomSelect
-                      value={selectedSeasonId || ''}
-                      onChange={(val) => setSelectedSeasonId(Number(val))}
-                      options={seriesList
-                        .filter((s) => (s.seasons?.length ?? 0) > 0)
-                        .map((s) => ({
-                          group: s.title,
-                          options: (s.seasons || []).map((sea) => ({
-                            value: sea.id,
-                            label: `Season ${sea.season_number}: ${sea.title}`,
-                          })),
-                        }))}
-                      placeholder={allSeasons.length === 0 ? 'No seasons available' : 'Select season...'}
-                      disabled={allSeasons.length === 0}
-                      searchable
-                    />
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                        Episode #
-                      </label>
-                      <CustomNumberInput
-                        min={1}
-                        max={activeSeason?.totalEpisodes || undefined}
-                        value={episodeNumber}
-                        onChange={(val) => setEpisodeNumber(val === '' ? '' : Number(val))}
-                        placeholder="1"
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
-                        Episode Title (Optional)
-                      </label>
+                <div className="kf-grid-ep">
+                  <div className="kf-field">
+                    <span className="kf-label">Episode #</span>
+                    <div className="kf-stepper">
+                      <button
+                        type="button"
+                        className="kf-stepper-btn"
+                        onClick={() => setEpisodeNumber((n) => Math.max(1, n - 1))}
+                        disabled={episodeNumber <= 1}
+                        aria-label="Decrease episode number"
+                      >
+                        <Minus size={14} />
+                      </button>
                       <input
                         type="text"
-                        value={episodeTitle}
-                        onChange={(e) => setEpisodeTitle(e.target.value)}
-                        className="form-input"
-                        placeholder="e.g. Frieren vs Draht"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={episodeNumber}
+                        onChange={(e) => {
+                          const parsed = parseInt(e.target.value.trim(), 10);
+                          if (!isNaN(parsed) && parsed >= 1) {
+                            const max = activeSeason?.totalEpisodes ?? undefined;
+                            setEpisodeNumber(max ? Math.min(max, parsed) : parsed);
+                          }
+                        }}
+                        className="kf-stepper-input"
+                        aria-label="Episode number"
                       />
+                      <button
+                        type="button"
+                        className="kf-stepper-btn"
+                        onClick={() =>
+                          setEpisodeNumber((n) => {
+                            const max = activeSeason?.totalEpisodes ?? undefined;
+                            return max ? Math.min(max, n + 1) : n + 1;
+                          })
+                        }
+                        disabled={Boolean(
+                          activeSeason?.totalEpisodes && episodeNumber >= activeSeason.totalEpisodes
+                        )}
+                        aria-label="Increase episode number"
+                      >
+                        <Plus size={14} />
+                      </button>
                     </div>
                   </div>
-                </>
+
+                  <div className="kf-field">
+                    <label htmlFor={`${titleId}-ep-title`} className="kf-label">
+                      Episode title (optional)
+                    </label>
+                    <input
+                      id={`${titleId}-ep-title`}
+                      type="text"
+                      value={episodeTitle}
+                      onChange={(e) => setEpisodeTitle(e.target.value)}
+                      className="kf-input"
+                      placeholder="e.g. Frieren vs Draht"
+                    />
+                  </div>
+                </div>
               )}
-            </div>
+            </>
           )}
 
-          {/* Rewatch Note */}
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Rewatch Note
+          <div className="kf-field">
+            <label htmlFor={`${titleId}-note`} className="kf-label">
+              Rewatch note
             </label>
-            <textarea
-              rows={5}
-              placeholder="What new details did you notice on this rewatch? How did your thoughts change?"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="form-textarea"
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 16,
-                lineHeight: 1.6,
-                backgroundColor: 'var(--desk)',
-                borderColor: 'var(--border-desk-medium)',
-              }}
-            />
+            <NotePaper slate={[slateLabel, rating ? `${rating}/10` : ''].filter(Boolean)}>
+              <textarea
+                id={`${titleId}-note`}
+                rows={4}
+                placeholder="What new details did you notice on this rewatch? How did your thoughts change?"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="kf-paper-textarea"
+              />
+            </NotePaper>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
-                Start Date
+          <div className="kf-grid-2">
+            <div className="kf-field">
+              <label htmlFor={`${titleId}-start`} className="kf-label">
+                Start date
               </label>
-              <CustomDatePicker
+              <input
+                id={`${titleId}-start`}
+                type="date"
                 value={startDate}
-                onChange={(d) => setStartDate(d)}
-                placeholder="Start date..."
+                onChange={(e) => setStartDate(e.target.value)}
+                className="kf-input"
               />
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
-                Finish Date
+            <div className="kf-field">
+              <label htmlFor={`${titleId}-finish`} className="kf-label">
+                Finish date
               </label>
-              <CustomDatePicker
+              <input
+                id={`${titleId}-finish`}
+                type="date"
                 value={finishDate}
-                onChange={(d) => setFinishDate(d)}
-                placeholder="Finish date..."
+                onChange={(e) => setFinishDate(e.target.value)}
+                className="kf-input"
               />
             </div>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4 }}>
-              Rewatch Rating (1–10)
-            </label>
-            <CustomRatingInput
-              value={rating}
-              onChange={(val) => setRating(val)}
-              placeholder="–"
-            />
+          <div className="kf-field">
+            <div className="kf-label">
+              <span>Rewatch rating (1–10)</span>
+              {rating !== null && (
+                <span className={`kf-rate-readout ${rating >= 9 ? 'is-gold' : ''}`}>
+                  {rating}/10
+                </span>
+              )}
+            </div>
+            <div className="kf-rating-row" role="group" aria-label="Rewatch rating 1 to 10">
+              {RATINGS.map((n) => {
+                const active = rating === n;
+                const isGold = n >= 9;
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`kf-rate-pill ${active ? 'is-active' : ''} ${
+                      isGold ? 'is-gold' : ''
+                    }`}
+                    aria-pressed={active}
+                    aria-label={`Rate ${n} out of 10`}
+                    onClick={() => setRating(active ? null : n)}
+                  >
+                    {n}
+                  </button>
+                );
+              })}
+            </div>
           </div>
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+        <footer className="kf-dialog-footer">
+          <div className="kf-dialog-footer-actions">
+            <KfButton variant="quiet" onClick={onClose} disabled={submitting}>
               Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {editRewatch ? 'Update Rewatch' : 'Log Rewatch'}
-            </button>
+            </KfButton>
+            <KfButton type="submit" variant="primary" disabled={submitting}>
+              {submitting ? 'Saving…' : editRewatch ? 'Update Rewatch' : 'Log Rewatch'}
+            </KfButton>
           </div>
-        </form>
+        </footer>
+      </form>
+    </>
+  );
+};
+
+export const RewatchModal: React.FC<RewatchModalProps> = ({ isOpen, onClose, ...rest }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialog(panelRef, isOpen, onClose);
+
+  if (!isOpen) return null;
+
+  const instanceKey = `${rest.editRewatch?.id ?? 'new'}-${rest.targetSeries?.id ?? 's'}-${
+    rest.targetSeason?.id ?? 'sea'
+  }-${rest.targetMovie?.id ?? 'mov'}-${rest.targetEpisodeNumber ?? 'ep'}`;
+
+  return (
+    <div
+      className="kf-dialog-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="kf-dialog-panel is-compact"
+      >
+        <RewatchModalInner key={instanceKey} titleId={titleId} onClose={onClose} {...rest} />
       </div>
     </div>
   );
@@ -560,70 +538,53 @@ interface CharacterModalProps {
   seriesList: AnimeSeries[];
   preselectedSeries?: AnimeSeries | null;
   editCharacter?: FavoriteCharacter | null;
-  onSave: (data: { series: number; name: string; why?: string | null; cover_image?: number | null; images?: number[] }, characterId?: number) => Promise<void>;
+  onSave: (
+    data: {
+      series: number;
+      name: string;
+      why?: string | null;
+      cover_image?: number | null;
+      images?: number[];
+    },
+    characterId?: number
+  ) => Promise<void>;
 }
 
-export const CharacterModal: React.FC<CharacterModalProps> = ({
-  isOpen,
-  onClose,
-  seriesList,
-  preselectedSeries,
-  editCharacter,
-  onSave,
-}) => {
+const CharacterModalInner: React.FC<
+  Omit<CharacterModalProps, 'isOpen'> & { titleId: string }
+> = ({ onClose, seriesList, preselectedSeries, editCharacter, onSave, titleId }) => {
   const [seriesId, setSeriesId] = useState<number>(
     editCharacter ? editCharacter.series : preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1
   );
-  const [name, setName] = useState('');
-  const [why, setWhy] = useState('');
-  const [imageId, setImageId] = useState<number | null>(null);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [name, setName] = useState(editCharacter?.name ?? '');
+  const [why, setWhy] = useState(editCharacter?.why ?? '');
+  const [imageId, setImageId] = useState<number | null>(() => {
+    if (!editCharacter) return null;
+    return (
+      editCharacter.cover_image ??
+      (editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0].id : null)
+    );
+  });
+  const [imageUrl, setImageUrl] = useState<string | null>(() => {
+    if (!editCharacter) return null;
+    return (
+      editCharacter.cover_image_url ||
+      editCharacter.image_url ||
+      (editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0].url : null)
+    );
+  });
+  const [errorMsg, setErrorMsg] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
-  useDialog(overlayRef, isOpen, onClose);
-  const modalRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    if (editCharacter) {
-      setSeriesId(editCharacter.series);
-      setName(editCharacter.name);
-      setWhy(editCharacter.why || '');
-      const coverId = editCharacter.cover_image ?? (editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0].id : null);
-      const coverUrl = editCharacter.cover_image_url || editCharacter.image_url || (editCharacter.images && editCharacter.images.length > 0 ? (editCharacter.images[0] as any).image_url || (editCharacter.images[0] as any).url : null);
-      setImageId(coverId);
-      setImageUrl(coverUrl);
-    } else {
-      setSeriesId(preselectedSeries ? preselectedSeries.id : seriesList[0]?.id || 1);
-      setName('');
-      setWhy('');
-      setImageId(null);
-      setImageUrl(null);
-    }
-  }, [isOpen, preselectedSeries, seriesList, editCharacter]);
-
-  useGSAP(
-    () => {
-      if (!isOpen || prefersReducedMotion()) return;
-      if (overlayRef.current) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
-      }
-      if (modalRef.current) {
-        gsap.fromTo(
-          modalRef.current,
-          { opacity: 0, scale: 0.95, y: 12 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
-        );
-      }
-    },
-    { dependencies: [isOpen] }
-  );
-
-  if (!isOpen) return null;
+  const selectedSeriesTitle = seriesList.find((s) => s.id === seriesId)?.title ?? 'Series';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    setErrorMsg('');
+    if (!name.trim()) {
+      setErrorMsg('Character name is required.');
+      return;
+    }
     try {
       setSubmitting(true);
       await onSave(
@@ -637,48 +598,40 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
         editCharacter?.id
       );
       onClose();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save character.');
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <div ref={overlayRef} className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div ref={modalRef} className="modal-container" style={{ maxWidth: '520px' }} onClick={(e) => e.stopPropagation()}>
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-desk-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--desk-surface)',
-                color: 'var(--text-desk)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Sparkles size={18} />
-            </div>
-            <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>
-              {editCharacter ? `Edit: ${editCharacter.name}` : 'Add Character'}
-            </h3>
+    <>
+      <header className="kf-dialog-header">
+        <div className="kf-dialog-header-main">
+          <div className="kf-dialog-badge" aria-hidden="true">
+            <Sparkles size={18} />
           </div>
-          <button className="btn-icon" onClick={onClose} aria-label="Close dialog">
-            <X size={16} />
-          </button>
+          <div className="kf-dialog-title-wrap">
+            <h2 id={titleId} className="kf-dialog-title">
+              {editCharacter ? `Edit: ${editCharacter.name}` : 'Add Character'}
+            </h2>
+            <p className="kf-dialog-subtitle">Collect a character and remember why they mattered</p>
+          </div>
         </div>
+        <button type="button" className="kf-dialog-close" onClick={onClose} aria-label="Close dialog">
+          <X size={18} />
+        </button>
+      </header>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <form onSubmit={handleSubmit} className="kf-dialog-form">
+        <div className="kf-dialog-body">
+          {errorMsg && (
+            <div className="kf-form-error" role="alert">
+              {errorMsg}
+            </div>
+          )}
+
           {!editCharacter && (
             <SmartMetadataSearch
               type="character"
@@ -695,56 +648,59 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
             />
           )}
 
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
+          <div className="kf-field">
+            <label htmlFor={`${titleId}-series`} className="kf-label">
               Series
             </label>
-            <CustomSelect
+            <select
+              id={`${titleId}-series`}
               value={seriesId}
-              onChange={(val) => setSeriesId(Number(val))}
-              options={seriesList.map((s) => ({ value: s.id, label: s.title }))}
-              placeholder="Select series..."
-              searchable
-            />
+              onChange={(e) => setSeriesId(Number(e.target.value))}
+              className="kf-select"
+            >
+              {seriesList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Character Name <span style={{ color: 'var(--danger)' }}>*</span>
+          <div className="kf-field">
+            <label htmlFor={`${titleId}-name`} className="kf-label">
+              <span>
+                Character name <span className="kf-req">*</span>
+              </span>
             </label>
             <input
+              id={`${titleId}-name`}
               type="text"
               required
               placeholder="e.g. Himmel, Erwin Smith, Kurisu Makise..."
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="form-input"
+              className="kf-input"
             />
           </div>
 
-          {/* Character Note (Prominent, 16px font) */}
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Character Note
+          <div className="kf-field">
+            <label htmlFor={`${titleId}-why`} className="kf-label">
+              Character note
             </label>
-            <textarea
-              rows={6}
-              placeholder="What moments or choices made this character memorable to you?"
-              value={why}
-              onChange={(e) => setWhy(e.target.value)}
-              className="form-textarea"
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 16,
-                lineHeight: 1.6,
-                backgroundColor: 'var(--desk)',
-                borderColor: 'var(--border-desk-medium)',
-              }}
-            />
+            <NotePaper slate={[selectedSeriesTitle, name.trim() || 'Character'].filter(Boolean)}>
+              <textarea
+                id={`${titleId}-why`}
+                rows={5}
+                placeholder="What moments or choices made this character memorable to you?"
+                value={why}
+                onChange={(e) => setWhy(e.target.value)}
+                className="kf-paper-textarea"
+              />
+            </NotePaper>
           </div>
 
           <ImageUploadField
-            label="Character Portrait / Avatar"
+            label="Character portrait"
             imageId={imageId}
             imageUrl={imageUrl}
             onChange={(id, url) => {
@@ -752,16 +708,47 @@ export const CharacterModal: React.FC<CharacterModalProps> = ({
               setImageUrl(url);
             }}
           />
+        </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 8 }}>
-            <button type="button" className="btn btn-ghost" onClick={onClose}>
+        <footer className="kf-dialog-footer">
+          <div className="kf-dialog-footer-actions">
+            <KfButton variant="quiet" onClick={onClose} disabled={submitting}>
               Cancel
-            </button>
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {editCharacter ? 'Save Changes' : 'Save Character'}
-            </button>
+            </KfButton>
+            <KfButton type="submit" variant="primary" disabled={submitting}>
+              {submitting ? 'Saving…' : editCharacter ? 'Save Changes' : 'Save Character'}
+            </KfButton>
           </div>
-        </form>
+        </footer>
+      </form>
+    </>
+  );
+};
+
+export const CharacterModal: React.FC<CharacterModalProps> = ({ isOpen, onClose, ...rest }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialog(panelRef, isOpen, onClose);
+
+  if (!isOpen) return null;
+
+  const instanceKey = `${rest.editCharacter?.id ?? 'new'}-${rest.preselectedSeries?.id ?? 'none'}`;
+
+  return (
+    <div
+      className="kf-dialog-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="kf-dialog-panel is-compact"
+      >
+        <CharacterModalInner key={instanceKey} titleId={titleId} onClose={onClose} {...rest} />
       </div>
     </div>
   );
