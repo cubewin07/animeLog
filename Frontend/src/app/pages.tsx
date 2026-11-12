@@ -15,7 +15,7 @@ const loaders = {
   franchise: () => import('../features/title/TitlePage'),
   books: () => import('../features/books/BooksLibraryPage'),
   book: () => import('../features/books/BookDetailPage'),
-  reflections: () => import('../views/ReflectionsView'),
+  reflections: () => import('../features/journal/JournalPage'),
   characters: () => import('../features/characters/CharactersPage'),
   characterDetail: () => import('../features/characters/CharacterDetailPage'),
   rewatches: () => import('../views/RewatchesView'),
@@ -28,7 +28,7 @@ const AnimeLibraryView = lazy(() => loaders.anime().then((m) => ({ default: m.An
 const FranchiseDetailView = lazy(() => loaders.franchise().then((m) => ({ default: m.TitlePage })));
 const BookView = lazy(() => loaders.books().then((m) => ({ default: m.BooksLibraryPage })));
 const BookDetailView = lazy(() => loaders.book().then((m) => ({ default: m.BookDetailPage })));
-const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default: m.ReflectionsView })));
+const ReflectionsView = lazy(() => loaders.reflections().then((m) => ({ default: m.JournalPage })));
 const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m.CharactersPage })));
 const CharacterDetailView = lazy(() => loaders.characterDetail().then((m) => ({ default: m.CharacterDetailPage })));
 const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
