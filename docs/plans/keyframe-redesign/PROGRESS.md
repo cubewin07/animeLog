@@ -1,10 +1,10 @@
 # Keyframe Redesign Progress
 
-Last updated: 2026-11-08. Full plan: [README.md](./README.md).
+Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 4, Find Art.** Phases 0, 1, 2 and 3 are done, and the Keyframe shell and navigation are live.
+**Next up: Phase 5, Activity and progression.** Phases 0 to 4 are done, and the Find Art guided screen, Cloudinary thumbnail pipeline, and per-title cover accent caching are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -12,8 +12,8 @@ Last updated: 2026-11-08. Full plan: [README.md](./README.md).
    cd Backend && .venv/bin/python manage.py runserver
    cd Frontend && npm run dev
    ```
-3. Open http://localhost:5173 for the app, or http://localhost:5173/__style for the approved design.
-4. Work through Phase 4 in [README.md](./README.md), then update this file in the same commit as the work.
+3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
+4. Work through Phase 5 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -22,9 +22,9 @@ Last updated: 2026-11-08. Full plan: [README.md](./README.md).
 | 0 | Safety and baseline | ✅ Done | `49e4bee` | Notes can no longer be overwritten |
 | 1 | Keyframe foundation | ✅ Done, look approved | `ba647be` | `/__style` |
 | 2 | Smooth engine | ✅ Done | `8c3a901` | +1 feels instant |
-| 3 | Shell and navigation | ✅ Done | | You can find everything easily |
-| 4 | Find Art | 👉 **Next** | | The app starts to look like yours |
-| 5 | Activity and progression | Not started | | Numbers look right against your data |
+| 3 | Shell and navigation | ✅ Done | `fa06d84` | You can find everything easily |
+| 4 | Find Art | ✅ Done | `85fd848` | The app starts to look like yours |
+| 5 | Activity and progression | 👉 **Next** | | Numbers look right against your data |
 | 6 | Home and Quick Log | Not started | | The main habit loop works |
 | 7 | Anime library and title page | Not started | | Core browsing |
 | 8 | Characters and Books | Not started | | Collection feel |
@@ -32,6 +32,15 @@ Last updated: 2026-11-08. Full plan: [README.md](./README.md).
 | 10 | Me and Recap | Not started | | Reason to return |
 | 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 4 checklist
+
+- [x] Cloudinary thumbnail URL helper (`Frontend/src/lib/images/cloudinary.ts`) with `thumb` (160px), `card` (420px), and `hero` (900px) presets
+- [x] Per-image cover accent cache (`Frontend/src/lib/color/accentCache.ts`, `useCoverAccent.ts`) backed by `localStorage` (`animelog_cover_accent_v1`), falling back to `getClothTone` hash (`titleFallbackAccent`) when CORS blocks pixel access
+- [x] Upgrade `Cover` and `CoverArt` with sized Cloudinary thumbnails, fade-in loading respecting `prefers-reduced-motion`, clean URL-change state reset, `fetchPriority`, and CORS retry
+- [x] Wire sized covers and per-title accents into `PosterCard`, `FranchiseDetailView`, `BookDetailView`, `DashboardView`, `AnimeView`, `BookView`, and `CharacterCard`
+- [x] Guided Find Art screen (`/settings/find-art`) for all series, seasons, movies, books, and characters with 1.1s rate-limited lookups, manual query search, local upload fallback, and explicit match confirmation
+- [x] Surface Find Art in Settings (`/settings`) with live missing-art count and in the Command Palette (`⌘K`)
 
 ## Phase 3 checklist
 
@@ -85,9 +94,8 @@ Test flows that write data against a copy of the database, never the real `Backe
 
 ## Not yet tested
 
-- **Real cover art.** The art service (Jikan) was unreachable from the environment used for Phases 0 and 1, so layouts were checked with synthetic images and generated covers. `/__style` tries real art when the service is reachable.
-- **Reading colors from real covers.** If an image host blocks it, the title uses a fixed color based on its name. Test this first in Phase 4.
-- **Importing art** needs working Cloudinary credentials in `Backend/.env`.
+- **Live external art lookup & Cloudinary upload.** Jikan and Cloudinary were unreachable from this sandboxed environment, so the Find Art runner, offline auto-pause banner, rate-limit spacing, Confirm & Save flow, and CORS-enabled / CORS-blocked cover accent extraction were verified in Playwright against mocked network responses and a temporary copy of `db.sqlite3`. Run `/settings/find-art` locally with internet access to populate real artwork for your 27 entries.
+- **Note on PR #5 body:** The GitHub PR description still reflects Phases 0–2 and should be refreshed when ready.
 
 ## Decisions
 
