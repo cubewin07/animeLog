@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom';
 import { AppLayout } from './AppLayout';
 import {
@@ -41,18 +40,5 @@ const routes: RouteObject[] = [
     ],
   },
 ];
-
-// Dev-only preview of the Keyframe design. Excluded from production builds.
-if (import.meta.env.DEV) {
-  const StyleGuidePage = lazy(() => import('../features/style-guide/StyleGuidePage'));
-  routes.unshift({
-    path: '/__style',
-    element: (
-      <Suspense fallback={null}>
-        <StyleGuidePage />
-      </Suspense>
-    ),
-  });
-}
 
 export const router = createBrowserRouter(routes);

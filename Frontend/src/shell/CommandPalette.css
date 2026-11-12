@@ -8,6 +8,7 @@
   align-items: flex-start;
   justify-content: center;
   padding: clamp(48px, 10vh, 108px) var(--kf-4) var(--kf-4);
+  overscroll-behavior: contain;
   animation: fadeIn var(--kf-fast) var(--kf-ease);
 }
 
@@ -63,6 +64,7 @@
 .lamplight-palette-results {
   max-height: 420px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--kf-2) 0;
 }
 
@@ -137,7 +139,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--kf-2);
-  height: 36px;
+  min-height: 44px;
   padding: 0 var(--kf-4);
   background: var(--kf-brand);
   color: var(--kf-on-fill);

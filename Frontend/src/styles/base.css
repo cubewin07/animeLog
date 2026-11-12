@@ -1,5 +1,5 @@
 /**
- * Lamplight Design System — Base resets, typography, and focus states
+ * Keyframe Design System — Base resets, typography, focus states, and shared primitives
  */
 
 *, *::before, *::after {
@@ -13,14 +13,16 @@ html {
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   tab-size: 4;
+  color-scheme: dark;
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 15px;
+  background-color: var(--kf-bg);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-md);
   line-height: 1.5;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
@@ -28,13 +30,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Accessible interactive focus ring */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--kf-font-display);
+  letter-spacing: -0.01em;
+  color: var(--kf-text);
+}
+
+/* Crisp accessible focus ring */
 :focus-visible {
-  outline: 2px solid var(--lamp);
+  outline: 2px solid var(--kf-text);
   outline-offset: 2px;
 }
 
-/* Custom quiet scrollbars */
+/* Quiet scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -45,31 +53,55 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--line-strong);
-  border-radius: var(--r-pill);
+  background: var(--kf-line-strong);
+  border-radius: var(--kf-radius-pill);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-3);
+  background: var(--kf-text-2);
 }
 
 /* Skip to content link */
 .skip-link {
   position: absolute;
   top: -100px;
-  left: var(--s-4);
-  background: var(--lamp);
-  color: var(--text-inverse);
-  padding: var(--s-2) var(--s-4);
-  border-radius: var(--r-sm);
-  font-weight: 600;
+  left: var(--kf-4);
+  background: var(--kf-brand);
+  color: var(--kf-on-fill);
+  padding: var(--kf-2) var(--kf-4);
+  border-radius: var(--kf-radius);
+  font-family: var(--kf-font-ui);
+  font-weight: 700;
+  font-size: var(--kf-text-sm);
   z-index: 9999;
-  transition: top var(--dur-fast) var(--ease-smooth);
+  transition: top var(--kf-fast) var(--kf-ease);
   text-decoration: none;
 }
 
 .skip-link:focus {
-  top: var(--s-4);
+  top: var(--kf-4);
+}
+
+/* Shared animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin,
+.animate-spin,
+.kf-spin {
+  animation: spin 1s linear infinite;
 }
 
 /* Reduced motion preference */
@@ -82,43 +114,94 @@ body {
   }
 }
 
-/* Modals & Dialogs Enhancement */
+/* Modals & Dialogs */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 8, 7, 0.78) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
+  background: rgba(8, 10, 15, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: 20px;
+  padding: var(--kf-4);
+  overscroll-behavior: contain;
+  animation: fadeIn var(--kf-fast) var(--kf-ease);
 }
 
 .modal-container {
-  background-color: var(--surface) !important;
-  border: 1px solid var(--line) !important;
-  border-radius: var(--r-xl) !important;
-  box-shadow: var(--shadow-xl) !important;
-  color: var(--text);
-  max-height: 90vh;
+  background-color: var(--kf-panel);
+  border: 1px solid var(--kf-line-strong);
+  border-radius: var(--kf-radius-lg);
+  box-shadow: var(--kf-shadow-lg);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  max-height: 90dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 @media (max-width: 640px) {
   .modal-overlay {
-    padding: 0 !important;
-    align-items: flex-end !important;
+    padding: 0;
+    align-items: flex-end;
   }
+
   .modal-container {
-    max-height: 92vh !important;
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-bottom: none !important;
-    width: 100% !important;
+    max-height: 92dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    width: 100%;
   }
 }
 
+/* Minimal shared fallbacks for route NotFound wrapper */
+.desk-card {
+  background-color: var(--kf-panel);
+  border: 1px solid var(--kf-line);
+  border-radius: var(--kf-radius-lg);
+  color: var(--kf-text);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kf-2);
+  min-height: 44px;
+  padding: 0 var(--kf-4);
+  border-radius: var(--kf-radius);
+  border: 1px solid transparent;
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--kf-fast) var(--kf-ease),
+    border-color var(--kf-fast) var(--kf-ease),
+    color var(--kf-fast) var(--kf-ease);
+}
+
+.btn-primary {
+  background-color: var(--kf-brand);
+  color: var(--kf-on-fill);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--kf-brand-hover);
+}
+
+.btn-secondary {
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+  border-color: var(--kf-line-strong);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--kf-text-2);
+}

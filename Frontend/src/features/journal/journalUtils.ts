@@ -11,7 +11,90 @@ import type {
 import type { JournalReflection, ReflectionKind } from '../../state/useReflections';
 import { formatDate } from '../../lib/format';
 import { getCharacterCoverUrl } from '../characters/characterUtils';
-import { compareRewatchesNewestFirst, passNumbers, targetType } from '../../views/rewatchSpine';
+
+function targetType(r: Rewatch): RewatchTargetType {
+  if (r.target_type) return r.target_type;
+  if (r.movie) return 'movie';
+  return 'season';
+}
+
+function targetKey(r: Rewatch): string {
+  const type = targetType(r);
+  if (type === 'series') {
+    const id = r.series_id ?? r.target_id;
+    return `series:${id}`;
+  }
+  if (type === 'season') {
+    const id = r.season_id ?? (r.target_type === 'season' ? r.target_id : r.season ?? r.target_id);
+    return `season:${id}`;
+  }
+  if (type === 'movie') {
+    const id = r.movie_id ?? (r.target_type === 'movie' ? r.target_id : r.movie ?? r.target_id);
+    return `movie:${id}`;
+  }
+  if (type === 'episode') {
+    const sId = r.season_id ?? r.target_id;
+    const epNum = r.episode_number ?? '';
+    return `episode:${sId}:${epNum}`;
+  }
+  return `target:${r.target_id}`;
+}
+
+function sortKey(r: Rewatch): string | null {
+  return r.finish_date || r.start_date || null;
+}
+
+function compareRewatchesNewestFirst(a: Rewatch, b: Rewatch): number {
+  const dateA = sortKey(a);
+  const dateB = sortKey(b);
+
+  if (dateA && dateB) {
+    if (dateA !== dateB) {
+      return dateB.localeCompare(dateA);
+    }
+    return b.id - a.id;
+  }
+  if (dateA && !dateB) return -1;
+  if (!dateA && dateB) return 1;
+
+  return b.id - a.id;
+}
+
+function passNumbers(allRewatches: Rewatch[]): Map<number, number> {
+  const map = new Map<number, number>();
+  const groups = new Map<string, Rewatch[]>();
+
+  for (const r of allRewatches) {
+    const key = targetKey(r);
+    const list = groups.get(key) || [];
+    list.push(r);
+    groups.set(key, list);
+  }
+
+  groups.forEach((items) => {
+    const sorted = [...items].sort((a, b) => {
+      const dateA = sortKey(a);
+      const dateB = sortKey(b);
+
+      if (dateA && dateB) {
+        if (dateA !== dateB) {
+          return dateA.localeCompare(dateB);
+        }
+        return a.id - b.id;
+      }
+      if (dateA && !dateB) return -1;
+      if (!dateA && dateB) return 1;
+
+      return a.id - b.id;
+    });
+
+    sorted.forEach((r, idx) => {
+      map.set(r.id, idx + 1);
+    });
+  });
+
+  return map;
+}
 
 export type NormalizedReflectionKind =
   | 'episode'

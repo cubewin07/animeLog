@@ -2,15 +2,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono);
+  font-family: var(--kf-font-mono);
   font-size: 11px;
   line-height: 1;
-  padding: 2px 5px;
-  background-color: var(--surface-raised);
-  border: 1px solid var(--line-strong);
-  color: var(--text-3);
-  border-radius: var(--r-sm);
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  padding: 3px 6px;
+  background-color: var(--kf-raised);
+  border: 1px solid var(--kf-line-strong);
+  color: var(--kf-text-2);
+  border-radius: var(--kf-radius);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
   user-select: none;
 }
-

@@ -1,6 +1,6 @@
 import React, { lazy } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
+import { useJournalActions, useJournalData } from '../state/JournalContext';
 import { LibraryTabs } from '../shell/LibraryTabs';
 import { useAppNavigate } from './useAppNavigate';
 
@@ -16,7 +16,6 @@ const loaders = {
   characterDetail: () => import('../features/characters/CharacterDetailPage'),
   me: () => import('../features/me/MePage'),
   recap: () => import('../features/me/RecapPage'),
-  rewatches: () => import('../views/RewatchesView'),
   settings: () => import('../features/settings/SettingsPage'),
   findArt: () => import('../features/find-art/FindArtPage'),
 };
@@ -31,7 +30,6 @@ const CharactersView = lazy(() => loaders.characters().then((m) => ({ default: m
 const CharacterDetailView = lazy(() => loaders.characterDetail().then((m) => ({ default: m.CharacterDetailPage })));
 const KeyframeMeView = lazy(() => loaders.me().then((m) => ({ default: m.MePage })));
 const KeyframeRecapView = lazy(() => loaders.recap().then((m) => ({ default: m.RecapPage })));
-const RewatchesView = lazy(() => loaders.rewatches().then((m) => ({ default: m.RewatchesView })));
 const KeyframeSettingsView = lazy(() => loaders.settings().then((m) => ({ default: m.SettingsPage })));
 export const FindArtPage = lazy(() => loaders.findArt().then((m) => ({ default: m.FindArtPage })));
 
@@ -121,24 +119,6 @@ export const CharactersPage: React.FC = () => <CharactersView />;
 export const CharacterPage: React.FC = () => <CharacterDetailView />;
 
 export const JournalPage: React.FC = () => <ReflectionsView />;
-
-export const RewatchesPage: React.FC = () => {
-  const { rewatchList, seriesList } = useJournalData();
-  const { searchQuery } = useJournalUI();
-  const a = useJournalActions();
-  const navigate = useAppNavigate();
-  return (
-    <RewatchesView
-      rewatches={rewatchList}
-      seriesList={seriesList}
-      searchQuery={searchQuery}
-      onEdit={a.openEditRewatchModal}
-      onDelete={a.handleDeleteRewatch}
-      onOpenRewatchModal={a.openAddRewatch}
-      onNavigateSeries={(id) => navigate(`/anime/${id}`)}
-    />
-  );
-};
 
 export const MePage: React.FC = () => <KeyframeMeView />;
 

@@ -6,6 +6,7 @@ import { ToastContainer } from '../components/Toast';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Skeleton } from '../ui';
+import { KfButton } from '../ui/keyframe';
 import { GlobalModals } from './GlobalModals';
 import { QuickLogBar } from '../features/quick-log/QuickLogBar';
 import { FinaleCelebration } from '../features/quick-log/FinaleCelebration';
@@ -30,9 +31,9 @@ const LoadFailed: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
     <p style={{ marginBottom: 16, color: 'var(--kf-text-2)' }}>
       The server didn’t respond. Check that Django is running, then try again.
     </p>
-    <button type="button" className="btn btn-primary" onClick={onRetry}>
+    <KfButton variant="primary" onClick={onRetry}>
       Try again
-    </button>
+    </KfButton>
   </div>
 );
 

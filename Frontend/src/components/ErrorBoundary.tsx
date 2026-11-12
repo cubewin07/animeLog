@@ -1,4 +1,5 @@
 import React from 'react';
+import { KfButton } from '../ui/keyframe';
 
 interface ErrorBoundaryState {
   error: Error | null;
@@ -19,12 +20,24 @@ export class ErrorBoundary extends React.Component<{ children: React.ReactNode }
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <div role="alert" style={{ padding: 40, textAlign: 'center' }}>
-        <h2 style={{ marginBottom: 8 }}>Something went wrong on this screen</h2>
-        <p style={{ marginBottom: 16, color: 'var(--text-2)' }}>Your journal is safe. Reload to continue.</p>
-        <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+      <div
+        role="alert"
+        style={{
+          padding: 'var(--kf-7) var(--kf-4)',
+          textAlign: 'center',
+          fontFamily: 'var(--kf-font-ui)',
+          color: 'var(--kf-text)',
+        }}
+      >
+        <h2 style={{ marginBottom: 'var(--kf-2)', color: 'var(--kf-text)' }}>
+          Something went wrong on this screen
+        </h2>
+        <p style={{ marginBottom: 'var(--kf-4)', color: 'var(--kf-text-2)' }}>
+          Your journal is safe. Reload to continue.
+        </p>
+        <KfButton variant="primary" onClick={() => window.location.reload()}>
           Reload
-        </button>
+        </KfButton>
       </div>
     );
   }

@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-import { useDialog } from '../ui/Sheet/useDialog';
 import { AlertTriangle, X } from 'lucide-react';
+import { KfButton } from '../ui/keyframe';
+import { useDialog } from '../ui/Sheet/useDialog';
+import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,8 +26,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onCancel,
 }) => {
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
-
   const overlayRef = useRef<HTMLDivElement>(null);
+
   useDialog(overlayRef, isOpen, onCancel);
 
   // Start on the safe choice
@@ -45,99 +47,49 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       aria-labelledby="confirm-dialog-title"
     >
       <div
-        className="modal-container"
+        className="modal-container kf-confirm-panel"
         onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: 440,
-          padding: 24,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16,
-        }}
       >
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <div className="kf-confirm-head">
           {isDestructive && (
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--danger-dim)',
-                color: 'var(--danger)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
+            <div className="kf-confirm-icon" aria-hidden="true">
               <AlertTriangle size={20} />
             </div>
           )}
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <h3
-              id="confirm-dialog-title"
-              style={{
-                fontSize: 18,
-                color: 'var(--text-desk)',
-                fontWeight: 600,
-                marginBottom: 6,
-              }}
-            >
+          <div className="kf-confirm-copy">
+            <h3 id="confirm-dialog-title" className="kf-confirm-title">
               {title}
             </h3>
-            <p
-              style={{
-                fontSize: 14,
-                color: 'var(--text-desk-muted)',
-                lineHeight: 1.5,
-              }}
-            >
-              {message}
-            </p>
+            <p className="kf-confirm-message">{message}</p>
           </div>
 
           <button
+            type="button"
             onClick={onCancel}
             aria-label="Close dialog"
-            className="btn-icon"
-            style={{
-              border: 'none',
-              padding: 4,
-            }}
+            className="kf-confirm-close"
           >
             <X size={16} />
           </button>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'flex-end',
-            gap: 10,
-            paddingTop: 8,
-          }}
-        >
+        <div className="kf-confirm-actions">
           <button
             ref={cancelBtnRef}
+            type="button"
             onClick={onCancel}
-            className="btn btn-secondary"
-            style={{ padding: '7px 16px', fontSize: 14 }}
+            className="kf-btn is-secondary is-md"
           >
             {cancelLabel}
           </button>
 
-          <button
+          <KfButton
+            variant={isDestructive ? 'danger' : 'primary'}
             onClick={onConfirm}
-            className={isDestructive ? 'btn btn-danger' : 'btn btn-primary'}
-            style={{
-              padding: '7px 16px',
-              fontSize: 14,
-            }}
           >
             {confirmLabel}
-          </button>
+          </KfButton>
         </div>
       </div>
     </div>

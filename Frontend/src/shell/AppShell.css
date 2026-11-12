@@ -103,7 +103,7 @@
 }
 
 .kf-quicklog-step-btn {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 var(--kf-3);
   border-radius: var(--kf-radius);
   background: var(--kf-brand);
@@ -120,7 +120,7 @@
 }
 
 .kf-quicklog-note-btn {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 var(--kf-3);
   border-radius: var(--kf-radius);
   background: var(--kf-raised);

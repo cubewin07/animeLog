@@ -1,0 +1,111 @@
+.kf-toast-stack {
+  position: fixed;
+  bottom: var(--kf-5);
+  right: var(--kf-5);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.kf-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--kf-3);
+  padding: var(--kf-3) var(--kf-4);
+  min-width: 280px;
+  max-width: 420px;
+  background-color: var(--kf-raised);
+  border: 1px solid var(--kf-line-strong);
+  border-left: 4px solid var(--kf-line-strong);
+  border-radius: var(--kf-radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  animation: kf-toast-in var(--kf-base) var(--kf-ease) both;
+  transition: opacity 150ms var(--kf-ease), transform 150ms var(--kf-ease);
+}
+
+.kf-toast.is-success {
+  border-left-color: var(--kf-completed);
+}
+
+.kf-toast.is-error {
+  border-left-color: var(--kf-danger);
+}
+
+.kf-toast.is-info {
+  border-left-color: var(--kf-line-strong);
+}
+
+.kf-toast.is-exiting {
+  opacity: 0;
+  transform: translateX(24px);
+}
+
+.kf-toast-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+}
+
+.kf-toast.is-success .kf-toast-icon {
+  color: var(--kf-completed);
+}
+
+.kf-toast.is-error .kf-toast-icon {
+  color: var(--kf-danger);
+}
+
+.kf-toast.is-info .kf-toast-icon {
+  color: var(--kf-text-2);
+}
+
+.kf-toast-text {
+  font-size: var(--kf-text-sm);
+  flex: 1;
+  line-height: 1.4;
+  color: var(--kf-text);
+}
+
+.kf-toast-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--kf-text-2);
+  padding: var(--kf-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--kf-radius);
+  transition: color var(--kf-fast) var(--kf-ease), background-color var(--kf-fast) var(--kf-ease);
+}
+
+.kf-toast-close:hover {
+  color: var(--kf-text);
+  background-color: rgba(242, 244, 248, 0.08);
+}
+
+@keyframes kf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kf-toast {
+    animation: none;
+    transition: none;
+  }
+
+  .kf-toast.is-exiting {
+    transform: none;
+  }
+}
