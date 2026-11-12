@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 7, Anime library and title page.** Phases 0 to 6 are done, and Home, Quick Log, Finale celebration, and Keyframe Composer are live.
+**Next up: Phase 8, Characters and Books.** Phases 0 to 7 are done, and the Keyframe Anime library and Title page (with EpisodeMap inspector, Then vs Now rewatches, and Manage delete actions) are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 7 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 8 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -26,12 +26,17 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 4 | Find Art | ✅ Done | `85fd848` | The app starts to look like yours |
 | 5 | Activity and progression | ✅ Done | `0a59346` | Numbers look right against your data |
 | 6 | Home and Quick Log | ✅ Done | `57e3fdc` | The main habit loop works |
-| 7 | Anime library and title page | 👉 **Next** | | Core browsing |
-| 8 | Characters and Books | Not started | | Collection feel |
+| 7 | Anime library and title page | ✅ Done | `a29217d` | Core browsing |
+| 8 | Characters and Books | 👉 **Next** | | Collection feel |
 | 9 | Journal | Not started | | Rereading is enjoyable |
 | 10 | Me and Recap | Not started | | Reason to return |
 | 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 7 checklist
+
+- [x] Keyframe `AnimeLibraryPage` (`Frontend/src/features/library/`) with status filter counts (`overallSeriesStatus`), Genre & Studio filters, Sort (`recent`, `rating`, `title`, `aired`, `note`), 4 shelf views (`Grid`, `List`, `By Year`, `Hall of Fame`), URL query sync, and `+1` / note controls outside links
+- [x] Keyframe `TitlePage` (`Frontend/src/features/title/`) with full-width blurred hero (`--title-accent`, vertical Japanese title, season/movie switcher), `+1` / `Note` / `Rewatch` / `⋯` Manage menu (restoring Series & Season Delete), interactive `EpisodeMap` with arrow-key side inspector on `NotePaper`, `Then vs now` rewatches with rating delta, and sticky phone action bar
 
 ## Phase 6 checklist
 
