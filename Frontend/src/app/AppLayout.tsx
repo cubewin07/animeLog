@@ -7,6 +7,8 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Skeleton } from '../ui';
 import { GlobalModals } from './GlobalModals';
+import { QuickLogBar } from '../features/quick-log/QuickLogBar';
+import { FinaleCelebration } from '../features/quick-log/FinaleCelebration';
 import { preloadPages } from './pages';
 import './transitions.css';
 
@@ -81,6 +83,8 @@ export const AppLayout: React.FC = () => {
         </ErrorBoundary>
       )}
       <GlobalModals exportOpen={exportOpen} onCloseExport={() => setExportOpen(false)} />
+      <QuickLogBar />
+      <FinaleCelebration />
     </AppShell>
   );
 };

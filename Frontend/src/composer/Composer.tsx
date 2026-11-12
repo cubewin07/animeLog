@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
-import { TargetPicker, ChosenTarget } from './TargetPicker';
-import { Sheet, Button, Paper, Rating, Kbd } from '../ui';
-import { saveDraft, loadDraft, clearDraft } from './drafts';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { Check, PenLine, X } from 'lucide-react';
 import {
-  seasonApi,
-  movieApi,
   bookApi,
-  episodeNoteApi,
   characterApi,
+  episodeNoteApi,
+  movieApi,
   rewatchApi,
+  seasonApi,
 } from '../api/client';
-import { Check, PenLine } from 'lucide-react';
-import { composeFinalNote, normalizeKind, resolveExistingNote, NoteKind } from './noteTarget';
+import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
+import { KfButton, NotePaper } from '../ui/keyframe';
+import { useDialog } from '../ui/Sheet/useDialog';
+import { clearDraft, loadDraft, saveDraft } from './drafts';
+import { composeFinalNote, normalizeKind, NoteKind, resolveExistingNote } from './noteTarget';
+import { ChosenTarget, TargetPicker } from './TargetPicker';
 import './Composer.css';
 
 export interface ComposerProps {
@@ -22,10 +23,16 @@ export interface ComposerProps {
 
 export type ReflectionKind = NoteKind;
 
+const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
 export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   const { seriesList, bookList, characterList } = useJournalData();
   const { composerInitialTarget } = useJournalUI();
   const { refreshAll, addToast, openNewFranchiseModal } = useJournalActions();
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialog(panelRef, isOpen, onClose);
 
   const [target, setTarget] = useState<ChosenTarget | null>(null);
   const [kind, setKind] = useState<ReflectionKind>('lesson');
@@ -36,13 +43,39 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftSavedTime, setDraftSavedTime] = useState<string | null>(null);
 
+  // Holds one-time initial text/rating passed from QuickLogBar so draft loading doesn't clear it
+  const pendingSeedRef = useRef<{
+    targetKey: string;
+    kind: ReflectionKind;
+    note?: string;
+    rating?: number | null;
+  } | null>(null);
+
   // Initialize target when opened
   useEffect(() => {
     if (!isOpen) return;
-    setNote('');
-    setRating(null);
     setEditEntireNote(false);
+    setDraftSavedTime(null);
+
     if (composerInitialTarget) {
+      const normalized = normalizeKind(
+        composerInitialTarget.targetKind,
+        composerInitialTarget.defaultKind
+      );
+      if (
+        composerInitialTarget.initialNote !== undefined ||
+        composerInitialTarget.initialRating !== undefined
+      ) {
+        pendingSeedRef.current = {
+          targetKey: `${composerInitialTarget.targetKind}-${composerInitialTarget.id}`,
+          kind: normalized,
+          note: composerInitialTarget.initialNote,
+          rating: composerInitialTarget.initialRating,
+        };
+      } else {
+        pendingSeedRef.current = null;
+      }
+
       setTarget({
         targetKind: composerInitialTarget.targetKind,
         id: composerInitialTarget.id,
@@ -51,12 +84,17 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         defaultKind: composerInitialTarget.defaultKind,
         episodeNumber: composerInitialTarget.episodeNumber,
       });
-      setKind(normalizeKind(composerInitialTarget.targetKind, composerInitialTarget.defaultKind));
+      setKind(normalized);
       setEpisodeNumber(composerInitialTarget.episodeNumber ?? 1);
+      setNote(composerInitialTarget.initialNote ?? '');
+      setRating(composerInitialTarget.initialRating ?? null);
     } else {
+      pendingSeedRef.current = null;
       setTarget(null);
       setKind('lesson');
       setEpisodeNumber(1);
+      setNote('');
+      setRating(null);
     }
   }, [isOpen, composerInitialTarget]);
 
@@ -72,26 +110,41 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
 
   // Load existing draft if available
   useEffect(() => {
-    if (target) {
-      const draft = loadDraft(`${target.targetKind}-${target.id}`, kind);
-      // A draft for a different episode must not replace the episode that was asked for
-      const draftFitsEpisode =
-        !target.episodeNumber || !draft?.episodeNumber || draft.episodeNumber === target.episodeNumber;
-      if (draft && draftFitsEpisode) {
-        setNote(draft.note);
-        setRating(draft.rating ?? null);
-        setEditEntireNote(Boolean(draft.editEntireNote));
-        if (draft.episodeNumber) setEpisodeNumber(draft.episodeNumber);
-      } else {
-        setNote('');
-        setRating(null);
+    if (!target) return;
+    const targetKey = `${target.targetKind}-${target.id}`;
+    const seed = pendingSeedRef.current;
+
+    if (seed && seed.targetKey === targetKey && seed.kind === kind) {
+      pendingSeedRef.current = null;
+      if (seed.note !== undefined) {
+        setNote(seed.note);
+        setRating(seed.rating ?? null);
         setEditEntireNote(false);
+        return;
       }
+    }
+
+    const draft = loadDraft(targetKey, kind);
+    // A draft for a different episode must not replace the episode that was asked for
+    const draftFitsEpisode =
+      !target.episodeNumber ||
+      !draft?.episodeNumber ||
+      draft.episodeNumber === target.episodeNumber;
+    if (draft && draftFitsEpisode) {
+      setNote(draft.note);
+      setRating(seed?.rating !== undefined ? seed.rating : (draft.rating ?? null));
+      setEditEntireNote(Boolean(draft.editEntireNote));
+      if (draft.episodeNumber) setEpisodeNumber(draft.episodeNumber);
+    } else {
+      setNote('');
+      setRating(seed?.rating !== undefined ? seed.rating : null);
+      setEditEntireNote(false);
     }
   }, [target, kind]);
 
   // Debounced draft autosave
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftBadgeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!target || !note.trim()) return;
 
@@ -108,16 +161,18 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         updatedAt: Date.now(),
       });
       setDraftSavedTime('Draft saved');
-      setTimeout(() => setDraftSavedTime(null), 2500);
+      if (draftBadgeTimeoutRef.current) clearTimeout(draftBadgeTimeoutRef.current);
+      draftBadgeTimeoutRef.current = setTimeout(() => setDraftSavedTime(null), 2500);
     }, 600);
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (draftBadgeTimeoutRef.current) clearTimeout(draftBadgeTimeoutRef.current);
     };
   }, [note, rating, episodeNumber, target, kind, editEntireNote]);
 
   // Available kinds based on target type
-  const availableKinds = React.useMemo(() => {
+  const availableKinds = useMemo(() => {
     if (!target) return [];
     if (target.targetKind === 'season') {
       return [
@@ -235,15 +290,16 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       clearDraft(`${target.targetKind}-${target.id}`, kind);
       refreshAll();
       onClose();
-    } catch (err: any) {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error saving note:', err);
-      addToast(`Error saving: ${err.message}`, 'error');
+      addToast(`Error saving: ${msg}`, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Keyboard shortcut ⌘↵ to save
+  // Keyboard shortcut ⌘↵ / Ctrl+↵ to save
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
       e.preventDefault();
@@ -251,181 +307,241 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  if (!isOpen) return null;
+
+  const slateContext = target
+    ? kind === 'episode'
+      ? `Ep ${episodeNumber}`
+      : kind === 'return'
+      ? 'Rewatch'
+      : target.context || null
+    : 'Pick a title';
+
+  const slateFacts = [
+    target?.title || 'Keyframe Note',
+    slateContext,
+    rating ? `${rating}/10` : null,
+  ].filter((x): x is string => Boolean(x));
+
   return (
-    <Sheet
-      isOpen={isOpen}
-      onClose={onClose}
-      title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <PenLine size={18} color="var(--lamp)" />
-          <span>Write Note</span>
+    <div
+      className="kf-composer-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isSubmitting) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="kf-composer-panel"
+        onKeyDown={handleKeyDown}
+      >
+        <header className="kf-composer-header">
+          <h2 id={titleId} className="kf-composer-title">
+            <PenLine size={18} color="var(--kf-brand)" aria-hidden="true" />
+            <span>Write Note</span>
+          </h2>
+          <button
+            type="button"
+            className="kf-composer-close"
+            onClick={onClose}
+            aria-label="Close composer"
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="kf-composer-body">
+          <div className="kf-composer-form">
+            {/* Step 1: Target Title */}
+            <div className="kf-composer-field">
+              <label className="kf-composer-label">Writing about</label>
+              <TargetPicker
+                value={target}
+                onChange={(selected) => {
+                  pendingSeedRef.current = null;
+                  setTarget(selected);
+                  setKind(normalizeKind(selected.targetKind, selected.defaultKind));
+                  setEpisodeNumber(selected.episodeNumber ?? 1);
+                }}
+                onOpenNewCatalog={() => {
+                  onClose();
+                  openNewFranchiseModal();
+                }}
+              />
+            </div>
+
+            {/* Step 2: Kind Selection */}
+            {availableKinds.length > 1 && (
+              <div className="kf-composer-field">
+                <span className="kf-composer-label">Note Type</span>
+                <div className="kf-composer-kinds" role="group" aria-label="Note Type">
+                  {availableKinds.map((k) => (
+                    <button
+                      key={k.id}
+                      type="button"
+                      className={`kf-kind-pill ${kind === k.id ? 'is-active' : ''}`}
+                      aria-pressed={kind === k.id}
+                      onClick={() => setKind(k.id as ReflectionKind)}
+                    >
+                      {k.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Episode Number Picker (if kind === episode) */}
+            {kind === 'episode' && (
+              <div className="kf-composer-field">
+                <label htmlFor={`${titleId}-ep`} className="kf-composer-label">
+                  Episode Number {existing.totalEpisodes ? `(1 – ${existing.totalEpisodes})` : ''}
+                </label>
+                <input
+                  id={`${titleId}-ep`}
+                  type="number"
+                  min={1}
+                  max={existing.totalEpisodes || 9999}
+                  value={episodeNumber}
+                  onChange={(e) => {
+                    setEpisodeNumber(Math.max(1, parseInt(e.target.value, 10) || 1));
+                    if (editEntireNote) {
+                      setEditEntireNote(false);
+                      setNote('');
+                    }
+                  }}
+                  className="kf-composer-ep-input"
+                />
+              </div>
+            )}
+
+            {/* Existing note preview & mode toggle */}
+            {existingText && (
+              <div className="kf-composer-field">
+                <div className="kf-composer-label-row">
+                  <span className="kf-composer-label">
+                    {editEntireNote ? 'Editing full note' : 'Saved on this note'}
+                  </span>
+                  {!editEntireNote ? (
+                    <button
+                      type="button"
+                      className="kf-composer-mode-btn"
+                      onClick={() => {
+                        setEditEntireNote(true);
+                        setNote(existingText);
+                      }}
+                    >
+                      Edit full note
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="kf-composer-mode-btn"
+                      onClick={() => {
+                        setEditEntireNote(false);
+                        setNote('');
+                      }}
+                    >
+                      Add to note instead
+                    </button>
+                  )}
+                </div>
+
+                {!editEntireNote && (
+                  <div className="kf-composer-prev-note" aria-label="Saved on this note">
+                    {existingText}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: Keyframe NotePaper Textarea */}
+            <div className="kf-composer-field">
+              <label htmlFor={`${titleId}-note`} className="kf-composer-label">
+                {kind === 'episode'
+                  ? `Episode ${episodeNumber} Note`
+                  : kind === 'why'
+                  ? 'Character Note'
+                  : kind === 'return'
+                  ? 'Rewatch Note'
+                  : editEntireNote
+                  ? 'Full Note'
+                  : existingText
+                  ? 'Add to note'
+                  : 'Your Note'}
+              </label>
+
+              <NotePaper slate={slateFacts}>
+                <textarea
+                  id={`${titleId}-note`}
+                  className="kf-composer-textarea"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Write the thoughts, scenes, or ideas you want to remember…"
+                />
+              </NotePaper>
+            </div>
+
+            {/* Step 4: Optional Rating (not shown for character notes which have no rating) */}
+            {target?.targetKind !== 'character' && (
+              <div className="kf-composer-field">
+                <div className="kf-composer-label-row">
+                  <span className="kf-composer-label">Rating (Optional 1–10)</span>
+                  {rating !== null && (
+                    <span className={`kf-composer-rate-readout ${rating >= 9 ? 'is-gold' : ''}`}>
+                      {rating}/10
+                    </span>
+                  )}
+                </div>
+                <div className="kf-composer-rating-row" role="group" aria-label="Rating 1 to 10">
+                  {RATINGS.map((n) => {
+                    const isActive = rating === n;
+                    const isGold = n >= 9;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        className={`kf-composer-rate-pill ${isActive ? 'is-active' : ''} ${isGold ? 'is-gold' : ''}`}
+                        aria-pressed={isActive}
+                        aria-label={`Rate ${n} out of 10`}
+                        onClick={() => setRating(isActive ? null : n)}
+                      >
+                        {n}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      }
-      footer={
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          <div className="lamplight-composer-draft-status">
+
+        <footer className="kf-composer-footer">
+          <div className="kf-composer-draft-status" aria-live="polite">
             {draftSavedTime && (
               <>
-                <Check size={12} color="var(--lamp)" />
+                <Check size={13} aria-hidden="true" />
                 <span>{draftSavedTime}</span>
               </>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Button variant="ghost" onClick={onClose} disabled={isSubmitting}>
+          <div className="kf-composer-footer-actions">
+            <KfButton variant="quiet" onClick={onClose} disabled={isSubmitting}>
               Cancel
-            </Button>
-            <Button
+            </KfButton>
+            <KfButton
               variant="primary"
               onClick={handleSave}
-              loading={isSubmitting}
-              disabled={!target || !note.trim()}
+              disabled={isSubmitting || !target || !note.trim()}
             >
-              <span>Save Note</span>
-              <Kbd>⌘↵</Kbd>
-            </Button>
+              <span>{isSubmitting ? 'Saving…' : 'Save Note'}</span>
+              <kbd className="kf-composer-kbd">⌘↵</kbd>
+            </KfButton>
           </div>
-        </div>
-      }
-    >
-      <div className="lamplight-composer-form" onKeyDown={handleKeyDown}>
-        {/* Step 1: Target Title */}
-        <div className="lamplight-composer-field">
-          <label className="lamplight-composer-label">Writing about</label>
-          <TargetPicker
-            value={target}
-            onChange={(selected) => {
-              setTarget(selected);
-              setKind(normalizeKind(selected.targetKind, selected.defaultKind));
-              setEpisodeNumber(1);
-            }}
-            onOpenNewCatalog={() => {
-              onClose();
-              openNewFranchiseModal();
-            }}
-          />
-        </div>
-
-        {/* Step 2: Kind Selection */}
-        {availableKinds.length > 1 && (
-          <div className="lamplight-composer-field">
-            <label className="lamplight-composer-label">Note Type</label>
-            <div className="lamplight-composer-kinds">
-              {availableKinds.map((k) => (
-                <button
-                  key={k.id}
-                  type="button"
-                  className={`lamplight-kind-pill ${kind === k.id ? 'is-active' : ''}`}
-                  onClick={() => setKind(k.id as ReflectionKind)}
-                >
-                  {k.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Episode Number Picker (if kind === episode) */}
-        {kind === 'episode' && (
-          <div className="lamplight-composer-field">
-            <label className="lamplight-composer-label">
-              Episode Number {existing.totalEpisodes ? `(1 – ${existing.totalEpisodes})` : ''}
-            </label>
-            <input
-              type="number"
-              min={1}
-              max={existing.totalEpisodes || 9999}
-              value={episodeNumber}
-              onChange={(e) => {
-                setEpisodeNumber(Math.max(1, parseInt(e.target.value) || 1));
-                if (editEntireNote) {
-                  setEditEntireNote(false);
-                  setNote('');
-                }
-              }}
-              style={{
-                width: 120,
-                height: 38,
-                padding: '0 12px',
-                background: 'var(--surface-raised)',
-                border: '1px solid var(--line-strong)',
-                borderRadius: 'var(--r-md)',
-                color: 'var(--text)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 15,
-                outline: 'none',
-              }}
-            />
-          </div>
-        )}
-
-        {/* Previous notes excerpt (if appending) */}
-        {existingText && !editEntireNote && (
-          <div className="lamplight-composer-field">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <label className="lamplight-composer-label">Already saved (your new text is added below it)</label>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditEntireNote(true);
-                  setNote(existingText);
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--lamp)',
-                  fontSize: 11,
-                  cursor: 'pointer',
-                  padding: 0,
-                }}
-              >
-                Edit full original note
-              </button>
-            </div>
-            <div className="lamplight-composer-prev-note">
-              “{existingText}”
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Note Paper Textarea */}
-        <div className="lamplight-composer-field">
-          <label className="lamplight-composer-label">
-            {kind === 'episode'
-              ? `Episode ${episodeNumber} Note`
-              : kind === 'why'
-              ? 'Character Note'
-              : kind === 'return'
-              ? 'Rewatch Note'
-              : 'Your Note'}
-          </label>
-
-          <Paper
-            editable
-            value={note}
-            onChange={(val) => setNote(val)}
-            placeholder="Write the thoughts, scenes, or ideas you want to remember…"
-          />
-        </div>
-
-        {/* Step 4: Optional Rating */}
-        <div className="lamplight-composer-field">
-          <label className="lamplight-composer-label">Rating (Optional score 1–10)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <Rating
-              score={rating}
-              interactive
-              onChange={(newScore) => setRating(newScore)}
-            />
-            {rating && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--lamp)' }}>
-                {rating}/10
-              </span>
-            )}
-          </div>
-        </div>
+        </footer>
       </div>
-    </Sheet>
+    </div>
   );
 };
-

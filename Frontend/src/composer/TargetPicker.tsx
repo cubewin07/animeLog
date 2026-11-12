@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, Check, ChevronDown, Film, Plus, Search, Sparkles } from 'lucide-react';
 import { useJournalData } from '../state/JournalContext';
-import { ChevronDown, Search, Plus, Film, BookOpen, Sparkles, Check } from 'lucide-react';
-import './TargetPicker.css';
+import './Composer.css';
 
 export interface ChosenTarget {
   targetKind: 'season' | 'movie' | 'book' | 'character';
@@ -16,6 +16,12 @@ export interface TargetPickerProps {
   value: ChosenTarget | null;
   onChange: (target: ChosenTarget) => void;
   onOpenNewCatalog?: () => void;
+}
+
+function TargetIcon({ kind }: { kind: ChosenTarget['targetKind'] }) {
+  if (kind === 'book') return <BookOpen size={16} color="var(--kf-plan)" aria-hidden="true" />;
+  if (kind === 'character') return <Sparkles size={16} color="var(--kf-gold)" aria-hidden="true" />;
+  return <Film size={16} color="var(--kf-brand)" aria-hidden="true" />;
 }
 
 export const TargetPicker: React.FC<TargetPickerProps> = ({
@@ -41,16 +47,17 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const timer = window.setTimeout(() => inputRef.current?.focus(), 40);
+      return () => window.clearTimeout(timer);
     }
+    return undefined;
   }, [isOpen]);
 
   // Build target options: active titles first, then rest
-  const options = React.useMemo(() => {
+  const options = useMemo(() => {
     const active: ChosenTarget[] = [];
     const others: ChosenTarget[] = [];
 
-    // Anime series releases
     seriesList.forEach((s) => {
       s.seasons?.forEach((season) => {
         const item: ChosenTarget = {
@@ -77,7 +84,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
       });
     });
 
-    // Books
     bookList.forEach((b) => {
       const item: ChosenTarget = {
         targetKind: 'book',
@@ -90,7 +96,6 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
       else others.push(item);
     });
 
-    // Characters
     characterList.forEach((c) => {
       others.push({
         targetKind: 'character',
@@ -109,125 +114,142 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     const q = search.toLowerCase();
     return (
       item.title.toLowerCase().includes(q) ||
-      (item.context && item.context.toLowerCase().includes(q))
+      Boolean(item.context && item.context.toLowerCase().includes(q))
     );
   };
 
   const filteredActive = options.active.filter(filterItem);
   const filteredOthers = options.others.filter(filterItem);
+  const hasResults = filteredActive.length > 0 || filteredOthers.length > 0;
 
   return (
-    <div className="lamplight-target-picker" ref={containerRef}>
+    <div
+      className="kf-target-picker"
+      ref={containerRef}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && isOpen) {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(false);
+        }
+      }}
+    >
       <button
         type="button"
-        className="lamplight-target-btn"
+        className="kf-target-btn"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div className="kf-target-btn-main">
           {value ? (
             <>
-              {value.targetKind === 'book' ? (
-                <BookOpen size={16} color="var(--lamp)" />
-              ) : value.targetKind === 'character' ? (
-                <Sparkles size={16} color="var(--lamp)" />
-              ) : (
-                <Film size={16} color="var(--lamp)" />
-              )}
-              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', minWidth: 0 }}>
-                <span style={{ fontWeight: 600, color: 'var(--text)' }}>{value.title}</span>
+              <TargetIcon kind={value.targetKind} />
+              <div className="kf-target-btn-copy">
+                <span className="kf-target-btn-title">{value.title}</span>
                 {value.context && (
-                  <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{value.context}</span>
+                  <span className="kf-target-btn-sub">{value.context}</span>
                 )}
               </div>
             </>
           ) : (
-            <span style={{ color: 'var(--text-3)' }}>Select a title or character to write about…</span>
+            <span className="kf-target-placeholder">
+              Select a title or character to write about…
+            </span>
           )}
         </div>
-        <ChevronDown size={16} color="var(--text-3)" />
+        <ChevronDown size={16} color="var(--kf-text-2)" aria-hidden="true" />
       </button>
 
       {isOpen && (
-        <div className="lamplight-target-dropdown" role="listbox">
-          <div className="lamplight-target-search">
-            <Search size={14} color="var(--text-3)" />
+        <div className="kf-target-dropdown" role="listbox" aria-label="Choose a title or character">
+          <div className="kf-target-search">
+            <Search size={14} color="var(--kf-text-2)" aria-hidden="true" />
             <input
               ref={inputRef}
               type="text"
-              className="lamplight-target-input"
+              className="kf-target-input"
               placeholder="Search in-progress or completed titles…"
+              aria-label="Filter titles and characters"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
 
           {filteredActive.length > 0 && (
-            <div className="lamplight-target-group">
-              <div className="lamplight-target-group-label">Currently in progress</div>
-              {filteredActive.map((item) => (
-                <button
-                  key={`${item.targetKind}-${item.id}`}
-                  type="button"
-                  className={`lamplight-target-option ${value?.id === item.id && value?.targetKind === item.targetKind ? 'is-selected' : ''}`}
-                  onClick={() => {
-                    onChange(item);
-                    setIsOpen(false);
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <strong>{item.title}</strong>
-                    <small style={{ color: 'var(--text-3)' }}>{item.context}</small>
-                  </div>
-                  {value?.id === item.id && value?.targetKind === item.targetKind && (
-                    <Check size={14} color="var(--lamp)" />
-                  )}
-                </button>
-              ))}
+            <div className="kf-target-group">
+              <div className="kf-target-group-label">Currently in progress</div>
+              {filteredActive.map((item) => {
+                const selected = value?.id === item.id && value?.targetKind === item.targetKind;
+                return (
+                  <button
+                    key={`${item.targetKind}-${item.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    className={`kf-target-option ${selected ? 'is-selected' : ''}`}
+                    onClick={() => {
+                      onChange(item);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <div className="kf-target-option-copy">
+                      <strong>{item.title}</strong>
+                      <small>{item.context}</small>
+                    </div>
+                    {selected && <Check size={14} color="var(--kf-brand)" aria-hidden="true" />}
+                  </button>
+                );
+              })}
             </div>
           )}
 
           {filteredOthers.length > 0 && (
-            <div className="lamplight-target-group">
-              <div className="lamplight-target-group-label">Library & Characters</div>
-              {filteredOthers.map((item) => (
-                <button
-                  key={`${item.targetKind}-${item.id}`}
-                  type="button"
-                  className={`lamplight-target-option ${value?.id === item.id && value?.targetKind === item.targetKind ? 'is-selected' : ''}`}
-                  onClick={() => {
-                    onChange(item);
-                    setIsOpen(false);
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span>{item.title}</span>
-                    <small style={{ color: 'var(--text-3)' }}>{item.context}</small>
-                  </div>
-                  {value?.id === item.id && value?.targetKind === item.targetKind && (
-                    <Check size={14} color="var(--lamp)" />
-                  )}
-                </button>
-              ))}
+            <div className="kf-target-group">
+              <div className="kf-target-group-label">Library &amp; Characters</div>
+              {filteredOthers.map((item) => {
+                const selected = value?.id === item.id && value?.targetKind === item.targetKind;
+                return (
+                  <button
+                    key={`${item.targetKind}-${item.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    className={`kf-target-option ${selected ? 'is-selected' : ''}`}
+                    onClick={() => {
+                      onChange(item);
+                      setIsOpen(false);
+                    }}
+                  >
+                    <div className="kf-target-option-copy">
+                      <span>{item.title}</span>
+                      <small>{item.context}</small>
+                    </div>
+                    {selected && <Check size={14} color="var(--kf-brand)" aria-hidden="true" />}
+                  </button>
+                );
+              })}
             </div>
           )}
 
+          {!hasResults && (
+            <div className="kf-target-empty">No matching titles or characters.</div>
+          )}
+
           {onOpenNewCatalog && (
-            <div style={{ borderTop: '1px solid var(--line)', marginTop: 4, paddingTop: 4 }}>
+            <div className="kf-target-footer">
               <button
                 type="button"
-                className="lamplight-target-option"
-                style={{ color: 'var(--lamp)', fontWeight: 500 }}
+                className="kf-target-option kf-target-add-btn"
                 onClick={() => {
                   setIsOpen(false);
                   onOpenNewCatalog();
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Plus size={14} />
-                  <span>Can't find it? Add new title →</span>
-                </div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Plus size={14} aria-hidden="true" />
+                  <span>Can&apos;t find it? Add new title</span>
+                </span>
               </button>
             </div>
           )}
@@ -236,4 +258,3 @@ export const TargetPicker: React.FC<TargetPickerProps> = ({
     </div>
   );
 };
-

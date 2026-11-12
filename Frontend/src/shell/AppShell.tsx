@@ -1,21 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { BottomBar } from './BottomBar';
 import { CommandPalette } from './CommandPalette';
 import { Composer } from '../composer/Composer';
+import { QuickLogSheet } from '../features/quick-log/QuickLogSheet';
 import { Kbd, Sheet } from '../ui';
 import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
-import {
-  BookOpen,
-  Film,
-  Keyboard,
-  PenLine,
-  Plus,
-  RotateCcw,
-  Sparkles,
-} from 'lucide-react';
+import { Keyboard } from 'lucide-react';
 import './AppShell.css';
 
 export interface AppShellProps {
@@ -40,13 +32,9 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     setComposerOpen,
     openComposer,
     openNewFranchiseModal,
-    openNewBookModal,
-    openAddCharacterModal,
-    openAddRewatch,
     handleSeasonProgressDelta,
     handleMovieProgressDelta,
     handleBookProgressDelta,
-    addToast,
   } = useJournalActions();
 
   const [quickLogOpen, setQuickLogOpen] = useState(false);
@@ -75,7 +63,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             stepLabel: `+1 Ep ${nextEp}`,
             onStep: () => {
               handleSeasonProgressDelta(sea.id, 1);
-              addToast(`${s.title} · Ep ${nextEp} logged`);
             },
             onNote: () => {
               setQuickLogOpen(false);
@@ -102,7 +89,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
             stepLabel: '+10 min',
             onStep: () => {
               handleMovieProgressDelta(m.id, 10);
-              addToast(`${s.title} · +10 min logged`);
             },
             onNote: () => {
               setQuickLogOpen(false);
@@ -129,7 +115,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
           stepLabel: '+10 pages',
           onStep: () => {
             handleBookProgressDelta(b.id, 10);
-            addToast(`${b.title} · +10 pages logged`);
           },
           onNote: () => {
             setQuickLogOpen(false);
@@ -152,7 +137,6 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
     handleSeasonProgressDelta,
     handleMovieProgressDelta,
     handleBookProgressDelta,
-    addToast,
     openComposer,
   ]);
 
@@ -229,137 +213,11 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
       <Composer isOpen={composerOpen} onClose={() => setComposerOpen(false)} />
 
       {/* Quick Log Sheet (+ button) */}
-      <Sheet
+      <QuickLogSheet
         isOpen={quickLogOpen}
         onClose={() => setQuickLogOpen(false)}
-        title="Quick Log"
-      >
-        <div className="kf-quicklog-sheet">
-          {activeItems.length > 0 && (
-            <section className="kf-quicklog-section" aria-label="In progress">
-              <h3 className="kf-quicklog-heading">Continue</h3>
-              <div className="kf-quicklog-list">
-                {activeItems.map((item) => (
-                  <div key={item.key} className="kf-quicklog-row">
-                    <Link
-                      viewTransition
-                      to={item.href}
-                      className="kf-quicklog-item-link"
-                      onClick={() => setQuickLogOpen(false)}
-                    >
-                      <strong>{item.title}</strong>
-                      <span>{item.context}</span>
-                    </Link>
-                    <div className="kf-quicklog-row-actions">
-                      <button
-                        type="button"
-                        className="kf-quicklog-step-btn"
-                        onClick={item.onStep}
-                      >
-                        {item.stepLabel}
-                      </button>
-                      <button
-                        type="button"
-                        className="kf-quicklog-note-btn"
-                        onClick={item.onNote}
-                        aria-label={`Write note for ${item.title}`}
-                      >
-                        <PenLine size={14} />
-                        <span>Note</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          <section className="kf-quicklog-section" aria-label="Actions">
-            <h3 className="kf-quicklog-heading">Log or Write</h3>
-            <div className="kf-quicklog-actions-grid">
-              <button
-                type="button"
-                className="kf-quicklog-action-card"
-                onClick={() => {
-                  setQuickLogOpen(false);
-                  openComposer();
-                }}
-              >
-                <PenLine size={16} color="var(--kf-brand)" />
-                <div>
-                  <strong>Write a note</strong>
-                  <span>Episode, season, movie, book or character</span>
-                </div>
-                <Kbd>W</Kbd>
-              </button>
-
-              <button
-                type="button"
-                className="kf-quicklog-action-card"
-                onClick={() => {
-                  setQuickLogOpen(false);
-                  openNewFranchiseModal();
-                }}
-              >
-                <Film size={16} color="var(--kf-brand)" />
-                <div>
-                  <strong>Add anime series</strong>
-                  <span>Start tracking a new series or season</span>
-                </div>
-                <Kbd>N</Kbd>
-              </button>
-
-              <button
-                type="button"
-                className="kf-quicklog-action-card"
-                onClick={() => {
-                  setQuickLogOpen(false);
-                  openNewBookModal();
-                }}
-              >
-                <BookOpen size={16} color="var(--kf-plan)" />
-                <div>
-                  <strong>Add book</strong>
-                  <span>Log a book or light novel</span>
-                </div>
-                <Plus size={14} />
-              </button>
-
-              <button
-                type="button"
-                className="kf-quicklog-action-card"
-                onClick={() => {
-                  setQuickLogOpen(false);
-                  openAddCharacterModal();
-                }}
-              >
-                <Sparkles size={16} color="var(--kf-gold)" />
-                <div>
-                  <strong>Add character</strong>
-                  <span>Collect a character worth remembering</span>
-                </div>
-                <Plus size={14} />
-              </button>
-
-              <button
-                type="button"
-                className="kf-quicklog-action-card"
-                onClick={() => {
-                  setQuickLogOpen(false);
-                  openAddRewatch();
-                }}
-              >
-                <RotateCcw size={16} color="var(--kf-completed)" />
-                <div>
-                  <strong>Log a rewatch</strong>
-                  <span>Record another pass through a title</span>
-                </div>
-                <Plus size={14} />
-              </button>
-            </div>
-          </section>
-        </div>
-      </Sheet>
+        activeItems={activeItems}
+      />
 
       {/* Keyboard Shortcuts Sheet (? key) */}
       <Sheet

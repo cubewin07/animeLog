@@ -47,8 +47,36 @@ import {
 } from '../lib/journal/progress';
 import { ProgressQueue } from '../lib/journal/progressQueue';
 import { loadSnapshot, saveSnapshot } from './journalCache';
+import { getGamePrefs } from '../lib/progression';
 import { ToastMessage } from '../components/Toast';
 import type { EntryModalMode } from '../components/EntryModal';
+
+export interface QuickLogPrompt {
+  kind: 'season' | 'movie' | 'book';
+  targetId: number;
+  title: string;
+  subtitle: string;
+  seriesId?: number;
+  stepNumber: number;
+  unit: 'episode' | 'minutes' | 'pages';
+  delta: number;
+  existingNote?: string | null;
+  existingRating?: number | null;
+  coverUrl?: string | null;
+  createdAt: number;
+}
+
+export interface FinalePrompt {
+  kind: 'season' | 'movie' | 'book';
+  targetId: number;
+  seriesId?: number;
+  title: string;
+  subtitle: string;
+  coverUrl?: string | null;
+  totalCount?: number | null;
+  existingNote?: string | null;
+  currentRating?: number | null;
+}
 
 export interface ConfirmDialogState {
   isOpen: boolean;
@@ -151,7 +179,7 @@ interface JournalContextValue {
   characterTargetSeries: AnimeSeries | null;
   editCharacterTarget: FavoriteCharacter | null;
 
-  // Composer & Palette Triggers (Lamplight Shell)
+  // Composer, Palette, Quick Log & Finale
   composerOpen: boolean;
   setComposerOpen: (open: boolean) => void;
   composerInitialTarget: {
@@ -161,6 +189,8 @@ interface JournalContextValue {
     context?: string;
     defaultKind?: 'lesson' | 'episode' | 'return' | 'why';
     episodeNumber?: number;
+    initialNote?: string;
+    initialRating?: number | null;
   } | null;
   openComposer: (initialTarget?: {
     targetKind: 'season' | 'movie' | 'book' | 'character';
@@ -169,10 +199,17 @@ interface JournalContextValue {
     context?: string;
     defaultKind?: 'lesson' | 'episode' | 'return' | 'why';
     episodeNumber?: number;
+    initialNote?: string;
+    initialRating?: number | null;
   }) => void;
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
   openPalette: () => void;
+
+  quickLogPrompt: QuickLogPrompt | null;
+  dismissQuickLog: () => void;
+  finalePrompt: FinalePrompt | null;
+  dismissFinale: () => void;
 }
 
 type FunctionKeys<T> = { [K in keyof T]: T[K] extends (...args: never[]) => unknown ? K : never }[keyof T];
@@ -330,6 +367,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     context?: string;
     defaultKind?: 'lesson' | 'episode' | 'return' | 'why';
     episodeNumber?: number;
+    initialNote?: string;
+    initialRating?: number | null;
   } | null>(null);
 
   const openComposer = useCallback((initialTarget?: {
@@ -339,6 +378,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     context?: string;
     defaultKind?: 'lesson' | 'episode' | 'return' | 'why';
     episodeNumber?: number;
+    initialNote?: string;
+    initialRating?: number | null;
   }) => {
     setComposerInitialTarget(initialTarget || null);
     setComposerOpen(true);
@@ -347,6 +388,16 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [paletteOpen, setPaletteOpen] = useState(false);
   const openPalette = useCallback(() => {
     setPaletteOpen(true);
+  }, []);
+
+  const [quickLogPrompt, setQuickLogPrompt] = useState<QuickLogPrompt | null>(null);
+  const dismissQuickLog = useCallback(() => {
+    setQuickLogPrompt(null);
+  }, []);
+
+  const [finalePrompt, setFinalePrompt] = useState<FinalePrompt | null>(null);
+  const dismissFinale = useCallback(() => {
+    setFinalePrompt(null);
   }, []);
 
   // Newest request wins, so a slow older response can't overwrite newer data
@@ -724,6 +775,56 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       appendLocalActivity('COMPLETED', 'season', id, displayTitle, -1);
     }
     queue.enqueue(`season-${id}`, delta, season, (d) => seasonApi.updateProgress(id, d));
+
+    const parentSeries = seriesList.find((s) => s.id === season.series);
+    const seriesTitle = season.series_title || parentSeries?.title || season.title;
+    const coverUrl =
+      season.cover_image_url ||
+      season.image_url ||
+      parentSeries?.cover_image_url ||
+      parentSeries?.image_url ||
+      null;
+    const seasonSubtitle =
+      season.title && season.title !== seriesTitle
+        ? `Season ${season.season_number} · ${season.title}`
+        : `Season ${season.season_number}`;
+
+    if (delta > 0) {
+      if (next.status === 'COMPLETED' && season.status !== 'COMPLETED' && getGamePrefs().celebrations) {
+        setQuickLogPrompt(null);
+        setFinalePrompt({
+          kind: 'season',
+          targetId: id,
+          seriesId: season.series,
+          title: seriesTitle,
+          subtitle: season.total_episodes
+            ? `${seasonSubtitle} · ${season.total_episodes} episodes`
+            : seasonSubtitle,
+          coverUrl,
+          totalCount: season.total_episodes,
+          existingNote: season.notes ?? null,
+          currentRating: season.rating ?? null,
+        });
+      } else {
+        const epNote = season.episode_notes?.find((n) => n.episode_number === next.progress);
+        setQuickLogPrompt((prev) => ({
+          kind: 'season',
+          targetId: id,
+          title: seriesTitle,
+          subtitle: seasonSubtitle,
+          seriesId: season.series,
+          stepNumber: next.progress,
+          unit: 'episode',
+          delta: prev && prev.kind === 'season' && prev.targetId === id ? prev.delta + delta : delta,
+          existingNote: epNote?.note ?? null,
+          existingRating: epNote?.rating ?? null,
+          coverUrl,
+          createdAt: Date.now(),
+        }));
+      }
+    } else if (delta < 0) {
+      setQuickLogPrompt((prev) => (prev && prev.kind === 'season' && prev.targetId === id ? null : prev));
+    }
   };
 
   const handleSaveMovie = async (data: any, id?: number) => {
@@ -773,6 +874,52 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       appendLocalActivity('COMPLETED', 'movie', id, displayTitle, -1);
     }
     queue.enqueue(`movie-${id}`, delta, movie, (d) => movieApi.updateProgress(id, d));
+
+    const parentSeries = seriesList.find((s) => s.id === movie.series);
+    const seriesTitle = movie.series_title || parentSeries?.title || movie.title;
+    const coverUrl =
+      movie.cover_image_url ||
+      movie.image_url ||
+      parentSeries?.cover_image_url ||
+      parentSeries?.image_url ||
+      null;
+    const movieSubtitle = movie.title && movie.title !== seriesTitle ? movie.title : 'Movie';
+
+    if (delta > 0) {
+      if (next.status === 'COMPLETED' && movie.status !== 'COMPLETED' && getGamePrefs().celebrations) {
+        setQuickLogPrompt(null);
+        setFinalePrompt({
+          kind: 'movie',
+          targetId: id,
+          seriesId: movie.series,
+          title: seriesTitle,
+          subtitle: movie.total_minutes
+            ? `${movieSubtitle} · ${movie.total_minutes} min`
+            : movieSubtitle,
+          coverUrl,
+          totalCount: movie.total_minutes,
+          existingNote: movie.notes ?? null,
+          currentRating: movie.rating ?? null,
+        });
+      } else {
+        setQuickLogPrompt((prev) => ({
+          kind: 'movie',
+          targetId: id,
+          title: seriesTitle,
+          subtitle: movieSubtitle,
+          seriesId: movie.series,
+          stepNumber: next.progress_minutes,
+          unit: 'minutes',
+          delta: prev && prev.kind === 'movie' && prev.targetId === id ? prev.delta + delta : delta,
+          existingNote: movie.notes ?? null,
+          existingRating: movie.rating ?? null,
+          coverUrl,
+          createdAt: Date.now(),
+        }));
+      }
+    } else if (delta < 0) {
+      setQuickLogPrompt((prev) => (prev && prev.kind === 'movie' && prev.targetId === id ? null : prev));
+    }
   };
 
   const handleSaveBook = async (data: any, id?: number) => {
@@ -821,6 +968,43 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       appendLocalActivity('COMPLETED', 'book', id, book.title, -1);
     }
     queue.enqueue(`book-${id}`, delta, book, (d) => bookApi.updateProgress(id, d));
+
+    const coverUrl = book.cover_image_url || book.image_url || null;
+    const bookSubtitle = book.author ? `by ${book.author}` : 'Book';
+
+    if (delta > 0) {
+      if (next.status === 'COMPLETED' && book.status !== 'COMPLETED' && getGamePrefs().celebrations) {
+        setQuickLogPrompt(null);
+        setFinalePrompt({
+          kind: 'book',
+          targetId: id,
+          title: book.title,
+          subtitle: book.total_pages
+            ? `${bookSubtitle} · ${book.total_pages} pages`
+            : bookSubtitle,
+          coverUrl,
+          totalCount: book.total_pages,
+          existingNote: book.notes ?? null,
+          currentRating: book.rating ?? null,
+        });
+      } else {
+        setQuickLogPrompt((prev) => ({
+          kind: 'book',
+          targetId: id,
+          title: book.title,
+          subtitle: bookSubtitle,
+          stepNumber: next.progress,
+          unit: 'pages',
+          delta: prev && prev.kind === 'book' && prev.targetId === id ? prev.delta + delta : delta,
+          existingNote: book.notes ?? null,
+          existingRating: book.rating ?? null,
+          coverUrl,
+          createdAt: Date.now(),
+        }));
+      }
+    } else if (delta < 0) {
+      setQuickLogPrompt((prev) => (prev && prev.kind === 'book' && prev.targetId === id ? null : prev));
+    }
   };
 
   const handleSaveCharacter = async (data: any, id?: number) => {
@@ -998,6 +1182,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     paletteOpen,
     setPaletteOpen,
     openPalette,
+    quickLogPrompt,
+    dismissQuickLog,
+    finalePrompt,
+    dismissFinale,
   };
 
   const latestValue = useRef(value);
@@ -1046,6 +1234,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       composerOpen,
       composerInitialTarget,
       paletteOpen,
+      quickLogPrompt,
+      finalePrompt,
     }),
     [
       searchQuery,
@@ -1070,6 +1260,8 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       composerOpen,
       composerInitialTarget,
       paletteOpen,
+      quickLogPrompt,
+      finalePrompt,
     ]
   );
 
