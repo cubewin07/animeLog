@@ -4,7 +4,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 
 ## Start here
 
-**Next up: Phase 8, Characters and Books.** Phases 0 to 7 are done, and the Keyframe Anime library and Title page (with EpisodeMap inspector, Then vs Now rewatches, and Manage delete actions) are live.
+**Next up: Phase 9, Journal.** Phases 0 to 8 are done, and Keyframe Characters (with tier upgrades & gallery) and Books are live.
 
 1. Check out the branch: `git checkout design/keyframe-redesign && git pull`
 2. Start the app (two terminals):
@@ -13,7 +13,7 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
    cd Frontend && npm run dev
    ```
 3. Open http://localhost:5173 for the app (Settings → **Find Art** at `/settings/find-art`), or http://localhost:5173/__style for the approved design.
-4. Work through Phase 8 in [README.md](./README.md), then update this file in the same commit as the work.
+4. Work through Phase 9 in [README.md](./README.md), then update this file in the same commit as the work.
 
 ## Status
 
@@ -27,11 +27,17 @@ Last updated: 2026-11-13. Full plan: [README.md](./README.md).
 | 5 | Activity and progression | ✅ Done | `0a59346` | Numbers look right against your data |
 | 6 | Home and Quick Log | ✅ Done | `57e3fdc` | The main habit loop works |
 | 7 | Anime library and title page | ✅ Done | `a29217d` | Core browsing |
-| 8 | Characters and Books | 👉 **Next** | | Collection feel |
-| 9 | Journal | Not started | | Rereading is enjoyable |
+| 8 | Characters and Books | ✅ Done | `a2fbf30` | Collection feel |
+| 9 | Journal | 👉 **Next** | | Rereading is enjoyable |
 | 10 | Me and Recap | Not started | | Reason to return |
 | 11 | Add title and Settings | Not started | | Adding takes under 15 seconds |
 | 12 | Final polish | Not started | | Final sign-off |
+
+## Phase 8 checklist
+
+- [x] Keyframe `CharactersPage` (`Frontend/src/features/characters/`) with collectible `KfCharacterCard` wall (visible `why`, tier filter badges `Sketch`/`Inked`/`Full color`/`Foil`, URL-synced series & tier filters)
+- [x] Dedicated `/characters/:characterId` `CharacterDetailPage` with blurred hero, `--title-accent`, upgrade progress tracker toward Foil, `why` on `NotePaper`, portrait gallery (upload/Media Library picker/set cover/remove/lightbox), and series link
+- [x] Keyframe `BooksLibraryPage` and `BookDetailPage` (`Frontend/src/features/books/`) matching Anime library and Title page patterns with page progress bars, `+10p`/`+1p` steppers triggering Quick Log & Finale, `NotePaper`, and Manage Edit/Delete menu
 
 ## Phase 7 checklist
 
