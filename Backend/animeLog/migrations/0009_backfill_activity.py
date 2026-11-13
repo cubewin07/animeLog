@@ -211,24 +211,23 @@ def backfill_activity_events(apps, schema_editor):
                     title=(title or "Rewatch")[:255],
                     delta=1,
                     backfilled=True,
-                    created_at=_to_dt(r.start_date or r.finish_date),
+                    created_at=_to_dt(r.start_date or r.finish_date or timezone.now()),
                 )
             )
 
     for char in FavoriteCharacter.objects.select_related("series").all():
-        if (char.why or "").strip():
-            created_ts = char.series.created_at if char.series_id else timezone.now()
-            events.append(
-                ActivityEvent(
-                    kind="CHARACTER_ADDED",
-                    target_type="character",
-                    target_id=char.id,
-                    title=char.name[:255],
-                    delta=1,
-                    backfilled=True,
-                    created_at=_to_dt(created_ts),
-                )
+        created_ts = (char.series.created_at if char.series_id else None) or timezone.now()
+        events.append(
+            ActivityEvent(
+                kind="CHARACTER_ADDED",
+                target_type="character",
+                target_id=char.id,
+                title=char.name[:255],
+                delta=1,
+                backfilled=True,
+                created_at=_to_dt(created_ts),
             )
+        )
 
     if events:
         ActivityEvent.objects.bulk_create(events)

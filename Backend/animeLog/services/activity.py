@@ -76,6 +76,9 @@ def record_release_activity(
     delta = progress_delta if progress_delta is not None else (current_progress - prev_progress)
     title = release_activity_title(release)
 
+    if prev_status == AnimeStatus.COMPLETED and release.status != AnimeStatus.COMPLETED:
+        record_activity(ActivityKind.COMPLETED, target_type, release.id, title, delta=-1)
+
     if delta != 0:
         record_activity(progress_kind, target_type, release.id, title, delta=delta)
 
@@ -94,9 +97,22 @@ def record_book_activity(
     prev_progress: int = 0,
     prev_status: str = "",
     prev_notes: str = "",
+    progress_delta: int | None = None,
 ) -> None:
-    """Record positive progress, completion, and note events for a Book."""
-    if book.progress > prev_progress:
+    """Record progress, completion, and note events for a Book."""
+    if prev_status == BookStatus.COMPLETED and book.status != BookStatus.COMPLETED:
+        record_activity(ActivityKind.COMPLETED, "book", book.id, book.title, delta=-1)
+
+    if progress_delta is not None:
+        if progress_delta != 0:
+            record_activity(
+                ActivityKind.BOOK_PROGRESS,
+                "book",
+                book.id,
+                book.title,
+                delta=progress_delta,
+            )
+    elif book.progress > prev_progress:
         record_activity(
             ActivityKind.BOOK_PROGRESS,
             "book",

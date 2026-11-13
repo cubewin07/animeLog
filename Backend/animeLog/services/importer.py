@@ -13,6 +13,7 @@ import requests
 from django.db import transaction
 
 from animeLog.models import (
+    AnimeMovie,
     AnimeSeries,
     AnimeSeason,
     AnimeStatus,
@@ -98,7 +99,7 @@ def import_mal_username(username: str, limit: int = 50) -> dict[str, Any]:
             else:
                 updated_count += 1
 
-            season, _ = AnimeSeason.objects.get_or_create(
+            season, season_created = AnimeSeason.objects.get_or_create(
                 series=series,
                 season_number=1,
                 defaults={
@@ -109,7 +110,7 @@ def import_mal_username(username: str, limit: int = 50) -> dict[str, Any]:
                     "total_episodes": total_episodes,
                 },
             )
-            if not created:
+            if not season_created:
                 season.status = anime_status
                 if score is not None:
                     season.rating = score
@@ -128,6 +129,88 @@ def import_mal_username(username: str, limit: int = 50) -> dict[str, Any]:
     }
 
 
+def _resolve_rewatch_target(item: dict[str, Any]) -> Any:
+    """Resolve a rewatch JSON entry to its AnimeSeries, AnimeSeason, or AnimeMovie target."""
+    target_type = str(item.get("target_type") or "").lower().strip()
+    series_title = str(item.get("series_title") or "").strip()
+    release_title = str(item.get("release_title") or "").strip()
+    episode_number = item.get("episode_number")
+    target_id = item.get("target_id")
+    series_id = item.get("series_id") or item.get("series")
+    season_id = item.get("season_id") or item.get("season")
+    movie_id = item.get("movie_id") or item.get("movie")
+
+    series_obj = None
+    if series_title:
+        series_obj = AnimeSeries.objects.filter(title__iexact=series_title).first()
+    elif isinstance(series_id, int):
+        series_obj = AnimeSeries.objects.filter(id=series_id).first()
+
+    if target_type == "series":
+        lookup_title = release_title or series_title
+        if lookup_title:
+            match = AnimeSeries.objects.filter(title__iexact=lookup_title).first()
+            if match:
+                return match
+        if series_obj:
+            return series_obj
+        ref_id = target_id if isinstance(target_id, int) else series_id
+        return AnimeSeries.objects.filter(id=ref_id).first() if isinstance(ref_id, int) else None
+
+    if target_type in ("season", "episode"):
+        season_title = (
+            release_title.split(" — Ep ", 1)[0].strip()
+            if (episode_number is not None or " — Ep " in release_title)
+            else release_title
+        )
+        if series_obj and season_title:
+            match = AnimeSeason.objects.filter(series=series_obj, title__iexact=season_title).first()
+            if match:
+                return match
+        if series_obj:
+            match = AnimeSeason.objects.filter(series=series_obj).order_by("season_number", "id").first()
+            if match:
+                return match
+        if season_title:
+            match = AnimeSeason.objects.filter(title__iexact=season_title).first()
+            if match:
+                return match
+        ref_id = season_id if isinstance(season_id, int) else target_id
+        return AnimeSeason.objects.filter(id=ref_id).first() if isinstance(ref_id, int) else None
+
+    if target_type == "movie":
+        if series_obj and release_title:
+            match = AnimeMovie.objects.filter(series=series_obj, title__iexact=release_title).first()
+            if match:
+                return match
+        if series_obj:
+            match = AnimeMovie.objects.filter(series=series_obj).order_by("created_at", "id").first()
+            if match:
+                return match
+        if release_title:
+            match = AnimeMovie.objects.filter(title__iexact=release_title).first()
+            if match:
+                return match
+        ref_id = movie_id if isinstance(movie_id, int) else target_id
+        return AnimeMovie.objects.filter(id=ref_id).first() if isinstance(ref_id, int) else None
+
+    # Untyped / legacy backups
+    if series_obj and release_title:
+        return (
+            AnimeSeason.objects.filter(series=series_obj, title__iexact=release_title).first()
+            or AnimeMovie.objects.filter(series=series_obj, title__iexact=release_title).first()
+            or (series_obj if series_obj.title.lower() == release_title.lower() else None)
+            or series_obj
+        )
+    if release_title:
+        return (
+            AnimeSeries.objects.filter(title__iexact=release_title).first()
+            or AnimeSeason.objects.filter(title__iexact=release_title).first()
+            or AnimeMovie.objects.filter(title__iexact=release_title).first()
+        )
+    return series_obj
+
+
 def import_journal_json(data: dict[str, Any]) -> dict[str, Any]:
     """
     Restore journal entries from an AnimeLog JSON backup or external export.
@@ -140,7 +223,7 @@ def import_journal_json(data: dict[str, Any]) -> dict[str, Any]:
     imported = {"series": 0, "books": 0, "characters": 0, "rewatches": 0}
 
     with transaction.atomic():
-        # 1. Series & Seasons
+        # 1. Series, Seasons & Movies
         for s in series_list:
             title = s.get("title")
             if not title:
@@ -167,6 +250,22 @@ def import_journal_json(data: dict[str, Any]) -> dict[str, Any]:
                         "notes": sea.get("notes") or "",
                         "progress": sea.get("progress") or 0,
                         "total_episodes": sea.get("total_episodes"),
+                    },
+                )
+
+            for mov in s.get("movies", []):
+                m_title = mov.get("title")
+                if not m_title:
+                    continue
+                AnimeMovie.objects.get_or_create(
+                    series=series,
+                    title=m_title,
+                    defaults={
+                        "status": mov.get("status") or AnimeStatus.WATCHING,
+                        "rating": mov.get("rating"),
+                        "notes": mov.get("notes") or "",
+                        "progress_minutes": mov.get("progress_minutes") or 0,
+                        "total_minutes": mov.get("total_minutes"),
                     },
                 )
 
@@ -214,18 +313,17 @@ def import_journal_json(data: dict[str, Any]) -> dict[str, Any]:
 
         # 4. Rewatches
         for r in rewatches_list:
-            r_notes = r.get("notes") or ""
-            target_title = r.get("release_title")
-            if target_title:
-                match_series = AnimeSeries.objects.filter(title__iexact=target_title).first()
-                if match_series:
-                    Rewatch.objects.create(
-                        content_object=match_series,
-                        start_date=r.get("start_date"),
-                        finish_date=r.get("finish_date") or r.get("start_date"),
-                        rating=r.get("rating"),
-                        notes=r_notes,
-                    )
-                    imported["rewatches"] += 1
+            target_obj = _resolve_rewatch_target(r)
+            if target_obj:
+                Rewatch.objects.create(
+                    content_object=target_obj,
+                    episode_number=r.get("episode_number"),
+                    episode_title=r.get("episode_title"),
+                    start_date=r.get("start_date"),
+                    finish_date=r.get("finish_date") or r.get("start_date"),
+                    rating=r.get("rating"),
+                    notes=r.get("notes") or "",
+                )
+                imported["rewatches"] += 1
 
     return {"success": True, "imported": imported}
