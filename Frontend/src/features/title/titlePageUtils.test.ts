@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnimeMovie, AnimeSeason, AnimeSeries, EpisodeNote } from '../../types';
 import {
   adjacentEpisode,
+  clampedMovieDelta,
   computeRatingDelta,
   effectiveEpisodeCount,
   nextNoteEpisode,
@@ -176,5 +177,23 @@ describe('resolveTitleTab & parseEpisodeParam', () => {
     expect(resolveTitleTab('rewatches', null, 'movie')).toBe('rewatches');
     expect(resolveTitleTab('episodes', null, 'movie')).toBe('overview');
     expect(resolveTitleTab('unknown', null, 'season')).toBe('overview');
+  });
+});
+
+describe('clampedMovieDelta', () => {
+  it('clamps +10 and -10 to remaining and elapsed minutes near boundaries', () => {
+    expect(clampedMovieDelta({ progress_minutes: 116, total_minutes: 120 }, 10)).toBe(4);
+    expect(clampedMovieDelta({ progress_minutes: 120, total_minutes: 120 }, 10)).toBe(0);
+    expect(clampedMovieDelta({ progress_minutes: 4, total_minutes: 120 }, -10)).toBe(-4);
+    expect(clampedMovieDelta({ progress_minutes: 0, total_minutes: 120 }, -10)).toBe(0);
+    expect(clampedMovieDelta({ progress_minutes: 60, total_minutes: 120 }, 10)).toBe(10);
+    expect(clampedMovieDelta({ progress_minutes: 60, total_minutes: 120 }, -10)).toBe(-10);
+  });
+
+  it('handles unknown or zero total_minutes and zero delta safely', () => {
+    expect(clampedMovieDelta({ progress_minutes: 50, total_minutes: null }, 10)).toBe(10);
+    expect(clampedMovieDelta({ progress_minutes: 50, total_minutes: null }, -10)).toBe(-10);
+    expect(clampedMovieDelta({ progress_minutes: 0, total_minutes: 0 }, 10)).toBe(0);
+    expect(clampedMovieDelta({ progress_minutes: 50, total_minutes: 120 }, 0)).toBe(0);
   });
 });

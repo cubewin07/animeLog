@@ -581,4 +581,60 @@ describe('computeYearRecap', () => {
     expect(recap.bestNote?.id).toBe('older-note');
     expect(recap.bestNoteIsFallback).toBe(true);
   });
+
+  it('deduplicates repeated NOTE_WRITTEN edits on the same target in Recap notesCount', () => {
+    const recap = computeYearRecap(2026, {
+      seriesList: [],
+      bookList: [],
+      characterList: [],
+      rewatchList: [],
+      activityList: [
+        makeEvent({
+          id: 1,
+          kind: 'NOTE_WRITTEN',
+          target_type: 'season',
+          target_id: 10,
+          delta: 1,
+          created_at: '2026-02-01T10:00:00Z',
+        }),
+        makeEvent({
+          id: 2,
+          kind: 'NOTE_WRITTEN',
+          target_type: 'season',
+          target_id: 10,
+          delta: 1,
+          created_at: '2026-03-15T10:00:00Z',
+        }),
+        makeEvent({
+          id: 3,
+          kind: 'NOTE_WRITTEN',
+          target_type: 'season',
+          target_id: 10,
+          delta: 1,
+          created_at: '2026-04-20T10:00:00Z',
+        }),
+        // Different target_type with same numeric id counts separately
+        makeEvent({
+          id: 4,
+          kind: 'NOTE_WRITTEN',
+          target_type: 'book',
+          target_id: 10,
+          delta: 1,
+          created_at: '2026-05-01T10:00:00Z',
+        }),
+        // Out-of-window year ignored
+        makeEvent({
+          id: 5,
+          kind: 'NOTE_WRITTEN',
+          target_type: 'movie',
+          target_id: 10,
+          delta: 1,
+          created_at: '2025-12-31T00:00:00Z',
+        }),
+      ],
+      reflections: [],
+    });
+
+    expect(recap.notesCount).toBe(2);
+  });
 });

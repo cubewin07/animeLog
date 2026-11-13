@@ -347,6 +347,47 @@ describe('enrichJournalEntries', () => {
 
     expect(entry.coverUrl).toBe('https://cdn.example.com/series-fallback.jpg');
   });
+
+  it('resolves series-level rewatch to the series cover and href without colliding with an unrelated season of the same ID', () => {
+    const targetSeries = makeSeries({
+      id: 1,
+      title: 'Frieren',
+      cover_image_url: 'https://cdn.example.com/series-1.jpg',
+      seasons: [makeSeason({ id: 101, series: 1 })],
+    });
+    const unrelatedSeason = makeSeason({
+      id: 1,
+      series: 2,
+      cover_image_url: 'https://cdn.example.com/unrelated-season-1.jpg',
+    });
+    const otherSeries = makeSeries({
+      id: 2,
+      title: 'Other Show',
+      cover_image_url: 'https://cdn.example.com/series-2.jpg',
+      seasons: [unrelatedSeason],
+    });
+
+    const [entry] = enrichJournalEntries(
+      [
+        {
+          id: 'rewatch-series-1',
+          kind: 'rewatch',
+          targetKind: 'series',
+          targetId: 1,
+          title: 'Frieren',
+          context: 'Rewatch · Full series',
+          note: 'Even gentler the second time.',
+          timestamp: Date.parse('2026-04-20T00:00:00Z'),
+          dateStr: '2026-04-20',
+        },
+      ],
+      { seriesList: [targetSeries, otherSeries], bookList: [], characterList: [] },
+    );
+
+    expect(entry.coverUrl).toBe('https://cdn.example.com/series-1.jpg');
+    expect(entry.href).toBe('/anime/1');
+    expect(entry.composerTarget).toBeNull();
+  });
 });
 
 describe('filterJournalEntries and groupJournalByMonth', () => {

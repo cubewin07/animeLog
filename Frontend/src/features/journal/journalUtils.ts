@@ -384,6 +384,16 @@ export function enrichJournalEntries(
           defaultKind: normalizedKind === 'rewatch' ? 'return' : 'lesson',
         };
       }
+    } else if (reflection.targetKind === 'series') {
+      const series =
+        seriesById.get(reflection.targetId) ??
+        (reflection.seriesId != null ? seriesById.get(reflection.seriesId) : undefined);
+      coverUrl = nonEmptyUrl(series?.cover_image_url) || nonEmptyUrl(series?.image_url);
+
+      const resolvedSeriesId = reflection.seriesId ?? series?.id;
+      if (resolvedSeriesId != null) {
+        href = `/anime/${resolvedSeriesId}`;
+      }
     } else {
       const seasonEntry = seasonById.get(reflection.targetId);
       const series =

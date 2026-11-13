@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { nextBookState, nextSeasonState, patchSeason } from './progress';
+import { localToday, nextBookState, nextSeasonState, patchSeason } from './progress';
 import { ProgressQueue } from './progressQueue';
 import type { AnimeSeason, AnimeSeries, Book } from '../../types';
 
@@ -38,11 +38,69 @@ describe('nextSeasonState matches the server rules', () => {
   });
 });
 
+describe('localToday', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('formats YYYY-MM-DD with zero-padded local month and day', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 0, 5, 8, 15, 0));
+    expect(localToday()).toBe('2026-01-05');
+  });
+
+  it('uses local calendar components rather than UTC ISO date across day boundaries', () => {
+    const RealDate = globalThis.Date;
+    class MockBoundaryDate extends RealDate {
+      constructor() {
+        super('2026-11-12T23:30:00.000Z');
+      }
+      override getFullYear() {
+        return 2026;
+      }
+      override getMonth() {
+        return 10; // November
+      }
+      override getDate() {
+        return 13;
+      }
+    }
+    vi.stubGlobal('Date', MockBoundaryDate);
+    expect(localToday()).toBe('2026-11-13');
+  });
+});
+
 describe('nextBookState', () => {
-  it('uses reading statuses', () => {
+  it('uses reading statuses and sets finish_date on completion', () => {
     const book = { id: 1, progress: 0, total_pages: 10, status: 'PLAN_TO_READ', finish_date: null } as Book;
     expect(nextBookState(book, 5)?.status).toBe('READING');
-    expect(nextBookState({ ...book, status: 'READING', progress: 9 }, 1)?.status).toBe('COMPLETED');
+    const completed = nextBookState({ ...book, status: 'READING', progress: 9 }, 1);
+    expect(completed?.status).toBe('COMPLETED');
+    expect(completed?.finish_date).toBe(localToday());
+  });
+
+  it('clamps out-of-range page deltas and reopens completed books on negative delta', () => {
+    const book = { id: 1, progress: 0, total_pages: 10, status: 'PLAN_TO_READ', finish_date: null } as Book;
+    expect(nextBookState(book, -1)).toBeNull();
+    expect(nextBookState({ ...book, progress: 10, status: 'COMPLETED' }, 1)).toBeNull();
+    expect(nextBookState({ ...book, progress: 8, status: 'READING' }, 5)).toBeNull();
+
+    const completedToday = { ...book, progress: 10, status: 'COMPLETED', finish_date: localToday() } as Book;
+    expect(nextBookState(completedToday, -1)).toMatchObject({
+      progress: 9,
+      status: 'READING',
+      finish_date: null,
+    });
+
+    const completedEarlier = { ...book, progress: 10, status: 'COMPLETED', finish_date: '2025-05-01' } as Book;
+    expect(nextBookState(completedEarlier, -1)).toMatchObject({
+      progress: 9,
+      status: 'READING',
+      finish_date: '2025-05-01',
+    });
+
+    expect(nextBookState({ ...book, progress: 300, total_pages: null, status: 'READING' }, 25)?.progress).toBe(325);
   });
 });
 

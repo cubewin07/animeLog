@@ -228,6 +228,36 @@ describe('xp & level calculation', () => {
 
     expect(computeTodayXp(events, '2026-11-12')).toBe(27);
   });
+
+  it('deduplicates repeated NOTE_WRITTEN and CHARACTER_ADDED events on the same target and cancels +1/-1 COMPLETED pairs', () => {
+    const events = [
+      // Repeated season note edits on the same target today -> 15 XP once
+      makeEvent({ kind: 'NOTE_WRITTEN', target_type: 'season', target_id: 10, delta: 1, created_at: '2026-11-12' }),
+      makeEvent({ kind: 'NOTE_WRITTEN', target_type: 'season', target_id: 10, delta: 1, created_at: '2026-11-12' }),
+      // Same numeric ID but different target_type -> still counts once (5 XP)
+      makeEvent({ kind: 'NOTE_WRITTEN', target_type: 'episode', target_id: 10, delta: 1, created_at: '2026-11-12' }),
+      makeEvent({ kind: 'NOTE_WRITTEN', target_type: 'episode', target_id: 10, delta: 1, created_at: '2026-11-12' }),
+      // Repeated character add/edit on same target today -> 10 XP once
+      makeEvent({ kind: 'CHARACTER_ADDED', target_type: 'character', target_id: 7, delta: 1, created_at: '2026-11-12' }),
+      makeEvent({ kind: 'CHARACTER_ADDED', target_type: 'character', target_id: 7, delta: 1, created_at: '2026-11-12' }),
+      // Completed then reopened on the same target today -> cancels to 0 XP
+      makeEvent({ kind: 'COMPLETED', target_type: 'season', target_id: 10, delta: 1, created_at: '2026-11-12' }),
+      makeEvent({ kind: 'COMPLETED', target_type: 'season', target_id: 10, delta: -1, created_at: '2026-11-12' }),
+    ];
+
+    expect(computeTodayXp(events, '2026-11-12')).toBe(30);
+
+    // Pure +1/-1 COMPLETED pair yields 0 XP
+    expect(
+      computeTodayXp(
+        [
+          makeEvent({ kind: 'COMPLETED', target_type: 'book', target_id: 5, delta: 1, created_at: '2026-11-12' }),
+          makeEvent({ kind: 'COMPLETED', target_type: 'book', target_id: 5, delta: -1, created_at: '2026-11-12' }),
+        ],
+        '2026-11-12',
+      ),
+    ).toBe(0);
+  });
 });
 
 describe('streak calculation', () => {
