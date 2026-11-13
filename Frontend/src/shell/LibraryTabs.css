@@ -1,0 +1,70 @@
+.kf-library-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kf-1);
+  padding: var(--kf-1);
+  background: var(--kf-panel);
+  border: 1px solid var(--kf-line);
+  border-radius: var(--kf-radius-lg);
+  margin-bottom: var(--kf-4);
+  font-family: var(--kf-font-ui);
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.kf-library-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--kf-2);
+  min-height: 40px;
+  padding: 0 var(--kf-4);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text-2);
+  text-decoration: none;
+  font-size: var(--kf-text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+}
+
+.kf-library-tab:hover {
+  color: var(--kf-text);
+  background: rgba(242, 244, 248, 0.05);
+}
+
+.kf-library-tab.is-active {
+  background: var(--kf-raised);
+  color: var(--kf-text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.kf-library-tab.is-active svg {
+  color: var(--kf-brand);
+}
+
+.kf-library-tab-count {
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
+  background: var(--kf-bg);
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kf-library-tab.is-active .kf-library-tab-count {
+  color: var(--kf-text);
+}
+
+@media (max-width: 639px) {
+  .kf-library-tabs {
+    display: flex;
+    width: 100%;
+  }
+
+  .kf-library-tab {
+    flex: 1;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 var(--kf-2);
+  }
+}

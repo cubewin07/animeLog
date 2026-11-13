@@ -1,0 +1,140 @@
+.lamplight-cover {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--kf-radius-lg);
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  transition:
+    transform var(--kf-fast) var(--kf-ease),
+    box-shadow var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-cover.is-poster {
+  aspect-ratio: 2 / 3;
+}
+
+.lamplight-cover.is-book {
+  aspect-ratio: 2 / 3;
+}
+
+.lamplight-cover.is-portrait {
+  aspect-ratio: 1 / 1;
+  border-radius: var(--kf-radius-pill);
+}
+
+.lamplight-cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity var(--kf-base) var(--kf-ease);
+}
+
+.lamplight-cover-img.is-loaded {
+  opacity: 1;
+}
+
+/* Generated Book/Poster Cloth Cover */
+.lamplight-cover-generated {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--kf-3);
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Fine book spine stitch & shadow */
+.lamplight-cover.is-book .lamplight-cover-generated {
+  box-shadow:
+    inset 5px 0 10px rgba(0, 0, 0, 0.4),
+    inset -1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+.lamplight-cover-frame {
+  position: absolute;
+  inset: var(--kf-2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  border-radius: var(--kf-radius);
+}
+
+.lamplight-cover-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+
+.lamplight-cover-format {
+  font-family: var(--kf-font-ui);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.72;
+}
+
+.lamplight-cover-body {
+  margin-top: auto;
+  z-index: 2;
+}
+
+.lamplight-cover-title {
+  font-family: var(--kf-font-display);
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.lamplight-cover.is-book .lamplight-cover-title {
+  text-align: center;
+  margin: auto 0;
+  font-family: var(--kf-font-note);
+  font-style: italic;
+  font-size: 16px;
+}
+
+.lamplight-cover-sub {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: var(--kf-1);
+  display: block;
+}
+
+.lamplight-cover.is-book .lamplight-cover-sub {
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Portrait Monogram */
+.lamplight-cover-monogram {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--kf-font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamplight-cover,
+  .lamplight-cover-img {
+    transition: none;
+  }
+}

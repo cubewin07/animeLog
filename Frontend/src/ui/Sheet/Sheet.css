@@ -1,0 +1,126 @@
+.lamplight-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(8, 10, 15, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  overscroll-behavior: contain;
+  animation: fadeIn var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sheet {
+  background-color: var(--kf-panel);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  box-shadow: var(--kf-shadow-lg);
+  border-left: 1px solid var(--kf-line-strong);
+  width: 100%;
+  max-width: 560px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight var(--kf-base) var(--kf-ease);
+  position: relative;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .lamplight-sheet-backdrop {
+    align-items: flex-end;
+  }
+
+  .lamplight-sheet {
+    max-width: 100%;
+    max-height: 90dvh;
+    border-left: none;
+    border-top: 1px solid var(--kf-line-strong);
+    border-top-left-radius: var(--kf-radius-lg);
+    border-top-right-radius: var(--kf-radius-lg);
+    animation: slideInBottom var(--kf-base) var(--kf-ease);
+  }
+
+  @keyframes slideInBottom {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+}
+
+.lamplight-sheet-header {
+  padding: var(--kf-4) var(--kf-5);
+  border-bottom: 1px solid var(--kf-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kf-3);
+}
+
+.lamplight-sheet-title {
+  font-family: var(--kf-font-display);
+  font-size: var(--kf-text-lg);
+  font-weight: 700;
+  color: var(--kf-text);
+}
+
+.lamplight-sheet-close {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--kf-text-2);
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--kf-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition:
+    background-color var(--kf-fast) var(--kf-ease),
+    color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sheet-close:hover {
+  background: var(--kf-raised);
+  color: var(--kf-text);
+}
+
+.lamplight-sheet-body {
+  padding: var(--kf-5);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  flex: 1;
+}
+
+.lamplight-sheet-footer {
+  padding: var(--kf-4) var(--kf-5);
+  border-top: 1px solid var(--kf-line);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--kf-3);
+  background-color: var(--kf-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamplight-sheet-backdrop,
+  .lamplight-sheet {
+    animation: none;
+  }
+}

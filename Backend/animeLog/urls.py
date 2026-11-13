@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    ActivityListView,
     BookViewSet,
     EpisodeNoteViewSet,
     FavoriteCharacterViewSet,
@@ -34,6 +35,7 @@ router.register(r"characters", FavoriteCharacterViewSet, basename="character")
 router.register(r"books", BookViewSet, basename="book")
 
 urlpatterns = [
+    path("activity/", ActivityListView.as_view(), name="activity-list"),
     path("stats/", StatsView.as_view(), name="journal-stats"),
     path("lookup/", MetadataLookupView.as_view(), name="metadata-lookup"),
     path("export/", JournalExportView.as_view(), name="journal-export"),

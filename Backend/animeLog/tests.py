@@ -1,13 +1,18 @@
-from datetime import date
+import importlib
+from datetime import date, datetime, timedelta, timezone as dt_timezone
 from unittest.mock import patch, MagicMock
+from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import (
+    ActivityEvent,
+    ActivityKind,
     AnimeMovie,
     AnimeSeason,
     AnimeSeries,
@@ -522,13 +527,31 @@ class AnimeLogAPITests(JournalAPIFixtureMixin, APITestCase):
         )
         self.assertEqual(res3.status_code, status.HTTP_400_BAD_REQUEST)
 
-        # 4. Delta -1 decreases progress below total -> does not erase COMPLETED status
+        # 4. Delta -1 undoes finishing: back to WATCHING, and today's finish date is cleared
         res4 = self.client.patch(
             f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json"
         )
         self.assertEqual(res4.status_code, status.HTTP_200_OK)
         self.assertEqual(res4.data["progress"], 11)
-        self.assertEqual(res4.data["status"], AnimeStatus.COMPLETED)
+        self.assertEqual(res4.data["status"], AnimeStatus.WATCHING)
+        self.assertIsNone(res4.data["finish_date"])
+
+    def test_stepping_back_keeps_an_older_finish_date(self):
+        season = AnimeSeason.objects.create(
+            series=self.series,
+            season_number=3,
+            title="Season 3",
+            status=AnimeStatus.COMPLETED,
+            progress=12,
+            total_episodes=12,
+            finish_date=date(2023, 2, 20),
+        )
+        res = self.client.patch(
+            f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json"
+        )
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["status"], AnimeStatus.WATCHING)
+        self.assertEqual(res.data["finish_date"], "2023-02-20")
 
     def test_movie_progress_endpoint_and_bounds(self):
         movie = AnimeMovie.objects.create(
@@ -1007,4 +1030,793 @@ class MetadataLookupAndExportAPITests(JournalAPIFixtureMixin, APITestCase):
 
         self.assertTrue(AnimeSeries.objects.filter(title="Neon Genesis Evangelion").exists())
         self.assertTrue(Book.objects.filter(title="Thus Spoke Zarathustra").exists())
+
+    @patch("animeLog.services.importer.requests.get")
+    def test_mal_user_import_updates_existing_series_and_season(self, mock_get):
+        existing_with_s1 = AnimeSeries.objects.create(title="Existing MAL Show")
+        existing_s1 = AnimeSeason.objects.create(
+            series=existing_with_s1,
+            season_number=1,
+            title="Season 1",
+            status=AnimeStatus.PLAN_TO_WATCH,
+            progress=0,
+            total_episodes=12,
+        )
+        existing_no_s1 = AnimeSeries.objects.create(title="Existing MAL No Season")
+        ActivityEvent.objects.all().delete()
+
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "entry": {"mal_id": 1001, "title": "Existing MAL Show"},
+                    "score": 8,
+                    "status": "watching",
+                    "episodes_seen": 5,
+                    "episodes_total": 12,
+                },
+                {
+                    "entry": {"mal_id": 1002, "title": "Existing MAL No Season"},
+                    "score": 9,
+                    "status": "completed",
+                    "episodes_seen": 24,
+                    "episodes_total": 24,
+                },
+            ]
+        }
+
+        res = self.client.post("/api/import/mal/", {"username": "otaku_user"}, format="json")
+        self.assertEqual(res.status_code, status.HTTP_200_OK, res.data)
+        self.assertEqual(res.data["imported_count"], 0)
+        self.assertEqual(res.data["updated_count"], 2)
+
+        existing_s1.refresh_from_db()
+        self.assertEqual(existing_s1.status, AnimeStatus.WATCHING)
+        self.assertEqual(existing_s1.progress, 5)
+        self.assertEqual(existing_s1.rating, 8)
+
+        created_s1 = existing_no_s1.seasons.get(season_number=1)
+        self.assertEqual(created_s1.status, AnimeStatus.COMPLETED)
+        self.assertEqual(created_s1.progress, 24)
+        self.assertEqual(created_s1.rating, 9)
+        self.assertEqual(ActivityEvent.objects.count(), 0)
+
+    def test_journal_json_import_resolves_exported_rewatches_without_activity(self):
+        series = AnimeSeries.objects.create(title="Exported Rewatch Series")
+        season = AnimeSeason.objects.create(
+            series=series,
+            season_number=1,
+            title="First Cour",
+            status=AnimeStatus.COMPLETED,
+            progress=12,
+            total_episodes=12,
+        )
+        movie = AnimeMovie.objects.create(
+            series=series,
+            title="Finale Movie",
+            status=AnimeStatus.COMPLETED,
+            progress_minutes=95,
+            total_minutes=95,
+        )
+        Rewatch.objects.create(content_object=series, notes="Full series pass")
+        Rewatch.objects.create(content_object=season, notes="Season pass")
+        Rewatch.objects.create(
+            content_object=season,
+            episode_number=3,
+            episode_title="The Blue Moon",
+            notes="Episode pass",
+        )
+        Rewatch.objects.create(content_object=movie, notes="Movie pass")
+
+        export_res = self.client.get("/api/export/?export_format=json")
+        self.assertEqual(export_res.status_code, status.HTTP_200_OK)
+        exported_rewatches = [
+            rw
+            for rw in export_res.data["rewatches"]
+            if rw.get("series_title") == "Exported Rewatch Series"
+        ]
+        self.assertEqual(len(exported_rewatches), 4)
+
+        # Remove original series + rewatches and import with shifted IDs so resolution must match by titles.
+        Rewatch.objects.all().delete()
+        series.delete()
+        AnimeSeries.objects.create(title="ID Shift Filler")
+        ActivityEvent.objects.all().delete()
+
+        payload = {
+            "version": "1.0",
+            "series": [
+                {
+                    "title": "Exported Rewatch Series",
+                    "seasons": [
+                        {
+                            "season_number": 1,
+                            "title": "First Cour",
+                            "status": "COMPLETED",
+                            "progress": 12,
+                            "total_episodes": 12,
+                        }
+                    ],
+                    "movies": [
+                        {
+                            "title": "Finale Movie",
+                            "status": "COMPLETED",
+                            "progress_minutes": 95,
+                            "total_minutes": 95,
+                        }
+                    ],
+                }
+            ],
+            "books": [],
+            "characters": [],
+            "rewatches": exported_rewatches,
+        }
+        import_res = self.client.post("/api/import/json/", payload, format="json")
+        self.assertEqual(import_res.status_code, status.HTTP_200_OK, import_res.data)
+        self.assertEqual(import_res.data["imported"]["rewatches"], 4)
+
+        restored_series = AnimeSeries.objects.get(title="Exported Rewatch Series")
+        restored_season = AnimeSeason.objects.get(series=restored_series, title="First Cour")
+        restored_movie = AnimeMovie.objects.get(series=restored_series, title="Finale Movie")
+
+        self.assertEqual(restored_series.rewatches.count(), 1)
+        self.assertEqual(restored_season.rewatches.filter(episode_number__isnull=True).count(), 1)
+        self.assertEqual(restored_season.rewatches.filter(episode_number=3).count(), 1)
+        self.assertEqual(restored_movie.rewatches.count(), 1)
+        self.assertEqual(ActivityEvent.objects.count(), 0)
+
+
+class ActivityEventAPITests(JournalAPIFixtureMixin, APITestCase):
+    def test_season_and_movie_progress_endpoints_record_activity(self):
+        season = AnimeSeason.objects.create(
+            series=self.series,
+            season_number=2,
+            title="Season 2",
+            status=AnimeStatus.PLAN_TO_WATCH,
+            progress=0,
+            total_episodes=12,
+        )
+        movie = AnimeMovie.objects.create(
+            series=self.series,
+            title="Film",
+            status=AnimeStatus.PLAN_TO_WATCH,
+            progress_minutes=0,
+            total_minutes=100,
+        )
+
+        # Season +1 -> EPISODE_PROGRESS
+        res1 = self.client.patch(f"/api/seasons/{season.id}/progress/", {"delta": 1}, format="json")
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        ev1 = ActivityEvent.objects.filter(target_type="season", target_id=season.id).first()
+        self.assertIsNotNone(ev1)
+        self.assertEqual(ev1.kind, ActivityKind.EPISODE_PROGRESS)
+        self.assertEqual(ev1.delta, 1)
+        self.assertIn("Season 2", ev1.title)
+
+        # Season +11 -> EPISODE_PROGRESS + COMPLETED
+        res2 = self.client.patch(f"/api/seasons/{season.id}/progress/", {"delta": 11}, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        season_events = list(
+            ActivityEvent.objects.filter(target_type="season", target_id=season.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.EPISODE_PROGRESS, 11), season_events)
+        self.assertIn((ActivityKind.COMPLETED, 1), season_events)
+
+        # Season -1 undo -> EPISODE_PROGRESS with delta=-1
+        res3 = self.client.patch(f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json")
+        self.assertEqual(res3.status_code, status.HTTP_200_OK)
+        latest_season_ev = ActivityEvent.objects.filter(target_type="season", target_id=season.id).first()
+        self.assertEqual(latest_season_ev.kind, ActivityKind.EPISODE_PROGRESS)
+        self.assertEqual(latest_season_ev.delta, -1)
+
+        # Movie +100 -> MOVIE_PROGRESS + COMPLETED
+        m_res = self.client.patch(f"/api/movies/{movie.id}/progress/", {"delta": 100}, format="json")
+        self.assertEqual(m_res.status_code, status.HTTP_200_OK)
+        movie_kinds = list(
+            ActivityEvent.objects.filter(target_type="movie", target_id=movie.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.MOVIE_PROGRESS, 100), movie_kinds)
+        self.assertIn((ActivityKind.COMPLETED, 1), movie_kinds)
+
+    def test_notes_and_book_updates_record_activity(self):
+        # Season note written on PATCH
+        s_res = self.client.patch(
+            f"/api/seasons/{self.season.id}/",
+            {"notes": "Updated reflection on time."},
+            format="json",
+        )
+        self.assertEqual(s_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(
+            ActivityEvent.objects.filter(
+                kind=ActivityKind.NOTE_WRITTEN, target_type="season", target_id=self.season.id
+            ).exists()
+        )
+
+        # Book create with initial progress and note
+        b_create = self.client.post(
+            "/api/books/",
+            {
+                "title": "The Enchiridion",
+                "author": "Epictetus",
+                "status": BookStatus.READING,
+                "progress": 15,
+                "total_pages": 60,
+                "notes": "Some things are up to us.",
+            },
+            format="json",
+        )
+        self.assertEqual(b_create.status_code, status.HTTP_201_CREATED)
+        book_id = b_create.data["id"]
+        created_kinds = set(
+            ActivityEvent.objects.filter(target_type="book", target_id=book_id).values_list("kind", flat=True)
+        )
+        self.assertEqual(created_kinds, {ActivityKind.BOOK_PROGRESS, ActivityKind.NOTE_WRITTEN})
+
+        # Book update progress + complete
+        b_patch = self.client.patch(
+            f"/api/books/{book_id}/",
+            {"progress": 60, "status": BookStatus.COMPLETED},
+            format="json",
+        )
+        self.assertEqual(b_patch.status_code, status.HTTP_200_OK)
+        book_events = list(
+            ActivityEvent.objects.filter(target_type="book", target_id=book_id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.BOOK_PROGRESS, 45), book_events)
+        self.assertIn((ActivityKind.COMPLETED, 1), book_events)
+
+        # Decreasing book progress does not emit BOOK_PROGRESS
+        before_count = ActivityEvent.objects.filter(target_type="book", target_id=book_id).count()
+        self.client.patch(f"/api/books/{book_id}/", {"progress": 50}, format="json")
+        self.assertEqual(
+            ActivityEvent.objects.filter(target_type="book", target_id=book_id).count(),
+            before_count,
+        )
+
+    def test_episode_note_rewatch_and_character_record_activity(self):
+        # Episode note create & update
+        ep_res = self.client.post(
+            "/api/episode-notes/",
+            {
+                "season": self.season.id,
+                "episode_number": 3,
+                "note": "Magic as quiet care.",
+            },
+            format="json",
+        )
+        self.assertEqual(ep_res.status_code, status.HTTP_201_CREATED)
+        ep_id = ep_res.data["id"]
+        ep_event = ActivityEvent.objects.filter(
+            kind=ActivityKind.NOTE_WRITTEN, target_type="episode", target_id=self.season.id
+        ).first()
+        self.assertIsNotNone(ep_event)
+        self.assertEqual(ep_event.title, f"{self.series.title} · Ep 3")
+
+        self.client.patch(
+            f"/api/episode-notes/{ep_id}/",
+            {"note": "Magic as quiet care, revised."},
+            format="json",
+        )
+        self.assertEqual(
+            ActivityEvent.objects.filter(
+                kind=ActivityKind.NOTE_WRITTEN, target_type="episode", target_id=self.season.id
+            ).count(),
+            2,
+        )
+
+        # Rewatch create
+        rw_res = self.client.post(
+            "/api/rewatches/",
+            {"target_type": "season", "target_id": self.season.id, "notes": "Pass 2"},
+            format="json",
+        )
+        self.assertEqual(rw_res.status_code, status.HTTP_201_CREATED)
+        rw_event = ActivityEvent.objects.filter(
+            kind=ActivityKind.REWATCH_LOGGED, target_type="season", target_id=self.season.id
+        ).first()
+        self.assertIsNotNone(rw_event)
+        self.assertEqual(rw_event.title, self.series.title)
+
+        # Character create + update
+        ch_res = self.client.post(
+            "/api/characters/",
+            {"series": self.series.id, "name": "Eisen", "why": ""},
+            format="json",
+        )
+        self.assertEqual(ch_res.status_code, status.HTTP_201_CREATED)
+        char_id = ch_res.data["id"]
+        self.assertEqual(
+            ActivityEvent.objects.filter(
+                kind=ActivityKind.CHARACTER_ADDED, target_type="character", target_id=char_id
+            ).count(),
+            1,
+        )
+
+        # Updating non-why fields does not emit another CHARACTER_ADDED
+        self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"cover_image": self.image_frieren.id},
+            format="json",
+        )
+        self.assertEqual(
+            ActivityEvent.objects.filter(
+                kind=ActivityKind.CHARACTER_ADDED, target_type="character", target_id=char_id
+            ).count(),
+            1,
+        )
+
+        # Writing why emits CHARACTER_ADDED
+        self.client.patch(
+            f"/api/characters/{char_id}/",
+            {"why": "Strength tempered by humility."},
+            format="json",
+        )
+        self.assertEqual(
+            ActivityEvent.objects.filter(
+                kind=ActivityKind.CHARACTER_ADDED, target_type="character", target_id=char_id
+            ).count(),
+            2,
+        )
+
+    def test_activity_list_endpoint_and_since_filtering(self):
+        now = timezone.now()
+        old_dt = now - timedelta(days=10)
+        recent_dt = now - timedelta(days=1)
+
+        old_ev = ActivityEvent.objects.create(
+            kind=ActivityKind.BOOK_PROGRESS,
+            target_type="book",
+            target_id=self.book.id,
+            title="Old Event",
+            delta=5,
+            created_at=old_dt,
+        )
+        recent_ev = ActivityEvent.objects.create(
+            kind=ActivityKind.EPISODE_PROGRESS,
+            target_type="season",
+            target_id=self.season.id,
+            title="Recent Event",
+            delta=1,
+            created_at=recent_dt,
+        )
+
+        res_all = self.client.get("/api/activity/")
+        self.assertEqual(res_all.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(res_all.data, list)
+        ids = [item["id"] for item in res_all.data]
+        self.assertEqual(ids, [recent_ev.id, old_ev.id])
+
+        since_date = (now - timedelta(days=3)).date().isoformat()
+        res_since = self.client.get(f"/api/activity/?since={since_date}")
+        self.assertEqual(res_since.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in res_since.data], [recent_ev.id])
+
+        res_limit = self.client.get("/api/activity/?limit=1")
+        self.assertEqual(res_limit.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_limit.data), 1)
+        self.assertEqual(res_limit.data[0]["id"], recent_ev.id)
+
+        res_bad = self.client.get("/api/activity/?since=not-a-date")
+        self.assertEqual(res_bad.status_code, status.HTTP_400_BAD_REQUEST)
+
+    @patch("animeLog.services.importer.requests.get")
+    def test_bulk_imports_do_not_create_activity_events(self, mock_get):
+        ActivityEvent.objects.all().delete()
+
+        # JSON import
+        payload = {
+            "version": "1.0",
+            "series": [
+                {
+                    "title": "Vinland Saga",
+                    "seasons": [
+                        {
+                            "season_number": 1,
+                            "title": "Season 1",
+                            "status": "COMPLETED",
+                            "progress": 24,
+                            "total_episodes": 24,
+                            "notes": "No enemies.",
+                        }
+                    ],
+                }
+            ],
+            "books": [
+                {
+                    "title": "Letters from a Stoic",
+                    "status": "COMPLETED",
+                    "progress": 200,
+                    "notes": "Time is the only possession.",
+                }
+            ],
+            "characters": [{"series_title": "Vinland Saga", "name": "Thorfinn", "why": "Redemption."}],
+            "rewatches": [],
+        }
+        res_json = self.client.post("/api/import/json/", payload, format="json")
+        self.assertEqual(res_json.status_code, status.HTTP_200_OK)
+        self.assertEqual(ActivityEvent.objects.count(), 0)
+
+        # MAL import
+        mock_get.return_value.status_code = 200
+        mock_get.return_value.json.return_value = {
+            "data": [
+                {
+                    "entry": {"mal_id": 1, "title": "Cowboy Bebop"},
+                    "score": 10,
+                    "status": "completed",
+                    "episodes_seen": 26,
+                    "episodes_total": 26,
+                }
+            ]
+        }
+        res_mal = self.client.post("/api/import/mal/", {"username": "spike"}, format="json")
+        self.assertEqual(res_mal.status_code, status.HTTP_200_OK)
+        self.assertEqual(ActivityEvent.objects.count(), 0)
+
+    def test_create_series_initial_season_auto_promotes_and_records_activity(self):
+        ActivityEvent.objects.all().delete()
+
+        # Partial progress without explicit status -> auto-promotes to WATCHING and emits EPISODE_PROGRESS + NOTE_WRITTEN
+        res_watching = self.client.post(
+            "/api/series/",
+            {
+                "title": "Odd Taxi",
+                "initial_season": {
+                    "title": "Season 1",
+                    "season_number": 1,
+                    "progress": 4,
+                    "total_episodes": 13,
+                    "notes": "Tight mystery.",
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(res_watching.status_code, status.HTTP_201_CREATED, res_watching.data)
+        s1 = res_watching.data["seasons"][0]
+        self.assertEqual(s1["status"], AnimeStatus.WATCHING)
+        self.assertIsNone(s1["finish_date"])
+        s1_events = list(
+            ActivityEvent.objects.filter(target_type="season", target_id=s1["id"]).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.EPISODE_PROGRESS, 4), s1_events)
+        self.assertIn((ActivityKind.NOTE_WRITTEN, 1), s1_events)
+        self.assertNotIn((ActivityKind.COMPLETED, 1), s1_events)
+
+        # Full progress with PLAN_TO_WATCH default -> auto-promotes to COMPLETED, sets finish_date, emits COMPLETED
+        res_completed = self.client.post(
+            "/api/series/",
+            {
+                "title": "Ping Pong the Animation",
+                "initial_season": {
+                    "title": "Season 1",
+                    "season_number": 1,
+                    "status": AnimeStatus.PLAN_TO_WATCH,
+                    "progress": 11,
+                    "total_episodes": 11,
+                    "notes": "Hero appears.",
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(res_completed.status_code, status.HTTP_201_CREATED, res_completed.data)
+        s2 = res_completed.data["seasons"][0]
+        self.assertEqual(s2["status"], AnimeStatus.COMPLETED)
+        self.assertEqual(s2["finish_date"], str(date.today()))
+        s2_events = list(
+            ActivityEvent.objects.filter(target_type="season", target_id=s2["id"]).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.EPISODE_PROGRESS, 11), s2_events)
+        self.assertIn((ActivityKind.COMPLETED, 1), s2_events)
+        self.assertIn((ActivityKind.NOTE_WRITTEN, 1), s2_events)
+
+        # Explicit non-PLAN_TO_WATCH status is respected
+        res_hold = self.client.post(
+            "/api/series/",
+            {
+                "title": "Monster",
+                "initial_season": {
+                    "title": "Season 1",
+                    "season_number": 1,
+                    "status": AnimeStatus.ON_HOLD,
+                    "progress": 20,
+                    "total_episodes": 74,
+                },
+            },
+            format="json",
+        )
+        self.assertEqual(res_hold.status_code, status.HTTP_201_CREATED, res_hold.data)
+        s3 = res_hold.data["seasons"][0]
+        self.assertEqual(s3["status"], AnimeStatus.ON_HOLD)
+        s3_events = list(
+            ActivityEvent.objects.filter(target_type="season", target_id=s3["id"]).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.EPISODE_PROGRESS, 20), s3_events)
+
+    def test_book_progress_endpoint_transitions_bounds_and_activity(self):
+        book = Book.objects.create(
+            title="Letters from a Stoic",
+            status=BookStatus.PLAN_TO_READ,
+            progress=0,
+            total_pages=100,
+        )
+        ActivityEvent.objects.all().delete()
+
+        # Invalid / non-integer / boolean deltas rejected
+        for bad_payload in ({}, {"delta": "5"}, {"delta": True}):
+            res_bad = self.client.patch(f"/api/books/{book.id}/progress/", bad_payload, format="json")
+            self.assertEqual(res_bad.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Negative overrun rejected
+        res_neg = self.client.patch(f"/api/books/{book.id}/progress/", {"delta": -1}, format="json")
+        self.assertEqual(res_neg.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # +15 promotes PLAN_TO_READ -> READING and records BOOK_PROGRESS(+15)
+        res1 = self.client.patch(f"/api/books/{book.id}/progress/", {"delta": 15}, format="json")
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        self.assertEqual(res1.data["progress"], 15)
+        self.assertEqual(res1.data["status"], BookStatus.READING)
+        self.assertIsNone(res1.data["finish_date"])
+        self.assertEqual(
+            list(ActivityEvent.objects.filter(target_type="book", target_id=book.id).values_list("kind", "delta")),
+            [(ActivityKind.BOOK_PROGRESS, 15)],
+        )
+
+        # Overrun past total_pages rejected
+        res_over = self.client.patch(f"/api/books/{book.id}/progress/", {"delta": 90}, format="json")
+        self.assertEqual(res_over.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # +85 reaches total_pages -> COMPLETED, sets finish_date, emits BOOK_PROGRESS(+85) + COMPLETED(+1)
+        res2 = self.client.patch(f"/api/books/{book.id}/progress/", {"delta": 85}, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(res2.data["progress"], 100)
+        self.assertEqual(res2.data["status"], BookStatus.COMPLETED)
+        self.assertEqual(res2.data["finish_date"], str(date.today()))
+        events_after_complete = list(
+            ActivityEvent.objects.filter(target_type="book", target_id=book.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.BOOK_PROGRESS, 85), events_after_complete)
+        self.assertIn((ActivityKind.COMPLETED, 1), events_after_complete)
+
+        # -10 reopens COMPLETED -> READING, clears today's finish_date, emits BOOK_PROGRESS(-10) + COMPLETED(-1)
+        res3 = self.client.patch(f"/api/books/{book.id}/progress/", {"delta": -10}, format="json")
+        self.assertEqual(res3.status_code, status.HTTP_200_OK)
+        self.assertEqual(res3.data["progress"], 90)
+        self.assertEqual(res3.data["status"], BookStatus.READING)
+        self.assertIsNone(res3.data["finish_date"])
+        events_after_reopen = list(
+            ActivityEvent.objects.filter(target_type="book", target_id=book.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.BOOK_PROGRESS, -10), events_after_reopen)
+        self.assertIn((ActivityKind.COMPLETED, -1), events_after_reopen)
+
+        # Stepping back from an older historical finish_date keeps that finish_date and still emits COMPLETED(-1)
+        old_book = Book.objects.create(
+            title="Discourses",
+            status=BookStatus.COMPLETED,
+            progress=50,
+            total_pages=50,
+            finish_date=date(2023, 2, 20),
+        )
+        res_hist = self.client.patch(f"/api/books/{old_book.id}/progress/", {"delta": -5}, format="json")
+        self.assertEqual(res_hist.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_hist.data["progress"], 45)
+        self.assertEqual(res_hist.data["status"], BookStatus.READING)
+        self.assertEqual(res_hist.data["finish_date"], "2023-02-20")
+        old_events = list(
+            ActivityEvent.objects.filter(target_type="book", target_id=old_book.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.BOOK_PROGRESS, -5), old_events)
+        self.assertIn((ActivityKind.COMPLETED, -1), old_events)
+
+    def test_season_and_movie_reopen_emit_completed_negative_delta(self):
+        season = AnimeSeason.objects.create(
+            series=self.series,
+            season_number=2,
+            title="Season 2",
+            status=AnimeStatus.PLAN_TO_WATCH,
+            progress=0,
+            total_episodes=12,
+        )
+        movie = AnimeMovie.objects.create(
+            series=self.series,
+            title="Film",
+            status=AnimeStatus.PLAN_TO_WATCH,
+            progress_minutes=0,
+            total_minutes=100,
+        )
+        ActivityEvent.objects.all().delete()
+
+        # Complete then reopen season
+        self.client.patch(f"/api/seasons/{season.id}/progress/", {"delta": 12}, format="json")
+        res_s_reopen = self.client.patch(f"/api/seasons/{season.id}/progress/", {"delta": -1}, format="json")
+        self.assertEqual(res_s_reopen.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_s_reopen.data["status"], AnimeStatus.WATCHING)
+        self.assertIsNone(res_s_reopen.data["finish_date"])
+        season_events = list(
+            ActivityEvent.objects.filter(target_type="season", target_id=season.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.COMPLETED, 1), season_events)
+        self.assertIn((ActivityKind.COMPLETED, -1), season_events)
+        self.assertIn((ActivityKind.EPISODE_PROGRESS, -1), season_events)
+
+        # Complete then reopen movie
+        self.client.patch(f"/api/movies/{movie.id}/progress/", {"delta": 100}, format="json")
+        res_m_reopen = self.client.patch(f"/api/movies/{movie.id}/progress/", {"delta": -10}, format="json")
+        self.assertEqual(res_m_reopen.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_m_reopen.data["status"], AnimeStatus.WATCHING)
+        self.assertIsNone(res_m_reopen.data["finish_date"])
+        movie_events = list(
+            ActivityEvent.objects.filter(target_type="movie", target_id=movie.id).values_list("kind", "delta")
+        )
+        self.assertIn((ActivityKind.COMPLETED, 1), movie_events)
+        self.assertIn((ActivityKind.COMPLETED, -1), movie_events)
+        self.assertIn((ActivityKind.MOVIE_PROGRESS, -10), movie_events)
+
+    def test_activity_list_pagination_and_headers(self):
+        ActivityEvent.objects.all().delete()
+        now = timezone.now()
+        created = []
+        for idx in range(5):
+            created.append(
+                ActivityEvent.objects.create(
+                    kind=ActivityKind.EPISODE_PROGRESS,
+                    target_type="season",
+                    target_id=self.season.id,
+                    title=f"Event {idx}",
+                    delta=1,
+                    created_at=now - timedelta(days=idx),
+                )
+            )
+        expected_ids = [ev.id for ev in created]
+
+        res_default = self.client.get("/api/activity/")
+        self.assertEqual(res_default.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(res_default.data, list)
+        self.assertEqual([item["id"] for item in res_default.data], expected_ids)
+        self.assertEqual(res_default["X-Total-Count"], "5")
+        self.assertEqual(res_default["X-Has-More"], "false")
+
+        res_page1 = self.client.get("/api/activity/?limit=2&offset=0")
+        self.assertEqual(res_page1.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in res_page1.data], expected_ids[:2])
+        self.assertEqual(res_page1["X-Total-Count"], "5")
+        self.assertEqual(res_page1["X-Has-More"], "true")
+
+        res_page2 = self.client.get("/api/activity/?limit=2&offset=2")
+        self.assertEqual(res_page2.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in res_page2.data], expected_ids[2:4])
+        self.assertEqual(res_page2["X-Total-Count"], "5")
+        self.assertEqual(res_page2["X-Has-More"], "true")
+
+        res_page3 = self.client.get("/api/activity/?limit=2&offset=4")
+        self.assertEqual(res_page3.status_code, status.HTTP_200_OK)
+        self.assertEqual([item["id"] for item in res_page3.data], expected_ids[4:])
+        self.assertEqual(res_page3["X-Total-Count"], "5")
+        self.assertEqual(res_page3["X-Has-More"], "false")
+
+        res_past_end = self.client.get("/api/activity/?limit=2&offset=10")
+        self.assertEqual(res_past_end.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_past_end.data, [])
+        self.assertEqual(res_past_end["X-Total-Count"], "5")
+        self.assertEqual(res_past_end["X-Has-More"], "false")
+
+        # Invalid/negative offset falls back to 0; since filtering updates X-Total-Count
+        res_bad_offset = self.client.get("/api/activity/?limit=2&offset=-3")
+        self.assertEqual([item["id"] for item in res_bad_offset.data], expected_ids[:2])
+        self.assertEqual(res_bad_offset["X-Has-More"], "true")
+
+        since_date = (now - timedelta(days=2)).date().isoformat()
+        res_since = self.client.get(f"/api/activity/?since={since_date}&limit=2&offset=0")
+        self.assertEqual(res_since.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_since.data), 2)
+        self.assertEqual(res_since["X-Total-Count"], "3")
+        self.assertEqual(res_since["X-Has-More"], "true")
+
+    async def test_mcp_write_tools_record_activity(self):
+        from animeLog.mcp import tools
+
+        await ActivityEvent.objects.all().adelete()
+        s_res = await tools.log_anime_series(
+            title="Mushishi",
+            initial_season_episodes=26,
+            initial_season_status="PLAN_TO_WATCH",
+        )
+        season_id = s_res["season_id"]
+        series_id = s_res["series_id"]
+
+        await tools.update_anime_progress("season", season_id, progress=26, notes="Quiet folklore.")
+        await tools.add_episode_note(season_id=season_id, episode_number=1, note="The green seat.")
+        await tools.log_rewatch(target_type="season", target_id=season_id, notes="Still serene.")
+        c_res = await tools.add_favorite_character(series_id=series_id, name="Ginko", why="Curiosity without malice.")
+        await tools.update_favorite_character(character_id=c_res["character_id"], why="Quiet empathy.")
+
+        b_res = await tools.log_book(title="Walden", total_pages=300, progress=10)
+        await tools.update_book_progress(b_res["book_id"], progress=300, notes="Simplicity.")
+
+        kinds = [
+            k
+            async for k in ActivityEvent.objects.values_list("kind", flat=True)
+        ]
+        self.assertIn(ActivityKind.EPISODE_PROGRESS, kinds)
+        self.assertIn(ActivityKind.COMPLETED, kinds)
+        self.assertIn(ActivityKind.NOTE_WRITTEN, kinds)
+        self.assertIn(ActivityKind.REWATCH_LOGGED, kinds)
+        self.assertIn(ActivityKind.CHARACTER_ADDED, kinds)
+        self.assertIn(ActivityKind.BOOK_PROGRESS, kinds)
+
+
+class ActivityBackfillMigrationTests(TestCase):
+    def test_backfill_handles_undated_rewatch_and_blank_why_character(self):
+        migration = importlib.import_module("animeLog.migrations.0009_backfill_activity")
+
+        series = AnimeSeries.objects.create(title="Monogatari")
+        season = AnimeSeason.objects.create(
+            series=series,
+            season_number=1,
+            title="Bakemonogatari",
+            status=AnimeStatus.COMPLETED,
+            progress=15,
+            total_episodes=15,
+            notes="Dialogue as character study.",
+        )
+        Rewatch.objects.create(
+            content_object=series,
+            start_date=None,
+            finish_date=None,
+            notes="Undated series rewatch.",
+        )
+        Rewatch.objects.create(
+            content_object=season,
+            episode_number=12,
+            start_date=None,
+            finish_date=None,
+            notes="Undated episode rewatch.",
+        )
+        char_blank = FavoriteCharacter.objects.create(
+            series=series,
+            name="Hitagi Senjougahara",
+            why="",
+        )
+        char_spaces = FavoriteCharacter.objects.create(
+            series=series,
+            name="Tsubasa Hanekawa",
+            why="   ",
+        )
+
+        ActivityEvent.objects.all().delete()
+        migration.backfill_activity_events(apps, None)
+
+        series_rw_ev = ActivityEvent.objects.filter(
+            kind=ActivityKind.REWATCH_LOGGED,
+            target_type="series",
+            target_id=series.id,
+        ).first()
+        self.assertIsNotNone(series_rw_ev)
+        self.assertTrue(series_rw_ev.backfilled)
+        self.assertIsNotNone(series_rw_ev.created_at)
+        self.assertEqual(series_rw_ev.title, "Monogatari")
+
+        ep_rw_ev = ActivityEvent.objects.filter(
+            kind=ActivityKind.REWATCH_LOGGED,
+            target_type="episode",
+            target_id=season.id,
+        ).first()
+        self.assertIsNotNone(ep_rw_ev)
+        self.assertTrue(ep_rw_ev.backfilled)
+        self.assertIsNotNone(ep_rw_ev.created_at)
+
+        for char in (char_blank, char_spaces):
+            char_ev = ActivityEvent.objects.filter(
+                kind=ActivityKind.CHARACTER_ADDED,
+                target_type="character",
+                target_id=char.id,
+            ).first()
+            self.assertIsNotNone(char_ev)
+            self.assertTrue(char_ev.backfilled)
+            self.assertEqual(char_ev.title, char.name)
+            self.assertEqual(char_ev.delta, 1)
+
+        migration.reverse_backfill_activity_events(apps, None)
+        self.assertEqual(ActivityEvent.objects.filter(backfilled=True).count(), 0)
+
 

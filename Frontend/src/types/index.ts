@@ -167,6 +167,26 @@ export interface Book {
   genres: Genre[];
 }
 
+export type ActivityKind =
+  | 'EPISODE_PROGRESS'
+  | 'MOVIE_PROGRESS'
+  | 'BOOK_PROGRESS'
+  | 'NOTE_WRITTEN'
+  | 'CHARACTER_ADDED'
+  | 'REWATCH_LOGGED'
+  | 'COMPLETED';
+
+export interface ActivityEvent {
+  id: number;
+  kind: ActivityKind;
+  target_type: string;
+  target_id: number;
+  title: string;
+  delta: number;
+  backfilled: boolean;
+  created_at: string;
+}
+
 export type ActiveTab = 'dashboard' | 'anime' | 'books' | 'characters' | 'rewatches' | 'media';
 
 export interface JournalStats {

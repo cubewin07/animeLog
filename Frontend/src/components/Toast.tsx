@@ -1,8 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { EASING, prefersReducedMotion } from '../utils/animations';
+import './Toast.css';
 
 export interface ToastMessage {
   id: string;
@@ -15,87 +13,57 @@ interface ToastProps {
   onDismiss: (id: string) => void;
 }
 
+const EXIT_DURATION_MS = 160;
+
 const ToastItem: React.FC<{ toast: ToastMessage; onDismiss: (id: string) => void }> = ({
   toast,
   onDismiss,
 }) => {
-  const itemRef = useRef<HTMLDivElement>(null);
+  const [exiting, setExiting] = useState(false);
+  const timerRef = useRef<number | null>(null);
 
-  useGSAP(
-    () => {
-      if (prefersReducedMotion() || !itemRef.current) return;
-      gsap.fromTo(
-        itemRef.current,
-        { opacity: 0, x: 30, scale: 0.96 },
-        { opacity: 1, x: 0, scale: 1, duration: 0.3, ease: EASING.smooth }
-      );
-    },
-    { scope: itemRef }
-  );
+  useEffect(() => {
+    return () => {
+      if (timerRef.current !== null) {
+        window.clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
 
   const handleClose = () => {
-    if (prefersReducedMotion() || !itemRef.current) {
+    if (exiting) return;
+    const reduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
       onDismiss(toast.id);
       return;
     }
 
-    gsap.to(itemRef.current, {
-      opacity: 0,
-      x: 30,
-      duration: 0.15,
-      ease: EASING.smooth,
-      onComplete: () => onDismiss(toast.id),
-    });
+    setExiting(true);
+    timerRef.current = window.setTimeout(() => {
+      onDismiss(toast.id);
+    }, EXIT_DURATION_MS);
   };
-
-  const borderColor =
-    toast.type === 'success'
-      ? 'var(--spine-text)'
-      : toast.type === 'error'
-      ? 'var(--spine)'
-      : 'var(--graphite)';
 
   return (
     <div
-      ref={itemRef}
       role="status"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '12px 16px',
-        minWidth: '280px',
-        maxWidth: '420px',
-        backgroundColor: 'var(--desk-raised)',
-        border: '1px solid var(--border-desk-medium)',
-        borderLeft: `4px solid ${borderColor}`,
-        borderRadius: 'var(--radius-md)',
-        boxShadow: 'var(--shadow-raised)',
-        color: 'var(--text-desk)',
-      }}
+      className={`kf-toast is-${toast.type}${exiting ? ' is-exiting' : ''}`}
     >
-      {toast.type === 'success' && <CheckCircle2 size={18} color="var(--spine-text)" />}
-      {toast.type === 'error' && <AlertCircle size={18} color="var(--danger)" />}
-      {toast.type === 'info' && <Info size={18} color="var(--text-desk-muted)" />}
-
-      <span style={{ fontSize: '14px', flex: 1, lineHeight: 1.4 }}>
-        {toast.text}
+      <span className="kf-toast-icon" aria-hidden="true">
+        {toast.type === 'success' && <CheckCircle2 size={18} />}
+        {toast.type === 'error' && <AlertCircle size={18} />}
+        {toast.type === 'info' && <Info size={18} />}
       </span>
 
+      <span className="kf-toast-text">{toast.text}</span>
+
       <button
+        type="button"
         onClick={handleClose}
         aria-label="Dismiss notification"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          color: 'var(--text-desk-muted)',
-          padding: '4px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: 'var(--radius-sm)',
-        }}
+        className="kf-toast-close"
       >
         <X size={15} />
       </button>
@@ -108,17 +76,9 @@ export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
 
   return (
     <div
+      className="kf-toast-stack"
       aria-live="polite"
       aria-atomic="false"
-      style={{
-        position: 'fixed',
-        bottom: '24px',
-        right: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px',
-        zIndex: 9999,
-      }}
     >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />

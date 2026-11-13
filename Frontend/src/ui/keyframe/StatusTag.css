@@ -1,0 +1,28 @@
+.kf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 600 var(--kf-text-xs) / 1 var(--kf-font-ui);
+  white-space: nowrap;
+}
+.kf-status.is-active { color: var(--title-accent); }
+.kf-status.is-completed { color: var(--kf-completed); }
+.kf-status.is-plan { color: var(--kf-plan); }
+.kf-status.is-hold { color: var(--kf-hold); }
+.kf-status.is-dropped { color: var(--kf-text-2); }
+.kf-status.is-dropped svg { color: var(--kf-dropped); }
+
+.kf-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--kf-1);
+  border-radius: var(--kf-radius);
+  background: rgba(13, 16, 23, 0.82);
+  color: var(--kf-text);
+  font: 800 var(--kf-text-sm) / 1 var(--kf-font-display);
+  font-stretch: 75%;
+}
+.kf-score.is-top { background: var(--kf-gold); color: var(--kf-on-fill); }

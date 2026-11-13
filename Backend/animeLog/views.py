@@ -1,15 +1,18 @@
-from datetime import date
+from datetime import date, timezone as dt_timezone
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 from django.db.models.functions import Length, Trim
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import (
+    ActivityEvent,
     AnimeMovie,
     AnimeSeason,
     AnimeSeries,
@@ -25,6 +28,7 @@ from .models import (
     Studio,
 )
 from .serializers import (
+    ActivityEventSerializer,
     AnimeMovieSerializer,
     AnimeSeasonSerializer,
     AnimeSeriesSerializer,
@@ -38,6 +42,13 @@ from .serializers import (
     RewatchSerializer,
     StudioSerializer,
 )
+from .services.activity import (
+    record_book_activity,
+    record_character_activity,
+    record_episode_note_activity,
+    record_release_activity,
+    record_rewatch_activity,
+)
 
 
 def _update_release_progress(
@@ -50,6 +61,10 @@ def _update_release_progress(
     total_field,
     response_field,
     total_label,
+    planned_status=AnimeStatus.PLAN_TO_WATCH,
+    active_status=AnimeStatus.WATCHING,
+    completed_status=AnimeStatus.COMPLETED,
+    record_activity_fn=record_release_activity,
 ):
     delta = request.data.get("delta")
     if delta is None or isinstance(delta, bool) or not isinstance(delta, int):
@@ -61,6 +76,7 @@ def _update_release_progress(
     with transaction.atomic():
         release = get_object_or_404(model.objects.select_for_update(), pk=pk)
         current_progress = getattr(release, progress_field)
+        prev_status = release.status
         total = getattr(release, total_field)
         new_progress = current_progress + delta
 
@@ -83,18 +99,38 @@ def _update_release_progress(
         setattr(release, progress_field, new_progress)
         changed_fields = [progress_field]
 
-        if release.status == AnimeStatus.PLAN_TO_WATCH and new_progress > 0:
-            release.status = AnimeStatus.WATCHING
+        if release.status == planned_status and new_progress > 0:
+            release.status = active_status
             changed_fields.append("status")
 
-        if total is not None and new_progress >= total and release.status == AnimeStatus.WATCHING:
-            release.status = AnimeStatus.COMPLETED
+        if total is not None and new_progress >= total and release.status == active_status:
+            release.status = completed_status
             changed_fields.append("status")
             if not release.finish_date:
                 release.finish_date = date.today()
                 changed_fields.append("finish_date")
 
+        # Stepping back from completion reopens the entry, which is what makes Undo work.
+        # A finish date set today came from reaching the end just now; an older one is history.
+        elif (
+            delta < 0
+            and release.status == completed_status
+            and (total is None or new_progress < total)
+        ):
+            release.status = active_status
+            changed_fields.append("status")
+            if release.finish_date == date.today():
+                release.finish_date = None
+                changed_fields.append("finish_date")
+
         release.save(update_fields=list(dict.fromkeys(changed_fields)))
+        record_activity_fn(
+            release,
+            prev_progress=current_progress,
+            prev_status=prev_status,
+            prev_notes=release.notes or "",
+            progress_delta=delta,
+        )
 
     return Response(viewset.get_serializer(release).data, status=status.HTTP_200_OK)
 
@@ -215,6 +251,11 @@ class SeriesViewSet(viewsets.ModelViewSet):
 
         return queryset.distinct()
 
+    def perform_create(self, serializer):
+        series = serializer.save()
+        for season in series.seasons.all():
+            record_release_activity(season, prev_progress=0, prev_status="", prev_notes="")
+
 
 class SeasonViewSet(viewsets.ModelViewSet):
     serializer_class = AnimeSeasonSerializer
@@ -249,6 +290,23 @@ class SeasonViewSet(viewsets.ModelViewSet):
             )
 
         return queryset.distinct()
+
+    def perform_create(self, serializer):
+        season = serializer.save()
+        record_release_activity(season, prev_progress=0, prev_status="", prev_notes="")
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        prev_progress = instance.progress
+        prev_status = instance.status
+        prev_notes = instance.notes or ""
+        updated = serializer.save()
+        record_release_activity(
+            updated,
+            prev_progress=prev_progress,
+            prev_status=prev_status,
+            prev_notes=prev_notes,
+        )
 
     @action(detail=True, methods=["patch"], url_path="progress")
     def progress(self, request, pk=None):
@@ -296,6 +354,23 @@ class MovieViewSet(viewsets.ModelViewSet):
 
         return queryset.distinct()
 
+    def perform_create(self, serializer):
+        movie = serializer.save()
+        record_release_activity(movie, prev_progress=0, prev_status="", prev_notes="")
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        prev_progress = instance.progress_minutes
+        prev_status = instance.status
+        prev_notes = instance.notes or ""
+        updated = serializer.save()
+        record_release_activity(
+            updated,
+            prev_progress=prev_progress,
+            prev_status=prev_status,
+            prev_notes=prev_notes,
+        )
+
     @action(detail=True, methods=["patch"], url_path="progress")
     def progress(self, request, pk=None):
         return _update_release_progress(
@@ -333,6 +408,15 @@ class EpisodeNoteViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    def perform_create(self, serializer):
+        ep_note = serializer.save()
+        record_episode_note_activity(ep_note, prev_note="")
+
+    def perform_update(self, serializer):
+        prev_note = serializer.instance.note or ""
+        ep_note = serializer.save()
+        record_episode_note_activity(ep_note, prev_note=prev_note)
 
 
 class RewatchViewSet(viewsets.ModelViewSet):
@@ -408,6 +492,10 @@ class RewatchViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def perform_create(self, serializer):
+        rewatch = serializer.save()
+        record_rewatch_activity(rewatch)
+
 
 class FavoriteCharacterViewSet(viewsets.ModelViewSet):
     serializer_class = FavoriteCharacterSerializer
@@ -433,6 +521,15 @@ class FavoriteCharacterViewSet(viewsets.ModelViewSet):
             )
 
         return queryset
+
+    def perform_create(self, serializer):
+        character = serializer.save()
+        record_character_activity(character, created=True)
+
+    def perform_update(self, serializer):
+        prev_why = serializer.instance.why or ""
+        character = serializer.save()
+        record_character_activity(character, created=False, prev_why=prev_why)
 
 
 class BookViewSet(viewsets.ModelViewSet):
@@ -466,6 +563,40 @@ class BookViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(genres__name__iexact=genre_param)
 
         return queryset.distinct()
+
+    def perform_create(self, serializer):
+        book = serializer.save()
+        record_book_activity(book, prev_progress=0, prev_status="", prev_notes="")
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        prev_progress = instance.progress
+        prev_status = instance.status
+        prev_notes = instance.notes or ""
+        updated = serializer.save()
+        record_book_activity(
+            updated,
+            prev_progress=prev_progress,
+            prev_status=prev_status,
+            prev_notes=prev_notes,
+        )
+
+    @action(detail=True, methods=["patch"], url_path="progress")
+    def progress(self, request, pk=None):
+        return _update_release_progress(
+            self,
+            request,
+            pk,
+            model=Book,
+            progress_field="progress",
+            total_field="total_pages",
+            response_field="progress",
+            total_label="total pages",
+            planned_status=BookStatus.PLAN_TO_READ,
+            active_status=BookStatus.READING,
+            completed_status=BookStatus.COMPLETED,
+            record_activity_fn=record_book_activity,
+        )
 
 
 def _count_written_lessons(queryset, field_name="notes"):
@@ -699,4 +830,57 @@ class JournalImportView(APIView):
             return Response(result, status=status.HTTP_200_OK)
         except Exception as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ActivityListView(APIView):
+    """
+    Read-only timeline of journal progression and reflection activity events.
+    Query params:
+      - since: Optional ISO date (YYYY-MM-DD) or ISO datetime
+      - limit: Optional integer limit (default 1000, max 2000)
+      - offset: Optional integer offset (default 0, min 0)
+    """
+
+    def get(self, request):
+        queryset = ActivityEvent.objects.all().order_by("-created_at", "-id")
+
+        since_param = (request.query_params.get("since") or "").strip()
+        if since_param:
+            parsed_date = parse_date(since_param)
+            if parsed_date is not None:
+                queryset = queryset.filter(created_at__date__gte=parsed_date)
+            else:
+                parsed_dt = parse_datetime(since_param)
+                if parsed_dt is None:
+                    return Response(
+                        {"since": "Invalid ISO date or datetime."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                if timezone.is_naive(parsed_dt):
+                    parsed_dt = timezone.make_aware(parsed_dt, dt_timezone.utc)
+                queryset = queryset.filter(created_at__gte=parsed_dt)
+
+        limit_param = request.query_params.get("limit")
+        limit = 1000
+        if limit_param is not None and limit_param != "":
+            try:
+                limit = max(1, min(int(limit_param), 2000))
+            except (ValueError, TypeError):
+                limit = 1000
+
+        offset_param = request.query_params.get("offset")
+        offset = 0
+        if offset_param is not None and offset_param != "":
+            try:
+                offset = max(0, int(offset_param))
+            except (ValueError, TypeError):
+                offset = 0
+
+        total_count = queryset.count()
+        events = queryset[offset : offset + limit]
+        serializer = ActivityEventSerializer(events, many=True)
+        response = Response(serializer.data, status=status.HTTP_200_OK)
+        response["X-Total-Count"] = str(total_count)
+        response["X-Has-More"] = "true" if (offset + limit) < total_count else "false"
+        return response
 

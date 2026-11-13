@@ -1,0 +1,15 @@
+/**
+ * Keyframe Design System — Supplemental Shared Tokens
+ * Core night-studio palette, typography, spacing, and motion tokens live in ./keyframe.css.
+ */
+
+:root {
+  --kf-font-mono: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  --kf-radius-pill: 9999px;
+  --kf-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --kf-shadow-md: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --kf-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.72);
+  --kf-brand-soft: rgba(255, 90, 54, 0.14);
+  --kf-danger-soft: rgba(255, 138, 128, 0.14);
+  --kf-completed-soft: rgba(79, 209, 181, 0.14);
+}

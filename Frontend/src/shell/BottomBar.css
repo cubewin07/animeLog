@@ -1,0 +1,82 @@
+.lamplight-bottom-bar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .lamplight-bottom-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    background-color: var(--kf-panel);
+    border-top: 1px solid var(--kf-line);
+    padding: 0 var(--kf-2);
+    align-items: center;
+    justify-content: space-around;
+    z-index: 100;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.55);
+    user-select: none;
+    font-family: var(--kf-font-ui);
+  }
+
+  .lamplight-bottom-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    color: var(--kf-text-2);
+    text-decoration: none;
+    font-family: var(--kf-font-ui);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    flex: 1;
+    min-width: 44px;
+    min-height: 44px;
+    height: 100%;
+    transition: color var(--kf-fast) var(--kf-ease);
+  }
+
+  .lamplight-bottom-tab:hover,
+  .lamplight-bottom-tab.is-active {
+    color: var(--kf-text);
+  }
+
+  .lamplight-bottom-tab.is-active svg {
+    color: var(--kf-brand);
+  }
+
+  /* Center Quick Log Button */
+  .lamplight-bottom-write-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    border-radius: 9999px;
+    background: var(--kf-brand);
+    color: var(--kf-on-fill);
+    border: 3px solid var(--kf-panel);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(255, 90, 54, 0.4);
+    transform: translateY(-6px);
+    transition: transform var(--kf-fast) var(--kf-ease), background var(--kf-fast) var(--kf-ease);
+    flex-shrink: 0;
+  }
+
+  .lamplight-bottom-write-btn:hover {
+    background: var(--kf-brand-hover);
+  }
+
+  .lamplight-bottom-write-btn:active {
+    transform: translateY(-4px) scale(0.96);
+  }
+}

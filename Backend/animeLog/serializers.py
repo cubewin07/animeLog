@@ -4,6 +4,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from .models import (
+    ActivityEvent,
     AnimeMovie,
     AnimeSeason,
     AnimeSeries,
@@ -400,7 +401,10 @@ class AnimeSeasonSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
     def create(self, validated_data):
-        status_explicit = "status" in validated_data
+        status_explicit = (
+            "status" in validated_data
+            and validated_data["status"] != AnimeStatus.PLAN_TO_WATCH
+        )
         progress = validated_data.get("progress", 0)
         total = validated_data.get("total_episodes", None)
         current_status = validated_data.get("status", AnimeStatus.PLAN_TO_WATCH)
@@ -545,7 +549,7 @@ class InitialSeasonPayloadSerializer(serializers.Serializer):
         allow_null=True,
     )
     status = serializers.ChoiceField(
-        choices=AnimeStatus.choices, default=AnimeStatus.PLAN_TO_WATCH
+        choices=AnimeStatus.choices, required=False
     )
     progress = serializers.IntegerField(default=0, min_value=0)
     total_episodes = serializers.IntegerField(required=False, allow_null=True, min_value=1)
@@ -624,10 +628,21 @@ class AnimeSeriesSerializer(serializers.ModelSerializer):
                 series.genres.set(genres_data)
 
             if initial_season_data:
-                season_studios = initial_season_data.pop("studios", [])
-                season = AnimeSeason.objects.create(series=series, **initial_season_data)
-                if season_studios:
-                    season.studios.set(season_studios)
+                season_payload = {
+                    **initial_season_data,
+                    "series": series.pk,
+                }
+                if season_payload.get("cover_image") is not None:
+                    season_payload["cover_image"] = season_payload["cover_image"].pk
+                if "studios" in season_payload:
+                    season_payload["studios"] = [
+                        studio.pk for studio in season_payload["studios"]
+                    ]
+                season_serializer = AnimeSeasonSerializer(
+                    data=season_payload, context=self.context
+                )
+                season_serializer.is_valid(raise_exception=True)
+                season_serializer.save()
 
         return series
 
@@ -712,3 +727,19 @@ class JournalStatsSerializer(serializers.Serializer):
     totalLessons = serializers.IntegerField()
     rewatchesCount = serializers.IntegerField()
     charactersCount = serializers.IntegerField()
+
+
+class ActivityEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ActivityEvent
+        fields = [
+            "id",
+            "kind",
+            "target_type",
+            "target_id",
+            "title",
+            "delta",
+            "backfilled",
+            "created_at",
+        ]
+        read_only_fields = fields

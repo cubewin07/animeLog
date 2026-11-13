@@ -1,0 +1,54 @@
+.kf-charcard { min-width: 0; }
+.kf-charcard-art { position: relative; border-radius: var(--kf-radius); }
+.kf-charcard-tier {
+  position: absolute;
+  left: var(--kf-2);
+  top: var(--kf-2);
+  padding: 3px var(--kf-2);
+  border-radius: var(--kf-radius);
+  background: rgba(13, 16, 23, 0.86);
+  color: var(--kf-text);
+  font: 700 var(--kf-text-xs) / 1.2 var(--kf-font-ui);
+}
+.kf-charcard h3 {
+  margin: var(--kf-2) 0 0;
+  color: var(--kf-text);
+  font: 800 var(--kf-text-md) / 1.15 var(--kf-font-display);
+  font-stretch: 78%;
+}
+.kf-charcard-series { margin: 2px 0 0; color: var(--kf-text-2); font-size: var(--kf-text-xs); }
+.kf-charcard-why {
+  margin: var(--kf-2) 0 0;
+  color: var(--kf-text-2);
+  font: italic 400 var(--kf-text-sm) / 1.45 var(--kf-font-note);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+/* Sketch: pencil on paper. The card looks unfinished until you add a portrait. */
+.kf-charcard.is-sketch .kf-cover { background: var(--kf-paper); }
+.kf-charcard.is-sketch .kf-cover-card {
+  background: repeating-linear-gradient(transparent 0 23px, var(--kf-paper-rule) 23px 24px);
+}
+.kf-charcard.is-sketch .kf-cover-title { color: #33507a; font-weight: 500; text-transform: none; }
+
+/* Inked: strong outline with desaturated art */
+.kf-charcard.is-inked img { filter: grayscale(1) contrast(1.15); }
+.kf-charcard.is-inked .kf-charcard-art { box-shadow: 0 0 0 2px var(--kf-text); }
+
+/* Foil: light slides across the card on hover. */
+.kf-charcard.is-foil .kf-charcard-art { box-shadow: 0 0 0 2px var(--kf-gold); overflow: hidden; }
+.kf-charcard.is-foil .kf-charcard-tier { background: var(--kf-gold); color: var(--kf-on-fill); }
+.kf-charcard.is-foil .kf-charcard-art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgba(255, 200, 87, 0.42) 46%, rgba(126, 168, 255, 0.36) 54%, transparent 68%);
+  background-size: 260% 100%;
+  background-position: 100% 0;
+  transition: background-position 700ms var(--kf-ease);
+  pointer-events: none;
+}
+.kf-charcard.is-foil:hover .kf-charcard-art::after { background-position: 0 0; }

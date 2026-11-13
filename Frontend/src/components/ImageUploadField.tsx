@@ -1,8 +1,10 @@
-import React, { useState, useRef } from 'react';
-import { ImageAsset } from '../types';
+import React, { useRef, useState } from 'react';
+import { AlertCircle, FolderOpen, Loader2, UploadCloud, X } from 'lucide-react';
 import { imageApi } from '../api/client';
+import { useJournalActions } from '../state/JournalContext';
+import { ImageAsset } from '../types';
 import { MediaLibraryModal } from './MediaLibraryModal';
-import { UploadCloud, X, Loader2, FolderOpen } from 'lucide-react';
+import './ImageUploadField.css';
 
 interface ImageUploadFieldProps {
   label?: string;
@@ -19,8 +21,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   onChange,
   folderId,
 }) => {
+  const { addToast } = useJournalActions();
   const [uploading, setUploading] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (files: FileList | null) => {
@@ -28,6 +32,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     const file = files[0];
     try {
       setUploading(true);
+      setUploadError(null);
       const asset = await imageApi.upload(file, {
         folder: folderId,
         title: file.name.replace(/\.[^/.]+$/, ''),
@@ -36,142 +41,75 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       console.error('Failed to upload image:', err);
-      alert('Upload failed. Please check network connection and Cloudinary settings.');
+      const detail =
+        err instanceof Error ? err.message : 'Please check network connection and Cloudinary settings.';
+      const msg = `Upload failed: ${detail}`;
+      setUploadError(msg);
+      addToast(msg, 'error');
     } finally {
       setUploading(false);
     }
   };
 
   const handleSelectFromLibrary = (asset: ImageAsset) => {
+    setUploadError(null);
     onChange(asset.id, asset.url);
     setLibraryOpen(false);
   };
 
   const handleRemove = () => {
+    setUploadError(null);
     onChange(null, null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <span
-        style={{
-          fontSize: '11px',
-          fontFamily: 'var(--font-mono)',
-          fontWeight: 700,
-          color: 'var(--text-desk-muted)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.04em',
-        }}
-      >
-        {label}
-      </span>
+    <div className="kf-upload">
+      <span className="kf-upload-label">{label}</span>
 
       {imageUrl ? (
-        /* Image Preview Box */
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            padding: '10px 14px',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--desk-surface)',
-            border: '1px solid var(--border-desk-subtle)',
-          }}
-        >
-          <img
-            src={imageUrl}
-            alt="Selected cover"
-            style={{
-              width: '54px',
-              height: '72px',
-              objectFit: 'cover',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-desk-medium)',
-              background: 'var(--still-well)',
-            }}
-          />
+        <div className="kf-upload-preview">
+          <img src={imageUrl} alt="Selected cover" className="kf-upload-thumb" />
 
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-desk)' }}>
-              Cover Image Selected
-            </p>
-            <p
-              style={{
-                fontSize: '11px',
-                color: 'var(--text-desk-dim)',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                marginTop: '2px',
-              }}
-            >
-              {imageUrl}
-            </p>
+          <div className="kf-upload-meta">
+            <p className="kf-upload-title">Cover Image Selected</p>
+            <p className="kf-upload-url">{imageUrl}</p>
 
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+            <div className="kf-upload-actions">
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="kf-upload-btn is-quiet"
                 onClick={() => setLibraryOpen(true)}
-                style={{ padding: '3px 8px', fontSize: '11px' }}
               >
                 Change from Library
               </button>
               <button
                 type="button"
-                className="btn-icon danger"
+                className="kf-upload-btn is-danger"
                 onClick={handleRemove}
-                style={{ padding: '3px 8px', fontSize: '11px' }}
                 title="Remove image"
               >
-                <X size={12} /> <span>Remove</span>
+                <X size={13} aria-hidden="true" />
+                <span>Remove</span>
               </button>
             </div>
           </div>
         </div>
       ) : (
-        /* Dropzone / Upload Box */
-        <div
-          style={{
-            padding: '14px',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--desk-surface)',
-            border: '1px dashed var(--border-desk-medium)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '12px',
-            flexWrap: 'wrap',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--desk-surface-high)',
-                color: 'var(--text-desk)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              {uploading ? <Loader2 size={18} className="spin" /> : <UploadCloud size={18} />}
+        <div className="kf-upload-dropzone">
+          <div className="kf-upload-drop-info">
+            <div className="kf-upload-icon" aria-hidden="true">
+              {uploading ? <Loader2 size={18} className="kf-spin" /> : <UploadCloud size={18} />}
             </div>
             <div>
-              <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-desk)' }}>
-                {uploading ? 'Uploading to Cloudinary...' : 'Upload cover or select from library'}
+              <p className="kf-upload-title">
+                {uploading ? 'Uploading to Cloudinary…' : 'Upload cover or select from library'}
               </p>
-              <p style={{ fontSize: '11px', color: 'var(--text-desk-muted)' }}>
-                PNG, JPG, WebP
-              </p>
+              <p className="kf-upload-sub">PNG, JPG, WebP</p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div className="kf-upload-actions">
             <input
               type="file"
               ref={fileInputRef}
@@ -181,28 +119,46 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             />
             <button
               type="button"
-              className="btn btn-ghost"
+              className="kf-upload-btn is-quiet"
               onClick={() => setLibraryOpen(true)}
-              style={{ padding: '6px 10px', fontSize: '11px' }}
             >
-              <FolderOpen size={13} />
+              <FolderOpen size={14} aria-hidden="true" />
               <span>Library</span>
             </button>
             <button
               type="button"
-              className="btn btn-primary"
+              className="kf-upload-btn is-primary"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
-              style={{ padding: '6px 12px', fontSize: '11px' }}
             >
-              <UploadCloud size={13} />
+              <UploadCloud size={14} aria-hidden="true" />
               <span>Upload</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Media Library Modal */}
+      {uploadError && (
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            padding: 'var(--kf-2) var(--kf-3)',
+            borderRadius: 'var(--kf-radius)',
+            background: 'var(--kf-danger-soft)',
+            border: '1px solid color-mix(in srgb, var(--kf-danger) 40%, transparent)',
+            color: 'var(--kf-danger)',
+            fontSize: 'var(--kf-text-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--kf-2)',
+          }}
+        >
+          <AlertCircle size={14} aria-hidden="true" />
+          <span>{uploadError}</span>
+        </p>
+      )}
+
       {libraryOpen && (
         <MediaLibraryModal
           isOpen={libraryOpen}

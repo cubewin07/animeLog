@@ -1,118 +1,85 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useId, useRef, useState } from 'react';
+import { BookmarkCheck, Minus, Plus, Trash2, X } from 'lucide-react';
 import { AnimeSeason, EpisodeNote } from '../types';
-import { X, BookmarkCheck, Star, Trash2 } from 'lucide-react';
-import gsap from 'gsap';
-import { useGSAP } from '@gsap/react';
-import { EASING, prefersReducedMotion } from '../utils/animations';
+import { useDialog } from '../ui/Sheet/useDialog';
+import { KfButton, NotePaper } from '../ui/keyframe';
 import { ImageUploadField } from './ImageUploadField';
-import { CustomSelect } from './CustomSelect';
-import { CustomNumberInput } from './CustomNumberInput';
-import { CustomRatingInput } from './CustomRatingInput';
+import '../features/add-title/AddTitle.css';
+
+const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 interface EpisodeNoteModalProps {
   isOpen: boolean;
   onClose: () => void;
   season: AnimeSeason | null;
   initialNote?: EpisodeNote | null;
-  onSaveNote: (data: {
-    season: number;
-    episode_number: number;
-    episode_title?: string | null;
-    cover_image?: number | null;
-    note: string;
-    rating?: number | null;
-  }, noteId?: number) => Promise<void>;
+  onSaveNote: (
+    data: {
+      season: number;
+      episode_number: number;
+      episode_title?: string | null;
+      cover_image?: number | null;
+      note: string;
+      rating?: number | null;
+    },
+    noteId?: number
+  ) => Promise<void>;
   onDeleteNote?: (noteId: number) => Promise<void>;
 }
 
-export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
-  isOpen,
-  onClose,
+function findNextEpisodeNumber(season: AnimeSeason): number {
+  const existingEps = (season.episode_notes || []).map((n) => n.episode_number);
+  let nextEp = 1;
+  while (
+    existingEps.includes(nextEp) &&
+    (!season.total_episodes || nextEp <= season.total_episodes)
+  ) {
+    nextEp++;
+  }
+  return nextEp;
+}
+
+const EpisodeNoteForm: React.FC<{
+  season: AnimeSeason;
+  selectedNote: EpisodeNote | null;
+  onSelectNote: (note: EpisodeNote | null) => void;
+  onSaveNote: EpisodeNoteModalProps['onSaveNote'];
+  onDeleteNote?: EpisodeNoteModalProps['onDeleteNote'];
+  onClose: () => void;
+  titleId: string;
+}> = ({
   season,
-  initialNote,
+  selectedNote,
+  onSelectNote,
   onSaveNote,
   onDeleteNote,
+  onClose,
+  titleId,
 }) => {
-  const [selectedNote, setSelectedNote] = useState<EpisodeNote | null>(null);
-  const [episodeNumber, setEpisodeNumber] = useState<number>(1);
-  const [episodeTitle, setEpisodeTitle] = useState<string>('');
-  const [coverImageId, setCoverImageId] = useState<number | null>(null);
-  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
-  const [rating, setRating] = useState<number | null>(null);
-  const [note, setNote] = useState<string>('');
+  const [episodeNumber, setEpisodeNumber] = useState<number>(() =>
+    selectedNote ? selectedNote.episode_number : findNextEpisodeNumber(season)
+  );
+  const [episodeTitle, setEpisodeTitle] = useState<string>(
+    selectedNote?.episode_title || ''
+  );
+  const [coverImageId, setCoverImageId] = useState<number | null>(
+    selectedNote?.cover_image ?? null
+  );
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(
+    selectedNote?.cover_image_url || selectedNote?.image_url || null
+  );
+  const [rating, setRating] = useState<number | null>(
+    selectedNote ? selectedNote.rating ?? null : 10
+  );
+  const [note, setNote] = useState<string>(selectedNote?.note ?? '');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const modalRef = useRef<HTMLDivElement>(null);
-
-  const handleClose = () => {
-    setSelectedNote(null);
-    setErrorMsg('');
-    onClose();
-  };
-
-  useEffect(() => {
-    if (!isOpen || !season) return;
-    if (initialNote !== undefined) {
-      setSelectedNote(initialNote);
-    }
-  }, [isOpen, season, initialNote]);
-
-  useEffect(() => {
-    if (!isOpen || !season) return;
-    setErrorMsg('');
-    if (selectedNote && selectedNote.season !== season.id) {
-      setSelectedNote(null);
-      return;
-    }
-    if (selectedNote && selectedNote.season === season.id) {
-      setEpisodeNumber(selectedNote.episode_number);
-      setEpisodeTitle(selectedNote.episode_title || '');
-      setCoverImageId(selectedNote.cover_image ?? null);
-      setCoverImageUrl(selectedNote.cover_image_url || selectedNote.image_url || null);
-      setRating(selectedNote.rating || null);
-      setNote(selectedNote.note);
-    } else {
-      const existingEps = (season.episode_notes || []).map((n) => n.episode_number);
-      let nextEp = 1;
-      while (existingEps.includes(nextEp) && (!season.total_episodes || nextEp <= season.total_episodes)) {
-        nextEp++;
-      }
-      setEpisodeNumber(nextEp);
-      setEpisodeTitle('');
-      setCoverImageId(null);
-      setCoverImageUrl(null);
-      setRating(10);
-      setNote('');
-    }
-  }, [isOpen, season, selectedNote]);
-
-  useGSAP(
-    () => {
-      if (!isOpen || prefersReducedMotion()) return;
-      if (overlayRef.current) {
-        gsap.fromTo(overlayRef.current, { opacity: 0 }, { opacity: 1, duration: 0.18 });
-      }
-      if (modalRef.current) {
-        gsap.fromTo(
-          modalRef.current,
-          { opacity: 0, scale: 0.95, y: 12 },
-          { opacity: 1, scale: 1, y: 0, duration: 0.25, ease: EASING.smooth }
-        );
-      }
-    },
-    { dependencies: [isOpen] }
-  );
-
-  if (!isOpen || !season) return null;
-
-  const notesList = season.episode_notes || [];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg('');
     if (!note.trim()) {
-      setErrorMsg('Please write your takeaway or memory for this episode.');
+      setErrorMsg('Please write your note for this episode.');
       return;
     }
     try {
@@ -128,9 +95,9 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
         },
         selectedNote ? selectedNote.id : undefined
       );
-      handleClose();
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to save episode note.');
+      onClose();
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Failed to save episode note.');
     } finally {
       setSubmitting(false);
     }
@@ -138,219 +105,299 @@ export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
 
   const handleDelete = async (noteId: number) => {
     if (!onDeleteNote) return;
+    setErrorMsg('');
     try {
+      setSubmitting(true);
       await onDeleteNote(noteId);
       if (selectedNote?.id === noteId) {
-        setSelectedNote(null);
+        onSelectNote(null);
       }
-    } catch (err: any) {
+    } catch {
       setErrorMsg('Failed to delete episode note.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  const maxEp = season.total_episodes ?? undefined;
+
   return (
-    <div ref={overlayRef} className="modal-overlay" onClick={handleClose} role="dialog" aria-modal="true">
-      <div
-        ref={modalRef}
-        className="modal-container"
-        style={{ maxWidth: '640px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div
-          style={{
-            padding: '18px 24px',
-            borderBottom: '1px solid var(--border-desk-subtle)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--tungsten-dim)',
-                color: 'var(--tungsten)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <BookmarkCheck size={18} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: 18, color: 'var(--text-desk)' }}>Episode Memories</h3>
-              <p style={{ fontSize: 12, color: 'var(--text-desk-muted)' }}>
-                Season {season.season_number}: {season.title}
-              </p>
+    <form onSubmit={handleSubmit} className="kf-dialog-form">
+      <div className="kf-dialog-body">
+        {errorMsg && (
+          <div className="kf-form-error" role="alert">
+            {errorMsg}
+          </div>
+        )}
+
+        <div className="kf-grid-ep">
+          <div className="kf-field">
+            <span className="kf-label">Episode #</span>
+            <div className="kf-stepper">
+              <button
+                type="button"
+                className="kf-stepper-btn"
+                onClick={() => setEpisodeNumber((n) => Math.max(1, n - 1))}
+                disabled={episodeNumber <= 1}
+                aria-label="Decrease episode number"
+              >
+                <Minus size={14} />
+              </button>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={episodeNumber}
+                onChange={(e) => {
+                  const parsed = parseInt(e.target.value.trim(), 10);
+                  if (!isNaN(parsed) && parsed >= 1) {
+                    setEpisodeNumber(maxEp ? Math.min(maxEp, parsed) : parsed);
+                  }
+                }}
+                className="kf-stepper-input"
+                aria-label="Episode number"
+              />
+              <button
+                type="button"
+                className="kf-stepper-btn"
+                onClick={() =>
+                  setEpisodeNumber((n) => (maxEp ? Math.min(maxEp, n + 1) : n + 1))
+                }
+                disabled={Boolean(maxEp && episodeNumber >= maxEp)}
+                aria-label="Increase episode number"
+              >
+                <Plus size={14} />
+              </button>
             </div>
           </div>
-          <button className="btn-icon" onClick={handleClose} aria-label="Close dialog">
-            <X size={16} />
-          </button>
+
+          <div className="kf-field">
+            <label htmlFor={`${titleId}-ep-title`} className="kf-label">
+              Episode title (optional)
+            </label>
+            <input
+              id={`${titleId}-ep-title`}
+              type="text"
+              placeholder="e.g. The End of the Journey"
+              value={episodeTitle}
+              onChange={(e) => setEpisodeTitle(e.target.value)}
+              className="kf-input"
+            />
+          </div>
         </div>
 
-        {/* Existing notes tabs/pills if any */}
-        {notesList.length > 0 && (
-          <div
-            style={{
-              padding: '12px 24px 0 24px',
-              display: 'flex',
-              gap: 6,
-              overflowX: 'auto',
-              borderBottom: '1px solid var(--border-desk-subtle)',
-              paddingBottom: 10,
-            }}
+        <div className="kf-field">
+          <label htmlFor={`${titleId}-note`} className="kf-label">
+            <span>
+              Episode note <span className="kf-req">*</span>
+            </span>
+          </label>
+          <NotePaper
+            slate={[
+              `Season ${season.season_number}`,
+              `Ep ${episodeNumber}`,
+              rating ? `${rating}/10` : '',
+            ].filter(Boolean)}
           >
-            <button
-              type="button"
-              onClick={() => setSelectedNote(null)}
-              style={{
-                padding: '4px 10px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 12,
-                fontWeight: 600,
-                border: '1px solid',
-                borderColor: selectedNote === null ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
-                backgroundColor: selectedNote === null ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
-                color: selectedNote === null ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-                cursor: 'pointer',
-              }}
-            >
-              + New Episode Note
-            </button>
-            {notesList.map((ep) => {
-              const isSelected = selectedNote?.id === ep.id;
+            <textarea
+              id={`${titleId}-note`}
+              rows={5}
+              required
+              placeholder="What happened in this episode that you want to remember?"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="kf-paper-textarea"
+            />
+          </NotePaper>
+        </div>
+
+        <div className="kf-field">
+          <div className="kf-label">
+            <span>Rating (1–10)</span>
+            {rating !== null && (
+              <span className={`kf-rate-readout ${rating >= 9 ? 'is-gold' : ''}`}>
+                {rating}/10
+              </span>
+            )}
+          </div>
+          <div className="kf-rating-row" role="group" aria-label="Episode rating 1 to 10">
+            {RATINGS.map((n) => {
+              const active = rating === n;
+              const isGold = n >= 9;
               return (
                 <button
-                  key={ep.id}
+                  key={n}
                   type="button"
-                  onClick={() => setSelectedNote(ep)}
-                  style={{
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 12,
-                    border: '1px solid',
-                    borderColor: isSelected ? 'var(--border-desk-medium)' : 'var(--border-desk-subtle)',
-                    backgroundColor: isSelected ? 'var(--desk-surface-high)' : 'var(--desk-surface)',
-                    color: isSelected ? 'var(--text-desk)' : 'var(--text-desk-muted)',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className={`kf-rate-pill ${active ? 'is-active' : ''} ${
+                    isGold ? 'is-gold' : ''
+                  }`}
+                  aria-pressed={active}
+                  aria-label={`Rate ${n} out of 10`}
+                  onClick={() => setRating(active ? null : n)}
                 >
-                  Ep {ep.episode_number} {ep.rating ? `★${ep.rating}` : ''}
+                  {n}
                 </button>
               );
             })}
           </div>
+        </div>
+
+        <ImageUploadField
+          label="Episode still / screenshot"
+          imageId={coverImageId}
+          imageUrl={coverImageUrl}
+          onChange={(id, url) => {
+            setCoverImageId(id);
+            setCoverImageUrl(url);
+          }}
+        />
+      </div>
+
+      <footer className="kf-dialog-footer">
+        {selectedNote && onDeleteNote && (
+          <KfButton
+            variant="danger"
+            icon={<Trash2 size={15} />}
+            onClick={() => handleDelete(selectedNote.id)}
+            disabled={submitting}
+            aria-label="Delete this note"
+          >
+            Delete
+          </KfButton>
         )}
+        <div className="kf-dialog-footer-actions">
+          <KfButton variant="quiet" onClick={onClose} disabled={submitting}>
+            Cancel
+          </KfButton>
+          <KfButton type="submit" variant="primary" disabled={submitting}>
+            {submitting ? 'Saving…' : selectedNote ? 'Update Note' : 'Save Note'}
+          </KfButton>
+        </div>
+      </footer>
+    </form>
+  );
+};
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {errorMsg && (
-            <div className="form-error">
-              {errorMsg}
-            </div>
-          )}
+const EpisodeNoteModalInner: React.FC<{
+  season: AnimeSeason;
+  initialNote?: EpisodeNote | null;
+  onSaveNote: EpisodeNoteModalProps['onSaveNote'];
+  onDeleteNote?: EpisodeNoteModalProps['onDeleteNote'];
+  onClose: () => void;
+  titleId: string;
+}> = ({ season, initialNote, onSaveNote, onDeleteNote, onClose, titleId }) => {
+  const validInitial =
+    initialNote && initialNote.season === season.id ? initialNote : null;
+  const [selectedNote, setSelectedNote] = useState<EpisodeNote | null>(validInitial);
+  const notesList = season.episode_notes || [];
 
-          {/* Episode Number & Title */}
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 125px', gap: 12, alignItems: 'end' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                Episode #
-              </label>
-              <CustomNumberInput
-                min={1}
-                value={episodeNumber}
-                onChange={(val) => setEpisodeNumber(val === '' ? 1 : Number(val))}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                Episode Title (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. The End of the Journey"
-                value={episodeTitle}
-                onChange={(e) => setEpisodeTitle(e.target.value)}
-                className="form-input"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: 12, color: 'var(--text-desk-muted)', marginBottom: 4, fontWeight: 600 }}>
-                Rating (1–10)
-              </label>
-              <CustomRatingInput
-                value={rating}
-                onChange={(val) => setRating(val)}
-                placeholder="–"
-              />
-            </div>
+  return (
+    <>
+      <header className="kf-dialog-header">
+        <div className="kf-dialog-header-main">
+          <div className="kf-dialog-badge" aria-hidden="true">
+            <BookmarkCheck size={18} />
           </div>
-
-          {/* Episode Note / Takeaway (Primary, large 16px textarea) */}
-          <div>
-            <label style={{ display: 'block', fontSize: 13, color: 'var(--text-desk-muted)', marginBottom: 6, fontWeight: 600 }}>
-              Episode Memory & Lesson <span style={{ color: 'var(--danger)' }}>*</span>
-            </label>
-            <textarea
-              rows={6}
-              required
-              placeholder="What specifically happened in this episode that made you think or feel deeply?"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="form-textarea"
-              style={{
-                fontFamily: 'var(--font-serif)',
-                fontSize: 16,
-                lineHeight: 1.6,
-                backgroundColor: 'var(--desk)',
-                borderColor: 'var(--border-desk-medium)',
-              }}
-            />
+          <div className="kf-dialog-title-wrap">
+            <h2 id={titleId} className="kf-dialog-title">
+              Episode Notes
+            </h2>
+            <p className="kf-dialog-subtitle">
+              Season {season.season_number}: {season.title}
+            </p>
           </div>
+        </div>
+        <button type="button" className="kf-dialog-close" onClick={onClose} aria-label="Close dialog">
+          <X size={18} />
+        </button>
+      </header>
 
-          {/* Episode Still */}
-          <ImageUploadField
-            label="Episode Still / Screenshot"
-            imageId={coverImageId}
-            imageUrl={coverImageUrl}
-            onChange={(id, url) => {
-              setCoverImageId(id);
-              setCoverImageUrl(url);
-            }}
-          />
-
-          {/* Footer Actions */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8 }}>
-            {selectedNote && onDeleteNote ? (
+      {notesList.length > 0 && (
+        <div className="kf-ep-pills" role="tablist" aria-label="Episode notes in this season">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={selectedNote === null}
+            className={`kf-chip ${selectedNote === null ? 'is-selected' : ''}`}
+            onClick={() => setSelectedNote(null)}
+          >
+            + New Episode Note
+          </button>
+          {notesList.map((ep) => {
+            const isSelected = selectedNote?.id === ep.id;
+            const isGold = Boolean(ep.rating && ep.rating >= 9);
+            return (
               <button
+                key={ep.id}
                 type="button"
-                className="btn-icon danger"
-                onClick={() => handleDelete(selectedNote.id)}
-                title="Delete this note"
-                aria-label="Delete this note"
+                role="tab"
+                aria-selected={isSelected}
+                className={`kf-chip ${isSelected ? 'is-selected' : ''} ${
+                  isGold ? 'is-gold' : ''
+                }`}
+                onClick={() => setSelectedNote(ep)}
               >
-                <Trash2 size={16} />
+                Ep {ep.episode_number}
+                {ep.rating ? ` ★${ep.rating}` : ''}
               </button>
-            ) : <div />}
+            );
+          })}
+        </div>
+      )}
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button type="button" className="btn btn-ghost" onClick={handleClose}>
-                Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {selectedNote ? 'Update Memory' : 'Save Memory'}
-              </button>
-            </div>
-          </div>
-        </form>
+      <EpisodeNoteForm
+        key={`${season.id}-${selectedNote?.id ?? 'new'}`}
+        season={season}
+        selectedNote={selectedNote}
+        onSelectNote={setSelectedNote}
+        onSaveNote={onSaveNote}
+        onDeleteNote={onDeleteNote}
+        onClose={onClose}
+        titleId={titleId}
+      />
+    </>
+  );
+};
+
+export const EpisodeNoteModal: React.FC<EpisodeNoteModalProps> = ({
+  isOpen,
+  onClose,
+  season,
+  initialNote,
+  onSaveNote,
+  onDeleteNote,
+}) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialog(panelRef, isOpen, onClose);
+
+  if (!isOpen || !season) return null;
+
+  const instanceKey = `${season.id}-${initialNote?.id ?? 'new'}`;
+
+  return (
+    <div
+      className="kf-dialog-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="kf-dialog-panel"
+      >
+        <EpisodeNoteModalInner
+          key={instanceKey}
+          season={season}
+          initialNote={initialNote}
+          onSaveNote={onSaveNote}
+          onDeleteNote={onDeleteNote}
+          onClose={onClose}
+          titleId={titleId}
+        />
       </div>
     </div>
   );

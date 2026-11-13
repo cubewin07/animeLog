@@ -1,0 +1,93 @@
+.lamplight-target-picker {
+  position: relative;
+  width: 100%;
+}
+
+.lamplight-target-btn {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--kf-3) var(--kf-4);
+  background: var(--kf-bg);
+  border: 1px solid var(--kf-line-strong);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--kf-fast) var(--kf-ease),
+    background-color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-target-btn:hover {
+  border-color: var(--kf-brand);
+  background: var(--kf-raised);
+}
+
+.lamplight-target-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--kf-raised);
+  border: 1px solid var(--kf-line-strong);
+  border-radius: var(--kf-radius-lg);
+  box-shadow: var(--kf-shadow-lg);
+  z-index: 100;
+  padding: var(--kf-2) 0;
+}
+
+.lamplight-target-search {
+  padding: var(--kf-2) var(--kf-3);
+  border-bottom: 1px solid var(--kf-line);
+  display: flex;
+  align-items: center;
+  gap: var(--kf-2);
+}
+
+.lamplight-target-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
+  color: var(--kf-text);
+  outline: none;
+}
+
+.lamplight-target-option {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--kf-2) var(--kf-4);
+  background: transparent;
+  border: none;
+  color: var(--kf-text);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-target-option:hover,
+.lamplight-target-option.is-selected {
+  background-color: var(--kf-panel);
+}
+
+.lamplight-target-group-label {
+  padding: var(--kf-2) var(--kf-4) var(--kf-1);
+  font-size: var(--kf-text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--kf-text-2);
+}

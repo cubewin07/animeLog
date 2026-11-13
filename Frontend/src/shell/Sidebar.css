@@ -1,0 +1,270 @@
+.lamplight-sidebar {
+  width: 248px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  background-color: var(--kf-panel);
+  border-right: 1px solid var(--kf-line);
+  display: flex;
+  flex-direction: column;
+  padding: var(--kf-5) var(--kf-4);
+  gap: var(--kf-4);
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 50;
+  font-family: var(--kf-font-ui);
+  color: var(--kf-text);
+  transition: width var(--kf-base) var(--kf-ease);
+}
+
+@media (max-width: 1023px) {
+  .lamplight-sidebar {
+    display: none;
+  }
+}
+
+.lamplight-sidebar.is-collapsed {
+  width: 72px;
+  padding: var(--kf-5) var(--kf-2);
+  align-items: center;
+}
+
+/* Brand header */
+.lamplight-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--kf-3);
+  text-decoration: none;
+  color: var(--kf-text);
+  padding: 0 var(--kf-2);
+}
+
+.lamplight-sidebar-brand-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--kf-radius);
+  background-color: var(--kf-raised);
+  border: 1px solid var(--kf-line-strong);
+  color: var(--kf-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lamplight-sidebar-brand-text {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lamplight-sidebar-brand-title {
+  font-family: var(--kf-font-display);
+  font-stretch: 82%;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--kf-text);
+}
+
+.lamplight-sidebar-brand-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--kf-brand);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* Actions in sidebar */
+.lamplight-sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-2);
+}
+
+.lamplight-sidebar-write-btn {
+  width: 100%;
+  height: 40px;
+  border-radius: var(--kf-radius);
+  background: var(--kf-brand);
+  color: var(--kf-on-fill);
+  font-family: var(--kf-font-ui);
+  font-weight: 700;
+  font-size: var(--kf-text-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--kf-2);
+  border: none;
+  cursor: pointer;
+  transition: background var(--kf-fast) var(--kf-ease), transform var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sidebar-write-btn:hover {
+  background: var(--kf-brand-hover);
+}
+
+.lamplight-sidebar-write-btn:active {
+  transform: scale(0.98);
+}
+
+.lamplight-sidebar-search-btn {
+  width: 100%;
+  height: 36px;
+  border-radius: var(--kf-radius);
+  background: var(--kf-bg);
+  color: var(--kf-text-2);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--kf-3);
+  border: 1px solid var(--kf-line);
+  cursor: pointer;
+  transition: border-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sidebar-search-btn:hover {
+  border-color: var(--kf-line-strong);
+  color: var(--kf-text);
+}
+
+/* Navigation lists */
+.lamplight-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-3);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.lamplight-sidebar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.lamplight-sidebar-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  padding: var(--kf-2) var(--kf-3);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text-2);
+  text-decoration: none;
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-sm);
+  font-weight: 500;
+  transition: background-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+  border: 1px solid transparent;
+}
+
+.lamplight-sidebar-link:hover {
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+}
+
+.lamplight-sidebar-link.is-active {
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+  border-color: var(--kf-line-strong);
+  font-weight: 600;
+}
+
+.lamplight-sidebar-link.is-active svg {
+  color: var(--kf-brand);
+}
+
+.lamplight-sidebar-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: var(--kf-4);
+  padding-left: var(--kf-2);
+  border-left: 1px solid var(--kf-line);
+  margin-bottom: var(--kf-1);
+}
+
+.lamplight-sidebar-sublink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 4px var(--kf-2);
+  border-radius: var(--kf-radius);
+  color: var(--kf-text-2);
+  text-decoration: none;
+  font-size: var(--kf-text-xs);
+  font-weight: 500;
+  transition: background-color var(--kf-fast) var(--kf-ease), color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sidebar-sublink:hover {
+  background-color: var(--kf-raised);
+  color: var(--kf-text);
+}
+
+.lamplight-sidebar-sublink.is-active {
+  color: var(--kf-brand);
+  font-weight: 600;
+}
+
+.lamplight-sidebar-link-left {
+  display: flex;
+  align-items: center;
+  gap: var(--kf-3);
+}
+
+.lamplight-sidebar-count {
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lamplight-sidebar-link.is-active .lamplight-sidebar-count,
+.lamplight-sidebar-sublink.is-active .lamplight-sidebar-count {
+  color: var(--kf-text);
+}
+
+/* Footer & Collapse Toggle */
+.lamplight-sidebar-footer {
+  border-top: 1px solid var(--kf-line);
+  padding-top: var(--kf-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--kf-2);
+}
+
+.lamplight-sidebar-summary {
+  font-size: var(--kf-text-xs);
+  color: var(--kf-text-2);
+  line-height: 1.4;
+  padding: 0 var(--kf-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lamplight-sidebar-summary strong {
+  color: var(--kf-text);
+}
+
+.lamplight-sidebar-collapse-btn {
+  background: transparent;
+  border: none;
+  color: var(--kf-text-2);
+  font-family: var(--kf-font-ui);
+  font-size: var(--kf-text-xs);
+  display: flex;
+  align-items: center;
+  gap: var(--kf-2);
+  cursor: pointer;
+  padding: var(--kf-1) var(--kf-2);
+  border-radius: var(--kf-radius);
+  transition: color var(--kf-fast) var(--kf-ease);
+}
+
+.lamplight-sidebar-collapse-btn:hover {
+  color: var(--kf-text);
+}

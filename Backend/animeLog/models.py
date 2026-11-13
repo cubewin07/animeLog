@@ -3,6 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import timezone
 
 
 class Genre(models.Model):
@@ -524,3 +525,35 @@ class Book(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ActivityKind(models.TextChoices):
+    EPISODE_PROGRESS = "EPISODE_PROGRESS", "Episode progress"
+    MOVIE_PROGRESS = "MOVIE_PROGRESS", "Movie progress"
+    BOOK_PROGRESS = "BOOK_PROGRESS", "Book progress"
+    NOTE_WRITTEN = "NOTE_WRITTEN", "Note written"
+    CHARACTER_ADDED = "CHARACTER_ADDED", "Character note"
+    REWATCH_LOGGED = "REWATCH_LOGGED", "Rewatch logged"
+    COMPLETED = "COMPLETED", "Completed"
+
+
+class ActivityEvent(models.Model):
+    kind = models.CharField(max_length=32, choices=ActivityKind.choices)
+    target_type = models.CharField(max_length=24)
+    target_id = models.PositiveIntegerField()
+    title = models.CharField(max_length=255)
+    delta = models.IntegerField(default=1)
+    backfilled = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        verbose_name = "Activity Event"
+        verbose_name_plural = "Activity Events"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["target_type", "target_id"]),
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.title}"

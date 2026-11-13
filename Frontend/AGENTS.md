@@ -1,6 +1,6 @@
 # Frontend
 
-SPA for the personal anime/book journal. Built with React 19, TypeScript, Vite, GSAP micro-interactions, and vanilla CSS design system. Proxies to the Django REST API at `/api/`.
+SPA for the personal anime/book journal. Built with React 19, TypeScript, Vite, React Router, and the Keyframe CSS design system (`--kf-*` tokens). Proxies to the Django REST API at `/api/`.
 
 ## Intended stack (locked)
 
@@ -16,9 +16,10 @@ Run from `Frontend/`.
 |---------|------|
 | `npm install` | Install deps |
 | `npm run dev` | Vite dev server (proxy `/api` to Django `:8000`) |
+| `npm run typecheck` | TypeScript strict typecheck (`tsc --noEmit`) |
 | `npm run build` | Production build |
-| `npm run lint` | Lint if configured |
-| `npm test` | Unit tests if configured |
+| `npm run lint` | ESLint check |
+| `npm test` | Vitest unit tests |
 
 Proxy `/api` in `vite.config.ts` to `http://127.0.0.1:8000` so the browser stays same-origin during dev.
 
@@ -27,15 +28,16 @@ Proxy `/api` in `vite.config.ts` to `http://127.0.0.1:8000` so the browser stays
 The UI is a **journal**, not MyAnimeList.
 
 - A title row without `notes` / `why` is incomplete. Make writing the lesson easy, not buried behind a tiny icon.
-- Surfaces that matter: currently watching/reading, completed with lessons, plan-to-watch/read, rewatches, favorite characters.
+- Core destinations: **Home** (`/`), **Library** (`/anime`, `/books`, `/characters`), **+** (`AddTitleModal` & `Composer`), **Journal** (`/journal`), and **Me** (`/me`, `/me/recap/:year`), plus **Settings** (`/settings`, `/settings/find-art`).
+- Use plain fan vocabulary everywhere (`Home`, `Note`, `Series`, `Season`, `Movie`, `Characters`, `Rewatch`, `Episode`).
 - Status values must match `AnimeStatus` / `BookStatus` in `Backend/animeLog/models.py`.
 - Rating is 1–10 or empty. Progress is episode/page count vs optional total.
 
 ## Visual direction
 
-Use the `frontend-design` skill. Derive the look from the subject (personal media journal, paper notes, stills, spines) — not a generic dark dashboard with purple gradients.
+See [design.md](./design.md) for the **Keyframe** design system: ink-blue night studio (`#0D1017`), per-title color accents extracted from covers (`--title-accent`), key-frame paper (`#F4F6F1`) reserved exclusively for reading/writing notes, and reward gold (`#FFC857`) reserved for XP, achievements, and 9–10 ratings. Use CSS transitions/tokens (`--kf-*`) — do not re-introduce GSAP.
 
-After building a screen, run `web-design-guidelines` and verify in the browser (`webapp-testing` or equivalent): create, edit, empty, error, desktop and mobile.
+After building a screen, check desktop (`1440×900`) and mobile (`390×844`) viewports, keyboard focus (`Tab`/`Escape`/`⌘K`), accessible labels, and `prefers-reduced-motion`.
 
 ## Talking to Django
 

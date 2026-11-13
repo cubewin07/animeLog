@@ -1,0 +1,26 @@
+.lamplight-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--kf-panel) 25%,
+    var(--kf-raised) 50%,
+    var(--kf-panel) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonShimmer 1.8s infinite ease-in-out;
+  border-radius: var(--kf-radius);
+}
+
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lamplight-skeleton {
+    animation: none;
+  }
+}
