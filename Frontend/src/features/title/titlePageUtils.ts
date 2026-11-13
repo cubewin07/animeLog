@@ -149,6 +149,30 @@ export function resolveTitleTab(
 }
 
 /**
+ * Clamps a movie minute delta to remaining minutes (`[0, total_minutes]`) when `total_minutes` is known.
+ * Matches Home/Library selectors so near-completion movies step by `+N min` (e.g. `+4 min`) instead of disabling.
+ */
+export function clampedMovieDelta(
+  movie: Pick<AnimeMovie, 'progress_minutes' | 'total_minutes'>,
+  delta: number,
+): number {
+  const current = Math.max(0, movie.progress_minutes || 0);
+  if (delta > 0) {
+    if (movie.total_minutes != null && movie.total_minutes > 0) {
+      if (current >= movie.total_minutes) return 0;
+      return Math.min(delta, movie.total_minutes - current);
+    }
+    if (movie.total_minutes === 0) return 0;
+    return delta;
+  }
+  if (delta < 0) {
+    if (current <= 0) return 0;
+    return -Math.min(Math.abs(delta), current);
+  }
+  return 0;
+}
+
+/**
  * Checks whether a release can step by `delta` using the same bounds as optimistic progress updates.
  */
 export function canStepReleaseProgress(

@@ -1,5 +1,6 @@
 import type { AnimeSeries, Book, FavoriteCharacter } from '../types';
 import type { JournalReflection } from '../state/useReflections';
+import { nextBookState, nextMovieState, nextSeasonState } from '../lib/journal/progress';
 
 export interface PaletteItem {
   id: string;
@@ -95,15 +96,17 @@ export function buildPaletteItems(
           badge: 'Continue',
           run: () => cb.navigate(`/anime/${series.id}?release=season-${season.id}`),
         });
-        plusOneActions.push({
-          id: `action-plus-season-${season.id}`,
-          kind: 'action',
-          title: `+1 ${series.title}`,
-          meta: `Log Ep ${nextEp} · Season ${season.season_number}`,
-          badge: '+1 Ep',
-          keywords: `+1 + next ep episode ${series.title} ${series.romaji_title || ''} ${season.title}`.toLowerCase(),
-          run: () => cb.seasonDelta(season.id, 1),
-        });
+        if (nextSeasonState(season, 1) !== null) {
+          plusOneActions.push({
+            id: `action-plus-season-${season.id}`,
+            kind: 'action',
+            title: `+1 ${series.title}`,
+            meta: `Log Ep ${nextEp} · Season ${season.season_number}`,
+            badge: '+1 Ep',
+            keywords: `+1 + next ep episode ${series.title} ${series.romaji_title || ''} ${season.title}`.toLowerCase(),
+            run: () => cb.seasonDelta(season.id, 1),
+          });
+        }
       }
     });
 
@@ -117,15 +120,23 @@ export function buildPaletteItems(
           badge: 'Continue',
           run: () => cb.navigate(`/anime/${series.id}?release=movie-${movie.id}`),
         });
-        plusOneActions.push({
-          id: `action-plus-movie-${movie.id}`,
-          kind: 'action',
-          title: `+10m ${series.title} (${movie.title})`,
-          meta: 'Add 10 minutes watched',
-          badge: '+10m',
-          keywords: `+1 + +10 next movie ${series.title} ${movie.title}`.toLowerCase(),
-          run: () => cb.movieDelta(movie.id, 10),
-        });
+        const stepDelta =
+          movie.total_minutes != null && movie.total_minutes > 0
+            ? Math.min(10, Math.max(0, movie.total_minutes - (movie.progress_minutes || 0)))
+            : movie.total_minutes === 0
+              ? 0
+              : 10;
+        if (stepDelta > 0 && nextMovieState(movie, stepDelta) !== null) {
+          plusOneActions.push({
+            id: `action-plus-movie-${movie.id}`,
+            kind: 'action',
+            title: `+${stepDelta}m ${series.title} (${movie.title})`,
+            meta: `Add ${stepDelta} minutes watched`,
+            badge: `+${stepDelta}m`,
+            keywords: `+1 + +10 next movie ${series.title} ${movie.title}`.toLowerCase(),
+            run: () => cb.movieDelta(movie.id, stepDelta),
+          });
+        }
       }
     });
   });
@@ -141,15 +152,23 @@ export function buildPaletteItems(
         badge: 'Continue',
         run: () => cb.navigate(`/books/${book.id}`),
       });
-      plusOneActions.push({
-        id: `action-plus-book-${book.id}`,
-        kind: 'action',
-        title: `+10 pages · ${book.title}`,
-        meta: 'Advance reading progress by 10 pages',
-        badge: '+10p',
-        keywords: `+1 + +10 next page pages ${book.title} ${book.author || ''}`.toLowerCase(),
-        run: () => cb.bookDelta(book.id, 10),
-      });
+      const stepDelta =
+        book.total_pages != null && book.total_pages > 0
+          ? Math.min(10, Math.max(0, book.total_pages - (book.progress || 0)))
+          : book.total_pages === 0
+            ? 0
+            : 10;
+      if (stepDelta > 0 && nextBookState(book, stepDelta) !== null) {
+        plusOneActions.push({
+          id: `action-plus-book-${book.id}`,
+          kind: 'action',
+          title: `+${stepDelta} pages · ${book.title}`,
+          meta: `Advance reading progress by ${stepDelta} pages`,
+          badge: `+${stepDelta}p`,
+          keywords: `+1 + +10 next page pages ${book.title} ${book.author || ''}`.toLowerCase(),
+          run: () => cb.bookDelta(book.id, stepDelta),
+        });
+      }
     }
   });
 
@@ -283,8 +302,11 @@ export function buildPaletteItems(
 
   if (isPlusQuery) {
     seriesList.forEach((s) => {
-      const season = s.seasons?.find((sea) => sea.status === 'WATCHING') ?? s.seasons?.[0];
-      if (!season) return;
+      const season =
+        s.seasons?.find((sea) => sea.status === 'WATCHING' && nextSeasonState(sea, 1) !== null) ??
+        s.seasons?.find((sea) => sea.status !== 'COMPLETED' && nextSeasonState(sea, 1) !== null) ??
+        s.seasons?.find((sea) => nextSeasonState(sea, 1) !== null);
+      if (!season || nextSeasonState(season, 1) === null) return;
       const matchesTitle =
         !plusTargetQuery ||
         s.title.toLowerCase().includes(plusTargetQuery) ||

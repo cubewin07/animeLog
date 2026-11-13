@@ -1,7 +1,7 @@
 /**
  * Quote Card Generator for AnimeLog.
- * Generates an editorial paper-slip visual card (1200x675) matching the "Still & Spine" aesthetic
- * using native HTML5 Canvas (zero external dependencies).
+ * Generates an editorial Keyframe archival paper card (1200x675) matching the Night Studio
+ * and Key-Frame Paper aesthetic using native HTML5 Canvas (zero external dependencies).
  */
 
 export interface QuoteCardOptions {
@@ -9,6 +9,38 @@ export interface QuoteCardOptions {
   context: string;
   note: string;
   rating?: number | null;
+}
+
+function wrapQuoteLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number,
+): string[] {
+  const words = text.trim().split(/\s+/);
+  const lines: string[] = [];
+  let line = '';
+
+  for (let i = 0; i < words.length; i += 1) {
+    const candidate = line ? `${line} ${words[i]}` : words[i];
+    if (ctx.measureText(candidate).width > maxWidth && line) {
+      lines.push(line);
+      line = words[i];
+      if (lines.length >= maxLines - 1) {
+        const rest = [line, ...words.slice(i + 1)].join(' ');
+        let trimmed = rest;
+        while (ctx.measureText(`${trimmed}…`).width > maxWidth && trimmed.length > 4) {
+          trimmed = trimmed.slice(0, -1).trimEnd();
+        }
+        lines.push(`${trimmed}…`);
+        return lines;
+      }
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 export function downloadQuoteCard(options: QuoteCardOptions): void {
@@ -21,117 +53,136 @@ export function downloadQuoteCard(options: QuoteCardOptions): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
-  // 1. Dark desk background
-  const bgGrad = ctx.createLinearGradient(0, 0, width, height);
-  bgGrad.addColorStop(0, '#141312');
-  bgGrad.addColorStop(1, '#1b1917');
-  ctx.fillStyle = bgGrad;
+  // 1. Night studio frame background (#0d1017)
+  ctx.fillStyle = '#0d1017';
   ctx.fillRect(0, 0, width, height);
 
-  // Subtle border
-  ctx.strokeStyle = '#2d2825';
+  // Subtle studio outer frame border
+  ctx.strokeStyle = 'rgba(242, 244, 248, 0.14)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(20, 20, width - 40, height - 40);
-
-  // 2. Paper Slip dimensions
-  const slipX = 140;
-  const slipY = 80;
-  const slipW = width - 280;
-  const slipH = height - 160;
-
-  // Slip shadow
-  ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.45)';
-  ctx.shadowBlur = 32;
-  ctx.shadowOffsetY = 16;
-  ctx.fillStyle = '#faf8f5';
   ctx.beginPath();
-  ctx.roundRect(slipX, slipY, slipW, slipH, 8);
+  ctx.roundRect(22, 22, width - 44, height - 44, 14);
+  ctx.stroke();
+
+  // 2. Archival Key-Frame Paper sheet (#f4f6f1)
+  const sheetX = 120;
+  const sheetY = 68;
+  const sheetW = width - 240;
+  const sheetH = height - 136;
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
+  ctx.shadowBlur = 36;
+  ctx.shadowOffsetY = 18;
+  ctx.fillStyle = '#f4f6f1';
+  ctx.beginPath();
+  ctx.roundRect(sheetX, sheetY, sheetW, sheetH, 8);
   ctx.fill();
   ctx.restore();
 
-  // Fine paper border
-  ctx.strokeStyle = '#e6dfd5';
+  // Crisp sheet edge
+  ctx.strokeStyle = 'rgba(143, 176, 217, 0.45)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.roundRect(slipX, slipY, slipW, slipH, 8);
+  ctx.roundRect(sheetX, sheetY, sheetW, sheetH, 8);
   ctx.stroke();
 
-  // 3. Eyebrow: Source
-  ctx.fillStyle = '#78716c';
-  ctx.font = '600 14px system-ui, -apple-system, sans-serif';
-  ctx.letterSpacing = '0.08em';
-  const eyebrowText = `${options.context.toUpperCase()} · ${options.title.toUpperCase()}`;
-  ctx.fillText(eyebrowText.slice(0, 75), slipX + 50, slipY + 60);
+  // Animation peg holes at top center of the paper sheet
+  const pegY = sheetY + 18;
+  const centerX = sheetX + sheetW / 2;
+  ctx.fillStyle = '#0d1017';
+  ctx.beginPath();
+  ctx.roundRect(centerX - 110, pegY - 5, 28, 10, 5);
+  ctx.roundRect(centerX + 82, pegY - 5, 28, 10, 5);
+  ctx.arc(centerX, pegY, 6, 0, Math.PI * 2);
+  ctx.fill();
 
-  // Rating badge if present
+  // 3. Rating badge (top right, Keyframe gold for 9-10, dark ink for < 9)
+  let rightReserved = 0;
   if (options.rating) {
-    const starText = `★ ${options.rating}/10`;
-    ctx.font = '600 13px ui-monospace, monospace';
-    ctx.fillStyle = '#92400e';
-    const starMetrics = ctx.measureText(starText);
-    const starX = slipX + slipW - 50 - starMetrics.width - 16;
-    const starY = slipY + 44;
-    ctx.fillStyle = '#fef3c7';
+    const isTopScore = options.rating >= 9;
+    const scoreText = `${options.rating}/10`;
+    ctx.font = '800 14px "Archivo", "Geist", system-ui, -apple-system, sans-serif';
+    const scoreMetrics = ctx.measureText(scoreText);
+    const pillW = scoreMetrics.width + 20;
+    const pillH = 26;
+    const pillX = sheetX + sheetW - 48 - pillW;
+    const pillY = sheetY + 42;
+    rightReserved = pillW + 16;
+
+    ctx.fillStyle = isTopScore ? '#ffc857' : '#1e2430';
     ctx.beginPath();
-    ctx.roundRect(starX, starY, starMetrics.width + 16, 24, 4);
+    ctx.roundRect(pillX, pillY, pillW, pillH, 6);
     ctx.fill();
-    ctx.fillStyle = '#b45309';
-    ctx.fillText(starText, starX + 8, starY + 16);
+
+    ctx.fillStyle = isTopScore ? '#0d1017' : '#f4f6f1';
+    ctx.fillText(scoreText, pillX + 10, pillY + 18);
   }
 
-  // 4. Quotation text (wrapped in Newsreader serif)
-  ctx.fillStyle = '#1c1917';
-  ctx.font = 'italic 28px "Newsreader", Georgia, serif';
-  const cleanNote = options.note.trim();
-  const quoteText = cleanNote.startsWith('“') || cleanNote.startsWith('"') ? cleanNote : `“${cleanNote}”`;
-
-  const maxTextW = slipW - 100;
-  const words = quoteText.split(' ');
-  let line = '';
-  const lines: string[] = [];
-
-  for (let n = 0; n < words.length; n++) {
-    const testLine = line + words[n] + ' ';
-    const metrics = ctx.measureText(testLine);
-    if (metrics.width > maxTextW && n > 0) {
-      lines.push(line);
-      line = words[n] + ' ';
-      if (lines.length >= 7) {
-        line = line + '...';
-        break;
-      }
-    } else {
-      line = testLine;
-    }
+  // Eyebrow metadata above Keyframe blue header rule
+  ctx.fillStyle = '#566074';
+  ctx.font = '700 13px "Geist", system-ui, -apple-system, sans-serif';
+  const rawEyebrow = `${options.context.toUpperCase()} · ${options.title.toUpperCase()}`;
+  const maxEyebrowW = sheetW - 96 - rightReserved;
+  let eyebrowText = rawEyebrow;
+  while (ctx.measureText(eyebrowText).width > maxEyebrowW && eyebrowText.length > 8) {
+    eyebrowText = `${eyebrowText.slice(0, -2).trimEnd()}…`;
   }
-  lines.push(line);
+  ctx.fillText(eyebrowText, sheetX + 48, sheetY + 60);
 
-  let textY = slipY + 130;
+  // Keyframe blue header rule (#2d7ff9)
+  const headerRuleY = sheetY + 78;
+  ctx.strokeStyle = '#2d7ff9';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(sheetX + 48, headerRuleY);
+  ctx.lineTo(sheetX + sheetW - 48, headerRuleY);
+  ctx.stroke();
+
+  // Subtle pencil-blue paper lines inside the note body
+  const firstLineY = sheetY + 136;
   const lineHeight = 42;
-  for (const l of lines) {
-    ctx.fillText(l.trim(), slipX + 50, textY);
-    textY += lineHeight;
+  ctx.strokeStyle = 'rgba(143, 176, 217, 0.35)';
+  ctx.lineWidth = 1;
+  for (let row = 0; row < 7; row += 1) {
+    const ruleY = firstLineY + row * lineHeight + 10;
+    if (ruleY >= sheetY + sheetH - 72) break;
+    ctx.beginPath();
+    ctx.moveTo(sheetX + 48, ruleY);
+    ctx.lineTo(sheetX + sheetW - 48, ruleY);
+    ctx.stroke();
   }
 
-  // 5. Footer divider & brand
-  const footerY = slipY + slipH - 45;
-  ctx.strokeStyle = '#e7e5e4';
+  // 4. Quotation text in Keyframe note serif (--kf-font-note / --kf-paper-ink)
+  ctx.fillStyle = '#1e2430';
+  ctx.font = 'italic 27px "Literata", Georgia, serif';
+  const cleanNote = options.note.trim();
+  const quoteText =
+    cleanNote.startsWith('“') || cleanNote.startsWith('"') ? cleanNote : `“${cleanNote}”`;
+
+  const lines = wrapQuoteLines(ctx, quoteText, sheetW - 96, 7);
+  lines.forEach((line, idx) => {
+    ctx.fillText(line, sheetX + 48, firstLineY + idx * lineHeight);
+  });
+
+  // 5. Footer divider & Keyframe brand
+  const footerY = sheetY + sheetH - 52;
+  ctx.strokeStyle = 'rgba(143, 176, 217, 0.55)';
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(slipX + 50, footerY);
-  ctx.lineTo(slipX + slipW - 50, footerY);
+  ctx.moveTo(sheetX + 48, footerY);
+  ctx.lineTo(sheetX + sheetW - 48, footerY);
   ctx.stroke();
 
-  ctx.fillStyle = '#a8a29e';
-  ctx.font = '12px system-ui, -apple-system, sans-serif';
-  ctx.fillText('ANIMELOG · STILL & SPINE', slipX + 50, footerY + 26);
+  ctx.fillStyle = '#2d7ff9';
+  ctx.font = '700 12px "Geist", system-ui, -apple-system, sans-serif';
+  ctx.fillText('ANIMELOG · KEYFRAME', sheetX + 48, footerY + 28);
 
-  ctx.font = 'italic 12px "Newsreader", Georgia, serif';
-  ctx.fillStyle = '#78716c';
+  ctx.font = 'italic 13px "Literata", Georgia, serif';
+  ctx.fillStyle = '#566074';
   const tagText = 'Memories and lessons from watching and reading';
   const tagMetrics = ctx.measureText(tagText);
-  ctx.fillText(tagText, slipX + slipW - 50 - tagMetrics.width, footerY + 26);
+  ctx.fillText(tagText, sheetX + sheetW - 48 - tagMetrics.width, footerY + 28);
 
   // Trigger download
   canvas.toBlob((blob) => {

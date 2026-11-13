@@ -9,37 +9,37 @@ export interface StatusMeta {
 export const STATUS_META: Record<AnimeStatus | BookStatus, StatusMeta> = {
   WATCHING: {
     label: 'Watching',
-    dotColor: 'var(--status-watching-color)',
+    dotColor: 'var(--kf-brand)',
     tone: 'watching',
   },
   READING: {
     label: 'Reading',
-    dotColor: 'var(--status-reading-color)',
+    dotColor: 'var(--kf-brand)',
     tone: 'reading',
   },
   COMPLETED: {
     label: 'Completed',
-    dotColor: 'var(--status-completed-color)',
+    dotColor: 'var(--kf-completed)',
     tone: 'completed',
   },
   PLAN_TO_WATCH: {
     label: 'Plan to watch',
-    dotColor: 'var(--status-plan-color)',
+    dotColor: 'var(--kf-plan)',
     tone: 'plan',
   },
   PLAN_TO_READ: {
     label: 'Plan to read',
-    dotColor: 'var(--status-plan-color)',
+    dotColor: 'var(--kf-plan)',
     tone: 'plan',
   },
   ON_HOLD: {
     label: 'On hold',
-    dotColor: 'var(--status-hold-color)',
+    dotColor: 'var(--kf-hold)',
     tone: 'hold',
   },
   DROPPED: {
     label: 'Dropped',
-    dotColor: 'var(--status-dropped-color)',
+    dotColor: 'var(--kf-dropped)',
     tone: 'dropped',
   },
 };
@@ -48,13 +48,13 @@ export function getStatusMeta(status: AnimeStatus | BookStatus | string | undefi
   if (!status) {
     return {
       label: 'Unknown',
-      dotColor: 'var(--text-3)',
+      dotColor: 'var(--kf-text-2)',
       tone: 'plan',
     };
   }
   return STATUS_META[status as AnimeStatus | BookStatus] || {
     label: status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()),
-    dotColor: 'var(--text-3)',
+    dotColor: 'var(--kf-text-2)',
     tone: 'plan',
   };
 }

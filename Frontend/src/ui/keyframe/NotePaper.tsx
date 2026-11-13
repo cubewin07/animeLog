@@ -15,11 +15,11 @@ export const NotePaper: React.FC<NotePaperProps> = ({ slate, children }) => (
       <span className="is-round" />
       <span className="is-slot" />
     </div>
-    <dl className="kf-paper-slate">
+    <ul className="kf-paper-slate" role="list" aria-label="Note details">
       {[...new Set(slate)].map((fact) => (
-        <dd key={fact}>{fact}</dd>
+        <li key={fact}>{fact}</li>
       ))}
-    </dl>
+    </ul>
     <div className="kf-paper-body">{children}</div>
   </article>
 );

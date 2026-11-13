@@ -14,7 +14,7 @@ import {
   Tv,
   Users,
 } from 'lucide-react';
-import { useJournalActions, useJournalData } from '../../state/JournalContext';
+import { useJournalActions, useJournalData, useJournalUI } from '../../state/JournalContext';
 import { useReflections } from '../../state/useReflections';
 import { useCoverAccent } from '../../lib/color/useCoverAccent';
 import { cloudinaryThumbUrl } from '../../lib/images/cloudinary';
@@ -164,7 +164,7 @@ function downloadRecapCard(recap: YearRecap, accent: string): void {
     ctx.fillText(truncateText(item.val, 34), x, y + 28);
   });
 
-  // Best note paper slip (right)
+  // Best note paper sheet (right)
   const paperX = 560;
   const paperY = 330;
   const paperW = 576;
@@ -226,9 +226,32 @@ interface RecapStoryStageProps {
 }
 
 const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
+  const {
+    composerOpen,
+    paletteOpen,
+    entryModalOpen,
+    episodeNoteModalOpen,
+    rewatchModalOpen,
+    characterModalOpen,
+    confirmDialog,
+    finalePrompt,
+  } = useJournalUI();
+
   const [slideIndex, setSlideIndex] = useState(0);
   const [failedBackdropUrl, setFailedBackdropUrl] = useState<string | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const tablistRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const anyModalOpen =
+    composerOpen ||
+    paletteOpen ||
+    entryModalOpen ||
+    episodeNoteModalOpen ||
+    rewatchModalOpen ||
+    characterModalOpen ||
+    confirmDialog.isOpen ||
+    Boolean(finalePrompt);
 
   const { accent, onImageReady, onCorsBlocked } = useCoverAccent(
     recap.topTitle?.title ?? `${recap.year} Recap`,
@@ -250,16 +273,29 @@ const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (anyModalOpen || e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
       const target = e.target as HTMLElement | null;
       if (
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
-          target.isContentEditable)
+          target.isContentEditable ||
+          Boolean(target.closest('[contenteditable="true"]')))
       ) {
         return;
       }
+
+      if (tablistRef.current && target && tablistRef.current.contains(target)) {
+        return;
+      }
+
+      if (document.querySelector('dialog[open], [role="dialog"], [aria-modal="true"]')) {
+        return;
+      }
+
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
         goPrev();
@@ -270,7 +306,27 @@ const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [goPrev, goNext]);
+  }, [anyModalOpen, goPrev, goNext]);
+
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    let nextIdx: number | null = null;
+    if (e.key === 'ArrowRight') {
+      nextIdx = (idx + 1) % TOTAL_SLIDES;
+    } else if (e.key === 'ArrowLeft') {
+      nextIdx = (idx - 1 + TOTAL_SLIDES) % TOTAL_SLIDES;
+    } else if (e.key === 'Home') {
+      nextIdx = 0;
+    } else if (e.key === 'End') {
+      nextIdx = TOTAL_SLIDES - 1;
+    }
+
+    if (nextIdx !== null) {
+      e.preventDefault();
+      e.stopPropagation();
+      setSlideIndex(nextIdx);
+      tabRefs.current[nextIdx]?.focus();
+    }
+  };
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     const touch = e.touches[0];
@@ -344,16 +400,28 @@ const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
         )}
 
         {/* Top 6 progress bars */}
-        <div className="kf-recap-progress" role="tablist" aria-label="Recap slides">
+        <div
+          ref={tablistRef}
+          className="kf-recap-progress"
+          role="tablist"
+          aria-label="Recap slides"
+        >
           {SLIDE_LABELS.map((label, idx) => (
             <button
               key={label}
+              ref={(el) => {
+                tabRefs.current[idx] = el;
+              }}
               type="button"
               role="tab"
+              id={`kf-recap-tab-${idx}`}
               aria-selected={slideIndex === idx}
+              aria-controls={`kf-recap-panel-${idx}`}
+              tabIndex={slideIndex === idx ? 0 : -1}
               aria-label={`Slide ${idx + 1}: ${label}`}
               className={`kf-recap-seg${idx < slideIndex ? ' is-done' : ''}${idx === slideIndex ? ' is-current' : ''}`}
               onClick={() => setSlideIndex(idx)}
+              onKeyDown={(e) => handleTabKeyDown(e, idx)}
             >
               <span className="kf-recap-seg-bar" />
             </button>
@@ -361,7 +429,13 @@ const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
         </div>
 
         {/* Slide Content */}
-        <div className="kf-recap-slide" role="tabpanel" aria-label={SLIDE_LABELS[slideIndex]}>
+        <div
+          className="kf-recap-slide"
+          role="tabpanel"
+          id={`kf-recap-panel-${slideIndex}`}
+          aria-labelledby={`kf-recap-tab-${slideIndex}`}
+          tabIndex={0}
+        >
           {/* Slide 1: Year in Numbers */}
           {slideIndex === 0 && (
             <div className="kf-recap-slide-body is-numbers">
@@ -638,7 +712,7 @@ const RecapStoryStage: React.FC<RecapStoryStageProps> = ({ recap }) => {
                       })
                     }
                   >
-                    Download Quote Slip
+                    Download Quote Card
                   </KfButton>
                 )}
               </div>

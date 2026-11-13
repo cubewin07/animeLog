@@ -154,7 +154,29 @@ describe('buildPaletteItems', () => {
     expect(cb.navigate).toHaveBeenCalledWith('/me');
   });
 
-  it('uses plain fan vocabulary for status labels', () => {
+  it('omits "+1" action when a season is already at total_episodes', () => {
+    const cb = makeCallbacks();
+    const completedSources: PaletteSources = {
+      ...sampleSources,
+      seriesList: [
+        {
+          ...sampleSources.seriesList[0],
+          seasons: [
+            {
+              ...sampleSources.seriesList[0].seasons![0],
+              status: 'COMPLETED',
+              progress: 28,
+              total_episodes: 28,
+            },
+          ],
+        },
+      ],
+    };
+    const items = buildPaletteItems('+1 Frieren', completedSources, cb);
+    expect(items.find((i) => i.id === 'action-plus-season-10')).toBeUndefined();
+  });
+
+  it('uses plain fan vocabulary and Keyframe tokens for status metadata', () => {
     expect(getStatusMeta('WATCHING').label).toBe('Watching');
     expect(getStatusMeta('READING').label).toBe('Reading');
     expect(getStatusMeta('COMPLETED').label).toBe('Completed');
@@ -162,5 +184,10 @@ describe('buildPaletteItems', () => {
     expect(getStatusMeta('PLAN_TO_READ').label).toBe('Plan to read');
     expect(getStatusMeta('ON_HOLD').label).toBe('On hold');
     expect(getStatusMeta('DROPPED').label).toBe('Dropped');
+
+    const statuses = ['WATCHING', 'READING', 'COMPLETED', 'PLAN_TO_WATCH', 'PLAN_TO_READ', 'ON_HOLD', 'DROPPED', null] as const;
+    for (const status of statuses) {
+      expect(getStatusMeta(status).dotColor).toMatch(/^var\(--kf-/);
+    }
   });
 });

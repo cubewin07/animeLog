@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
+  AlertCircle,
   Check,
   CheckCircle2,
   Copy,
@@ -14,9 +15,11 @@ import {
   X,
 } from 'lucide-react';
 import { folderApi, imageApi } from '../api/client';
+import { useJournalActions } from '../state/JournalContext';
 import { Folder, ImageAsset } from '../types';
 import { KfButton } from '../ui/keyframe';
 import { useDialog } from '../ui/Sheet/useDialog';
+import { ConfirmDialog } from './ConfirmDialog';
 import './MediaLibraryModal.css';
 
 interface MediaLibraryModalProps {
@@ -32,13 +35,17 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
   onSelectImage,
   selectedImageId,
 }) => {
+  const { addToast } = useJournalActions();
   const [folders, setFolders] = useState<Folder[]>([]);
   const [images, setImages] = useState<ImageAsset[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<number | 'all' | 'root'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ImageAsset | null>(null);
 
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
@@ -54,6 +61,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
   const loadMedia = useCallback(async () => {
     try {
       setLoading(true);
+      setErrorMessage(null);
       const [foldersList, imagesList] = await Promise.all([
         folderApi.list(),
         imageApi.list(
@@ -68,10 +76,13 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
       setImages(imagesList);
     } catch (err) {
       console.error('Failed to load media assets:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to load media assets.';
+      setErrorMessage(msg);
+      addToast(msg, 'error');
     } finally {
       setLoading(false);
     }
-  }, [activeFolderId]);
+  }, [activeFolderId, addToast]);
 
   useEffect(() => {
     if (isOpen) {
@@ -86,6 +97,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
     if (!newFolderName.trim()) return;
     try {
       setFolderSubmitting(true);
+      setErrorMessage(null);
       await folderApi.create({
         name: newFolderName.trim(),
         parent: typeof activeFolderId === 'number' ? activeFolderId : null,
@@ -95,7 +107,9 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
       await loadMedia();
     } catch (err) {
       console.error('Failed to create folder:', err);
-      alert('Failed to create folder');
+      const msg = err instanceof Error ? err.message : 'Failed to create folder.';
+      setErrorMessage(msg);
+      addToast(msg, 'error');
     } finally {
       setFolderSubmitting(false);
     }
@@ -105,6 +119,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
     if (!files || files.length === 0) return;
     try {
       setUploading(true);
+      setErrorMessage(null);
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const folderVal = typeof activeFolderId === 'number' ? activeFolderId : null;
@@ -118,7 +133,9 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
     } catch (err: unknown) {
       console.error('Upload failed:', err);
       const msg = err instanceof Error ? err.message : 'Check Cloudinary credentials.';
-      alert(`Upload failed: ${msg}`);
+      const full = `Upload failed: ${msg}`;
+      setErrorMessage(full);
+      addToast(full, 'error');
     } finally {
       setUploading(false);
     }
@@ -126,19 +143,33 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
 
   const handleCopyUrl = (e: React.MouseEvent, image: ImageAsset) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(image.url);
+    void navigator.clipboard?.writeText(image.url).catch(() => {});
     setCopiedId(image.id);
     window.setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDeleteImage = async (e: React.MouseEvent, id: number) => {
+  const handleRequestDeleteImage = (e: React.MouseEvent, image: ImageAsset) => {
     e.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this image?')) return;
+    setDeleteTarget(image);
+  };
+
+  const handleConfirmDeleteImage = async () => {
+    if (!deleteTarget || deleting) return;
     try {
-      await imageApi.delete(id);
+      setDeleting(true);
+      setErrorMessage(null);
+      await imageApi.delete(deleteTarget.id);
+      setDeleteTarget(null);
+      addToast('Image deleted');
       await loadMedia();
     } catch (err) {
       console.error('Failed to delete image:', err);
+      const msg = err instanceof Error ? err.message : 'Failed to delete image.';
+      setErrorMessage(msg);
+      addToast(`Failed to delete image: ${msg}`, 'error');
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -153,12 +184,13 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
   });
 
   return (
-    <div
-      className="kf-ml-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
+    <>
+      <div
+        className="kf-ml-overlay"
+        onClick={(e) => {
+          if (e.target === e.currentTarget && deleteTarget === null) onClose();
+        }}
+      >
       <div
         ref={panelRef}
         role="dialog"
@@ -347,6 +379,46 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
               </div>
             </div>
 
+            {errorMessage && (
+              <div
+                role="alert"
+                style={{
+                  margin: 'var(--kf-3) var(--kf-5) 0',
+                  padding: 'var(--kf-2) var(--kf-3)',
+                  borderRadius: 'var(--kf-radius)',
+                  background: 'var(--kf-danger-soft)',
+                  border: '1px solid color-mix(in srgb, var(--kf-danger) 40%, transparent)',
+                  color: 'var(--kf-danger)',
+                  fontSize: 'var(--kf-text-xs)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 'var(--kf-2)',
+                }}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--kf-2)' }}>
+                  <AlertCircle size={14} aria-hidden="true" />
+                  <span>{errorMessage}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage(null)}
+                  aria-label="Dismiss error"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={14} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+
             <div className="kf-ml-grid-wrap">
               {loading ? (
                 <div className="kf-ml-state-inline">
@@ -400,7 +472,7 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
                             </button>
                             <button
                               type="button"
-                              onClick={(e) => void handleDeleteImage(e, img.id)}
+                              onClick={(e) => handleRequestDeleteImage(e, img)}
                               className="kf-ml-icon-btn is-danger"
                               title="Delete Image"
                               aria-label={`Delete ${img.title || `Image ${img.id}`}`}
@@ -438,6 +510,20 @@ export const MediaLibraryModal: React.FC<MediaLibraryModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Image"
+        message={`Are you sure you want to delete "${
+          deleteTarget?.title || (deleteTarget ? `Image #${deleteTarget.id}` : 'this image')
+        }"?`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete Image'}
+        onConfirm={() => void handleConfirmDeleteImage()}
+        onCancel={() => {
+          if (!deleting) setDeleteTarget(null);
+        }}
+      />
+    </>
   );
 };

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
-import { FolderOpen, Loader2, UploadCloud, X } from 'lucide-react';
+import { AlertCircle, FolderOpen, Loader2, UploadCloud, X } from 'lucide-react';
 import { imageApi } from '../api/client';
+import { useJournalActions } from '../state/JournalContext';
 import { ImageAsset } from '../types';
 import { MediaLibraryModal } from './MediaLibraryModal';
 import './ImageUploadField.css';
@@ -20,8 +21,10 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
   onChange,
   folderId,
 }) => {
+  const { addToast } = useJournalActions();
   const [uploading, setUploading] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (files: FileList | null) => {
@@ -29,6 +32,7 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
     const file = files[0];
     try {
       setUploading(true);
+      setUploadError(null);
       const asset = await imageApi.upload(file, {
         folder: folderId,
         title: file.name.replace(/\.[^/.]+$/, ''),
@@ -37,18 +41,24 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       console.error('Failed to upload image:', err);
-      alert('Upload failed. Please check network connection and Cloudinary settings.');
+      const detail =
+        err instanceof Error ? err.message : 'Please check network connection and Cloudinary settings.';
+      const msg = `Upload failed: ${detail}`;
+      setUploadError(msg);
+      addToast(msg, 'error');
     } finally {
       setUploading(false);
     }
   };
 
   const handleSelectFromLibrary = (asset: ImageAsset) => {
+    setUploadError(null);
     onChange(asset.id, asset.url);
     setLibraryOpen(false);
   };
 
   const handleRemove = () => {
+    setUploadError(null);
     onChange(null, null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -126,6 +136,27 @@ export const ImageUploadField: React.FC<ImageUploadFieldProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {uploadError && (
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            padding: 'var(--kf-2) var(--kf-3)',
+            borderRadius: 'var(--kf-radius)',
+            background: 'var(--kf-danger-soft)',
+            border: '1px solid color-mix(in srgb, var(--kf-danger) 40%, transparent)',
+            color: 'var(--kf-danger)',
+            fontSize: 'var(--kf-text-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--kf-2)',
+          }}
+        >
+          <AlertCircle size={14} aria-hidden="true" />
+          <span>{uploadError}</span>
+        </p>
       )}
 
       {libraryOpen && (

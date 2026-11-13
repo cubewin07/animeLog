@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -41,6 +41,7 @@ import {
 import {
   adjacentEpisode,
   canStepReleaseProgress,
+  clampedMovieDelta,
   computeRatingDelta,
   effectiveEpisodeCount,
   mapEpisodeNotes,
@@ -194,21 +195,29 @@ export const TitlePage: React.FC<TitlePageProps> = ({
     setSearchParams(next, { replace: true });
   };
 
-  const selectEpisode = (epNum: number | null, switchToEpisodes = false) => {
-    const next = new URLSearchParams(searchParams);
-    if (currentSeason) {
-      next.set('release', `season-${currentSeason.id}`);
-    }
-    if (epNum === null) {
-      next.delete('ep');
-    } else {
-      next.set('ep', String(epNum));
-      if (switchToEpisodes || activeTab !== 'episodes') {
-        next.set('tab', 'episodes');
-      }
-    }
-    setSearchParams(next, { replace: true });
-  };
+  const selectEpisode = useCallback(
+    (epNum: number | null, switchToEpisodes = false) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (currentSeason) {
+            next.set('release', `season-${currentSeason.id}`);
+          }
+          if (epNum === null) {
+            next.delete('ep');
+          } else {
+            next.set('ep', String(epNum));
+            if (switchToEpisodes || activeTab !== 'episodes') {
+              next.set('tab', 'episodes');
+            }
+          }
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [currentSeason, activeTab, setSearchParams],
+  );
 
   const activeCoverUrl =
     activeRelease?.cover_image_url ||
@@ -350,28 +359,31 @@ export const TitlePage: React.FC<TitlePageProps> = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [activeTab, selectedType, selectedEp, anyModalOpen, prevEp, nextEp, selectEpisode]);
+
+  const moviePlusDelta = currentMovie ? clampedMovieDelta(currentMovie, 10) : 0;
+  const movieMinusDelta = currentMovie ? clampedMovieDelta(currentMovie, -10) : 0;
 
   const canStepPlus = currentSeason
     ? canStepReleaseProgress({ type: 'season', data: currentSeason }, 1)
     : currentMovie
-      ? canStepReleaseProgress({ type: 'movie', data: currentMovie }, 10)
+      ? moviePlusDelta > 0 && canStepReleaseProgress({ type: 'movie', data: currentMovie }, moviePlusDelta)
       : false;
 
   const canStepMinus = currentSeason
     ? canStepReleaseProgress({ type: 'season', data: currentSeason }, -1)
     : currentMovie
-      ? canStepReleaseProgress({ type: 'movie', data: currentMovie }, -10)
+      ? movieMinusDelta < 0 && canStepReleaseProgress({ type: 'movie', data: currentMovie }, movieMinusDelta)
       : false;
 
   const handlePrimaryPlus = () => {
     if (currentSeason) onSeasonProgressDelta(currentSeason.id, 1);
-    else if (currentMovie) onMovieProgressDelta(currentMovie.id, 10);
+    else if (currentMovie && moviePlusDelta > 0) onMovieProgressDelta(currentMovie.id, moviePlusDelta);
   };
 
   const handlePrimaryMinus = () => {
     if (currentSeason) onSeasonProgressDelta(currentSeason.id, -1);
-    else if (currentMovie) onMovieProgressDelta(currentMovie.id, -10);
+    else if (currentMovie && movieMinusDelta < 0) onMovieProgressDelta(currentMovie.id, movieMinusDelta);
   };
 
   const handleHeroNote = () => {
@@ -686,7 +698,11 @@ export const TitlePage: React.FC<TitlePageProps> = ({
                     className="kf-title-step-minus"
                     icon={<Minus size={16} />}
                     disabled={!canStepMinus}
-                    aria-label={currentSeason ? 'Decrease episode by 1' : 'Decrease progress by 10 minutes'}
+                    aria-label={
+                      currentSeason
+                        ? 'Decrease episode by 1'
+                        : `Decrease progress by ${movieMinusDelta < 0 ? Math.abs(movieMinusDelta) : 10} minutes`
+                    }
                     onClick={handlePrimaryMinus}
                   />
                   <KfButton
@@ -696,7 +712,7 @@ export const TitlePage: React.FC<TitlePageProps> = ({
                     disabled={!canStepPlus}
                     onClick={handlePrimaryPlus}
                   >
-                    {currentSeason ? '+1 Episode' : '+10 min'}
+                    {currentSeason ? '+1 Episode' : `+${moviePlusDelta > 0 ? moviePlusDelta : 10} min`}
                   </KfButton>
                 </div>
 
@@ -1576,7 +1592,11 @@ export const TitlePage: React.FC<TitlePageProps> = ({
             className="kf-title-sticky-minus"
             icon={<Minus size={16} />}
             disabled={!canStepMinus}
-            aria-label={currentSeason ? 'Decrease episode by 1' : 'Decrease progress by 10 minutes'}
+            aria-label={
+              currentSeason
+                ? 'Decrease episode by 1'
+                : `Decrease progress by ${movieMinusDelta < 0 ? Math.abs(movieMinusDelta) : 10} minutes`
+            }
             onClick={handlePrimaryMinus}
           />
           <KfButton
@@ -1586,7 +1606,7 @@ export const TitlePage: React.FC<TitlePageProps> = ({
             disabled={!canStepPlus}
             onClick={handlePrimaryPlus}
           >
-            {currentSeason ? '+1 Episode' : '+10 min'}
+            {currentSeason ? '+1 Episode' : `+${moviePlusDelta > 0 ? moviePlusDelta : 10} min`}
           </KfButton>
           <KfButton
             variant="secondary"

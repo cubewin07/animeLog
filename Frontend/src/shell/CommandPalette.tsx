@@ -4,6 +4,13 @@ import { useAppNavigate } from '../app/useAppNavigate';
 import { useJournalActions, useJournalData } from '../state/JournalContext';
 import { useReflections } from '../state/useReflections';
 import { Kbd } from '../ui';
+import {
+  findMovie,
+  findSeason,
+  nextBookState,
+  nextMovieState,
+  nextSeasonState,
+} from '../lib/journal/progress';
 import { buildPaletteItems, PaletteItem } from './paletteSearch';
 import {
   BookOpen,
@@ -108,19 +115,67 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           onOpenShortcuts?.();
         },
         seasonDelta: (seasonId, delta) => {
-          onClose();
-          handleSeasonProgressDelta(seasonId, delta);
-          addToast('Episode logged (+1)');
+          void (async () => {
+            const season = findSeason(seriesList, seasonId);
+            if (!season || !nextSeasonState(season, delta)) {
+              addToast('Cannot log +1 episode for this season.', 'error');
+              return;
+            }
+            onClose();
+            try {
+              const result = await Promise.resolve(handleSeasonProgressDelta(seasonId, delta) as unknown);
+              if (result === false) {
+                addToast('Failed to log episode.', 'error');
+                return;
+              }
+              addToast('Episode logged (+1)');
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Failed to log episode';
+              addToast(msg, 'error');
+            }
+          })();
         },
         movieDelta: (movieId, delta) => {
-          onClose();
-          handleMovieProgressDelta(movieId, delta);
-          addToast(`+${delta} min logged`);
+          void (async () => {
+            const movie = findMovie(seriesList, movieId);
+            if (!movie || !nextMovieState(movie, delta)) {
+              addToast('Cannot update progress for this movie.', 'error');
+              return;
+            }
+            onClose();
+            try {
+              const result = await Promise.resolve(handleMovieProgressDelta(movieId, delta) as unknown);
+              if (result === false) {
+                addToast('Failed to update movie progress.', 'error');
+                return;
+              }
+              addToast(`+${delta} min logged`);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Failed to update movie progress';
+              addToast(msg, 'error');
+            }
+          })();
         },
         bookDelta: (bookId, delta) => {
-          onClose();
-          handleBookProgressDelta(bookId, delta);
-          addToast(`+${delta} pages logged`);
+          void (async () => {
+            const book = bookList.find((b) => b.id === bookId);
+            if (!book || !nextBookState(book, delta)) {
+              addToast('Cannot update progress for this book.', 'error');
+              return;
+            }
+            onClose();
+            try {
+              const result = await Promise.resolve(handleBookProgressDelta(bookId, delta) as unknown);
+              if (result === false) {
+                addToast('Failed to update book progress.', 'error');
+                return;
+              }
+              addToast(`+${delta} pages logged`);
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : 'Failed to update book progress';
+              addToast(msg, 'error');
+            }
+          })();
         },
       }
     );

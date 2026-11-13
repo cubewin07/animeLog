@@ -24,8 +24,10 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   margin: 0 0 var(--kf-3);
+  padding: 0;
+  list-style: none;
 }
-.kf-paper-slate dd {
+.kf-paper-slate li {
   margin: 0 0 0 -1px;
   padding: 3px var(--kf-2);
   border: 1px solid #5c7fae;
