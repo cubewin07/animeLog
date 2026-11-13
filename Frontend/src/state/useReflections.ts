@@ -6,7 +6,7 @@ export type ReflectionKind = 'season' | 'film' | 'episode' | 'rewatch' | 'book' 
 export interface JournalReflection {
   id: string;
   kind: ReflectionKind;
-  targetKind: 'season' | 'movie' | 'book' | 'character';
+  targetKind: 'series' | 'season' | 'movie' | 'book' | 'character';
   targetId: number;
   seriesId?: number;
   title: string;
@@ -18,20 +18,40 @@ export interface JournalReflection {
   dateStr?: string | null;
 }
 
+function safeTimestamp(value?: string | null): number {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 export function useReflections(): {
   reflections: JournalReflection[];
   totalCount: number;
 } {
-  const { seriesList, bookList, characterList, rewatchList } = useJournalData();
+  const { seriesList, bookList, characterList, rewatchList, activityList } = useJournalData();
 
   const reflections = useMemo(() => {
     const list: JournalReflection[] = [];
+    const seriesCreatedAtById = new Map<number, string>();
+    const charActivityDateById = new Map<number, string>();
+
+    for (const series of seriesList) {
+      if (series.created_at) seriesCreatedAtById.set(series.id, series.created_at);
+    }
+
+    for (const event of activityList) {
+      if (event.kind === 'CHARACTER_ADDED' && event.target_type === 'character' && event.delta > 0) {
+        if (!charActivityDateById.has(event.target_id) && event.created_at) {
+          charActivityDateById.set(event.target_id, event.created_at);
+        }
+      }
+    }
 
     // 1. Anime Series Seasons, Films & Episode Notes
     seriesList.forEach((series) => {
       // Seasons
       series.seasons?.forEach((season) => {
-        const seasonTime = season.created_at ? new Date(season.created_at).getTime() : 0;
+        const seasonTime = safeTimestamp(season.created_at);
         if (season.notes?.trim()) {
           list.push({
             id: `season-${season.id}`,
@@ -51,6 +71,7 @@ export function useReflections(): {
         // Episode Notes
         season.episode_notes?.forEach((ep) => {
           if (ep.note?.trim()) {
+            const epTime = safeTimestamp(ep.created_at);
             list.push({
               id: `ep-${ep.id}`,
               kind: 'episode',
@@ -62,7 +83,7 @@ export function useReflections(): {
               note: ep.note,
               rating: ep.rating,
               episodeNumber: ep.episode_number,
-              timestamp: ep.created_at ? new Date(ep.created_at).getTime() : seasonTime,
+              timestamp: epTime > 0 ? epTime : seasonTime,
               dateStr: ep.created_at,
             });
           }
@@ -71,6 +92,7 @@ export function useReflections(): {
         // Season Rewatches
         season.rewatches?.forEach((rewatch) => {
           if (rewatch.notes?.trim()) {
+            const dateStr = rewatch.finish_date || rewatch.start_date;
             list.push({
               id: `rewatch-${rewatch.id}`,
               kind: 'rewatch',
@@ -81,8 +103,8 @@ export function useReflections(): {
               context: `Rewatch · ${season.title}`,
               note: rewatch.notes,
               rating: rewatch.rating,
-              timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : 0,
-              dateStr: rewatch.finish_date || rewatch.start_date,
+              timestamp: safeTimestamp(dateStr),
+              dateStr,
             });
           }
         });
@@ -90,7 +112,7 @@ export function useReflections(): {
 
       // Movies
       series.movies?.forEach((movie) => {
-        const movieTime = movie.created_at ? new Date(movie.created_at).getTime() : 0;
+        const movieTime = safeTimestamp(movie.created_at);
         if (movie.notes?.trim()) {
           list.push({
             id: `movie-${movie.id}`,
@@ -111,7 +133,7 @@ export function useReflections(): {
 
     // 2. Books
     bookList.forEach((book) => {
-      const bookTime = book.created_at ? new Date(book.created_at).getTime() : 0;
+      const bookTime = safeTimestamp(book.created_at);
       if (book.notes?.trim()) {
         list.push({
           id: `book-${book.id}`,
@@ -131,6 +153,8 @@ export function useReflections(): {
     // 3. Characters
     characterList.forEach((char) => {
       if (char.why?.trim()) {
+        const charDate = charActivityDateById.get(char.id);
+        const fallbackDate = charDate ?? seriesCreatedAtById.get(char.series) ?? null;
         list.push({
           id: `char-${char.id}`,
           kind: 'character',
@@ -140,7 +164,8 @@ export function useReflections(): {
           title: char.name,
           context: char.series_title ? `Character · ${char.series_title}` : 'Character note',
           note: char.why,
-          timestamp: 0,
+          timestamp: safeTimestamp(fallbackDate),
+          dateStr: charDate ?? undefined,
         });
       }
     });
@@ -148,25 +173,42 @@ export function useReflections(): {
     // 4. Standalone Rewatches
     rewatchList.forEach((rewatch) => {
       if (rewatch.notes?.trim() && !list.some((r) => r.id === `rewatch-${rewatch.id}`)) {
+        const resolvedTargetKind: JournalReflection['targetKind'] =
+          rewatch.target_type === 'series'
+            ? 'series'
+            : rewatch.target_type === 'movie' || rewatch.movie_id
+              ? 'movie'
+              : 'season';
+        const resolvedTargetId =
+          resolvedTargetKind === 'series'
+            ? (rewatch.series_id ?? rewatch.target_id)
+            : resolvedTargetKind === 'movie'
+              ? (rewatch.movie_id ?? rewatch.target_id)
+              : (rewatch.season_id ?? rewatch.target_id);
+        const dateStr = rewatch.finish_date || rewatch.start_date;
+
         list.push({
           id: `rewatch-${rewatch.id}`,
           kind: 'rewatch',
-          targetKind: rewatch.movie_id ? 'movie' : 'season',
-          targetId: (rewatch.season_id || rewatch.movie_id || rewatch.target_id) as number,
-          seriesId: rewatch.series_id ?? undefined,
+          targetKind: resolvedTargetKind,
+          targetId: resolvedTargetId,
+          seriesId:
+            rewatch.series_id ??
+            (resolvedTargetKind === 'series' ? resolvedTargetId : undefined),
           title: rewatch.series_title || rewatch.release_title || 'A remembered title',
           context: `Rewatch · ${rewatch.release_title || ''}`,
           note: rewatch.notes,
           rating: rewatch.rating,
-          timestamp: rewatch.finish_date ? new Date(rewatch.finish_date).getTime() : 0,
-          dateStr: rewatch.finish_date || rewatch.start_date,
+          episodeNumber: rewatch.episode_number ?? undefined,
+          timestamp: safeTimestamp(dateStr),
+          dateStr,
         });
       }
     });
 
     // Sort newest first
     return list.sort((a, b) => b.timestamp - a.timestamp);
-  }, [seriesList, bookList, characterList, rewatchList]);
+  }, [seriesList, bookList, characterList, rewatchList, activityList]);
 
   return {
     reflections,

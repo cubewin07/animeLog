@@ -176,10 +176,37 @@ export function computeTodayXp(activityList: ActivityEvent[], now: Date | string
   if (!todayKey) return 0;
 
   let total = 0;
+  const seenNoteOrChar = new Set<string>();
+  const completedDeltaByTarget = new Map<string, number>();
+
   for (const event of activityList) {
     if (event.backfilled) continue;
     if (toLocalDateKey(event.created_at) !== todayKey) continue;
+
+    if (event.kind === 'NOTE_WRITTEN' || event.kind === 'CHARACTER_ADDED') {
+      const key = `${event.kind}:${event.target_type}:${event.target_id}`;
+      if (seenNoteOrChar.has(key)) continue;
+      if (event.delta > 0) {
+        seenNoteOrChar.add(key);
+        total += eventXpDelta(event);
+      }
+      continue;
+    }
+
+    if (event.kind === 'COMPLETED') {
+      const key = `${event.target_type}:${event.target_id}`;
+      completedDeltaByTarget.set(key, (completedDeltaByTarget.get(key) ?? 0) + event.delta);
+      continue;
+    }
+
     total += eventXpDelta(event);
   }
+
+  for (const netDelta of completedDeltaByTarget.values()) {
+    if (netDelta > 0) {
+      total += netDelta * XP_WEIGHTS.COMPLETION;
+    }
+  }
+
   return Math.max(0, total);
 }

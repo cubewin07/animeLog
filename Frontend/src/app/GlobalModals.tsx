@@ -85,7 +85,14 @@ export const GlobalModals: React.FC<{ exportOpen: boolean; onCloseExport: () => 
             onSave={a.handleSaveCharacter}
           />
         )}
-        {exportOpened && <ExportModal isOpen={exportOpen} onClose={onCloseExport} onToast={a.addToast} />}
+        {exportOpened && (
+          <ExportModal
+            isOpen={exportOpen}
+            onClose={onCloseExport}
+            onToast={a.addToast}
+            onImported={a.refreshAll}
+          />
+        )}
       </Suspense>
     </ErrorBoundary>
   );

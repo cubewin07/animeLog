@@ -264,6 +264,14 @@ function buildStableActions(
 const PROGRESS_SAVE_DELAY_MS = 250;
 const SNAPSHOT_SAVE_DELAY_MS = 500;
 type ProgressRecord = AnimeSeason | AnimeMovie | Book;
+type ActivityFetchResult = { ok: true; items: ActivityEvent[] } | { ok: false };
+
+function fetchActivitySafe(): Promise<ActivityFetchResult> {
+  return activityApi.list().then(
+    (items) => ({ ok: true as const, items }),
+    () => ({ ok: false as const })
+  );
+}
 
 export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -402,14 +410,33 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Newest request wins, so a slow older response can't overwrite newer data
   const fetchId = useRef(0);
+  const activityFetchId = useRef(0);
   const refreshWhenIdle = useRef(false);
+  const needsActivityRefresh = useRef(false);
   const progressQueue = useRef<ProgressQueue<ProgressRecord> | null>(null);
   const nextSyntheticActivityId = useRef(-1);
+  const syntheticIdsByKey = useRef<Map<string, Set<number>>>(new Map());
+
+  const clearSyntheticActivityForKey = useCallback((key: string) => {
+    const ids = syntheticIdsByKey.current.get(key);
+    if (!ids || ids.size === 0) return;
+    const idsToRemove = new Set(ids);
+    syntheticIdsByKey.current.delete(key);
+    setActivityList((prev) => prev.filter((e) => !idsToRemove.has(e.id)));
+  }, []);
 
   const appendLocalActivity = useCallback(
     (kind: ActivityKind, targetType: string, targetId: number, title: string, delta: number) => {
+      const syntheticId = nextSyntheticActivityId.current--;
+      const key = `${targetType}-${targetId}`;
+      let ids = syntheticIdsByKey.current.get(key);
+      if (!ids) {
+        ids = new Set<number>();
+        syntheticIdsByKey.current.set(key, ids);
+      }
+      ids.add(syntheticId);
       const event: ActivityEvent = {
-        id: nextSyntheticActivityId.current--,
+        id: syntheticId,
         kind,
         target_type: targetType,
         target_id: targetId,
@@ -423,6 +450,22 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
     []
   );
 
+  const refreshActivity = useCallback(async () => {
+    if (progressQueue.current?.busy) {
+      needsActivityRefresh.current = true;
+      return;
+    }
+    const id = ++activityFetchId.current;
+    const actResult = await fetchActivitySafe();
+    if (!actResult.ok) return;
+    if (id !== activityFetchId.current || progressQueue.current?.busy) {
+      if (progressQueue.current?.busy) needsActivityRefresh.current = true;
+      return;
+    }
+    syntheticIdsByKey.current.clear();
+    setActivityList(actResult.items);
+  }, []);
+
   const refreshAll = useCallback(async () => {
     // Progress taps still being saved would be overwritten by older server data, so wait for them
     if (progressQueue.current?.busy) {
@@ -430,14 +473,15 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return;
     }
     const id = ++fetchId.current;
+    const actId = ++activityFetchId.current;
     try {
-      const [s, b, r, c, stt, act] = await Promise.all([
+      const [s, b, r, c, stt, actResult] = await Promise.all([
         seriesApi.list(),
         bookApi.list(),
         rewatchApi.list(),
         characterApi.list(),
         statsApi.getStats(),
-        activityApi.list().catch(() => [] as ActivityEvent[]),
+        fetchActivitySafe(),
       ]);
       if (id !== fetchId.current) return;
       if (progressQueue.current?.busy) {
@@ -449,7 +493,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setRewatchList(r);
       setCharacterList(c);
       setStats(stt);
-      setActivityList(act);
+      if (actResult.ok && actId === activityFetchId.current) {
+        syntheticIdsByKey.current.clear();
+        setActivityList(actResult.items);
+      }
     } catch (err) {
       console.error('Failed to refresh data:', err);
     }
@@ -458,9 +505,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const hasSnapshot = Boolean(snapshot);
   const loadData = useCallback(async () => {
     const id = ++fetchId.current;
+    const actId = ++activityFetchId.current;
     setLoadFailed(false);
     try {
-      const [s, b, r, c, g, st, stt, act] = await Promise.all([
+      const [s, b, r, c, g, st, stt, actResult] = await Promise.all([
         seriesApi.list(),
         bookApi.list(),
         rewatchApi.list(),
@@ -468,20 +516,23 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         genreApi.list(),
         studioApi.list(),
         statsApi.getStats(),
-        activityApi.list().catch(() => [] as ActivityEvent[]),
+        fetchActivitySafe(),
       ]);
-      setGenres(g);
-      setStudios(st);
       if (id !== fetchId.current || progressQueue.current?.busy) {
         refreshWhenIdle.current = refreshWhenIdle.current || Boolean(progressQueue.current?.busy);
         return;
       }
+      setGenres(g);
+      setStudios(st);
       setSeriesList(s);
       setBookList(b);
       setRewatchList(r);
       setCharacterList(c);
       setStats(stt);
-      setActivityList(act);
+      if (actResult.ok && actId === activityFetchId.current) {
+        syntheticIdsByKey.current.clear();
+        setActivityList(actResult.items);
+      }
     } catch (err) {
       console.error('Failed to load data:', err);
       if (hasSnapshot) {
@@ -524,16 +575,26 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (confirmed.status !== before.status) {
             statsApi.getStats().then(setStats).catch(() => {});
           }
+          if (confirmed === before) {
+            clearSyntheticActivityForKey(key);
+          } else {
+            needsActivityRefresh.current = true;
+          }
         },
         onFailed: (key, confirmed, error) => {
           console.error('Failed to save progress:', error);
+          clearSyntheticActivityForKey(key);
           applyRecord(key, confirmed);
           addToast('Couldn’t save your progress, so it was put back. Check that the server is running.', 'error');
         },
         onIdle: () => {
           if (refreshWhenIdle.current) {
             refreshWhenIdle.current = false;
+            needsActivityRefresh.current = false;
             refreshAll();
+          } else if (needsActivityRefresh.current) {
+            needsActivityRefresh.current = false;
+            refreshActivity();
           }
         },
       })
@@ -708,6 +769,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshAll();
     } catch (err: any) {
       addToast(`Error saving series: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -737,11 +799,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         await seasonApi.create(data);
         addToast('Season added');
-        refreshAll();
       }
       setEntryModalOpen(false);
+      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving season: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -836,11 +899,12 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         await movieApi.create(data);
         addToast('Movie added');
-        refreshAll();
       }
       setEntryModalOpen(false);
+      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving movie: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -934,8 +998,10 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
         addToast('Book added');
       }
       setEntryModalOpen(false);
+      await refreshAll();
     } catch (err: any) {
       addToast(`Error saving book: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -1020,6 +1086,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshAll();
     } catch (err: any) {
       addToast(`Error saving character: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -1053,6 +1120,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshAll();
     } catch (err: any) {
       addToast(`Error saving rewatch: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -1086,6 +1154,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshAll();
     } catch (err: any) {
       addToast(`Error saving episode note: ${err.message}`, 'error');
+      throw err;
     }
   };
 
@@ -1097,6 +1166,7 @@ export const JournalProvider: React.FC<{ children: React.ReactNode }> = ({ child
       await refreshAll();
     } catch (err: any) {
       addToast(`Error deleting episode note: ${err.message}`, 'error');
+      throw err;
     }
   };
 

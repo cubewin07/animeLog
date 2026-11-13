@@ -15,18 +15,23 @@ export interface ComposerDraft {
 
 const STORAGE_PREFIX = 'lamplight_draft:';
 
+function buildDraftKey(targetKey: string, kind: string, episodeNumber?: number): string {
+  const epSuffix = kind === 'episode' && episodeNumber !== undefined ? `:ep${episodeNumber}` : '';
+  return `${STORAGE_PREFIX}${targetKey}:${kind}${epSuffix}`;
+}
+
 export function saveDraft(draft: ComposerDraft): void {
   try {
-    const key = `${STORAGE_PREFIX}${draft.targetKey}:${draft.kind}`;
+    const key = buildDraftKey(draft.targetKey, draft.kind, draft.episodeNumber);
     localStorage.setItem(key, JSON.stringify(draft));
   } catch (err) {
     console.warn('Failed to save draft:', err);
   }
 }
 
-export function loadDraft(targetKey: string, kind: string): ComposerDraft | null {
+export function loadDraft(targetKey: string, kind: string, episodeNumber?: number): ComposerDraft | null {
   try {
-    const key = `${STORAGE_PREFIX}${targetKey}:${kind}`;
+    const key = buildDraftKey(targetKey, kind, episodeNumber);
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw);
@@ -35,9 +40,9 @@ export function loadDraft(targetKey: string, kind: string): ComposerDraft | null
   }
 }
 
-export function clearDraft(targetKey: string, kind: string): void {
+export function clearDraft(targetKey: string, kind: string, episodeNumber?: number): void {
   try {
-    const key = `${STORAGE_PREFIX}${targetKey}:${kind}`;
+    const key = buildDraftKey(targetKey, kind, episodeNumber);
     localStorage.removeItem(key);
   } catch (err) {
     console.warn('Failed to clear draft:', err);

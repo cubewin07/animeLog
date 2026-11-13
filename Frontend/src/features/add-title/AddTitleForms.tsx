@@ -26,6 +26,7 @@ import {
 import { ExternalAnimeLookupResult, ExternalBookLookupResult } from '../../api/client';
 import { ImageUploadField } from '../../components/ImageUploadField';
 import { SmartMetadataSearch } from '../../components/SmartMetadataSearch';
+import { localToday } from '../../lib/journal/progress';
 import { KfButton, NotePaper } from '../../ui/keyframe';
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
@@ -55,10 +56,6 @@ const BOOK_STATUSES: StatusOption[] = [
   { value: 'ON_HOLD', label: 'On hold', tone: 'hold', Icon: CirclePause },
   { value: 'DROPPED', label: 'Dropped', tone: 'dropped', Icon: CircleSlash },
 ];
-
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 function toRoman(num: number): string {
   const romanMap: [number, string][] = [
@@ -411,7 +408,7 @@ export const SeriesCreateForm: React.FC<SeriesCreateFormProps> = ({
   const [progress, setProgress] = useState(0);
   const [totalCount, setTotalCount] = useState<number | ''>('');
   const [rating, setRating] = useState<number | null>(null);
-  const [startDate, setStartDate] = useState(todayIso);
+  const [startDate, setStartDate] = useState(localToday);
   const [finishDate, setFinishDate] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
@@ -756,7 +753,7 @@ export const BookCreateForm: React.FC<BookCreateFormProps> = ({
   const [progress, setProgress] = useState(0);
   const [totalCount, setTotalCount] = useState<number | ''>('');
   const [rating, setRating] = useState<number | null>(null);
-  const [startDate, setStartDate] = useState(todayIso);
+  const [startDate, setStartDate] = useState(localToday);
   const [finishDate, setFinishDate] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedGenreIds, setSelectedGenreIds] = useState<number[]>([]);
@@ -1055,7 +1052,7 @@ export const SeasonForm: React.FC<SeasonFormProps> = ({
   const [progress, setProgress] = useState<number>(editSeason?.progress ?? 0);
   const [totalCount, setTotalCount] = useState<number | ''>(editSeason?.total_episodes ?? '');
   const [rating, setRating] = useState<number | null>(editSeason?.rating ?? null);
-  const [startDate, setStartDate] = useState(editSeason?.start_date ?? (isEditing ? '' : todayIso()));
+  const [startDate, setStartDate] = useState(editSeason?.start_date ?? (isEditing ? '' : localToday()));
   const [finishDate, setFinishDate] = useState(editSeason?.finish_date ?? '');
   const [notes, setNotes] = useState(editSeason?.notes ?? '');
   const [selectedStudioIds, setSelectedStudioIds] = useState<number[]>(
@@ -1294,7 +1291,7 @@ export const MovieForm: React.FC<MovieFormProps> = ({
   const [progress, setProgress] = useState<number>(editMovie?.progress_minutes ?? 0);
   const [totalCount, setTotalCount] = useState<number | ''>(editMovie?.total_minutes ?? '');
   const [rating, setRating] = useState<number | null>(editMovie?.rating ?? null);
-  const [startDate, setStartDate] = useState(editMovie?.start_date ?? (isEditing ? '' : todayIso()));
+  const [startDate, setStartDate] = useState(editMovie?.start_date ?? (isEditing ? '' : localToday()));
   const [finishDate, setFinishDate] = useState(editMovie?.finish_date ?? '');
   const [notes, setNotes] = useState(editMovie?.notes ?? '');
   const [selectedStudioIds, setSelectedStudioIds] = useState<number[]>(

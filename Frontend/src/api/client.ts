@@ -23,7 +23,10 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+async function fetchJsonWithHeaders<T>(
+  url: string,
+  options?: RequestInit
+): Promise<{ data: T; headers: Headers }> {
   const csrfToken = getCsrfToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -51,10 +54,15 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   if (res.status === 204) {
-    return undefined as T;
+    return { data: undefined as T, headers: res.headers };
   }
 
-  return res.json();
+  return { data: (await res.json()) as T, headers: res.headers };
+}
+
+async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const { data } = await fetchJsonWithHeaders<T>(url, options);
+  return data;
 }
 
 function withQuery(params?: Record<string, string | number | undefined>): string {
@@ -369,25 +377,10 @@ export const bookApi = {
   },
 
   async updateProgress(id: number, delta: number): Promise<Book> {
-    const current = await bookApi.get(id);
-    const max = current.total_pages || 99999;
-    const newProgress = Math.max(0, Math.min(max, current.progress + delta));
-    const today = new Date().toISOString().split('T')[0];
-    const reopened =
-      current.status === 'COMPLETED' && Boolean(current.total_pages) && newProgress < (current.total_pages as number);
-    const newStatus = reopened
-      ? 'READING'
-      : current.status === 'PLAN_TO_READ' && newProgress > 0
-        ? 'READING'
-        : current.total_pages && newProgress >= current.total_pages && current.status === 'READING'
-          ? 'COMPLETED'
-          : current.status;
-
-    let finishDate = current.finish_date;
-    if (newStatus === 'COMPLETED' && !finishDate) finishDate = today;
-    if (reopened && finishDate === today) finishDate = null;
-
-    return bookApi.update(id, { progress: newProgress, status: newStatus, finish_date: finishDate });
+    return fetchJson<Book>(`${API_BASE}/books/${id}/progress/`, {
+      method: 'PATCH',
+      body: JSON.stringify({ delta }),
+    });
   },
 
   async delete(id: number): Promise<void> {
@@ -511,8 +504,26 @@ export const statsApi = {
 };
 
 export const activityApi = {
-  async list(params?: { since?: string; limit?: number }): Promise<ActivityEvent[]> {
-    return fetchJson<ActivityEvent[]>(`${API_BASE}/activity/${withQuery(params)}`);
+  async list(params?: { since?: string; limit?: number; offset?: number }): Promise<ActivityEvent[]> {
+    if (params?.limit !== undefined || params?.offset !== undefined) {
+      return fetchJson<ActivityEvent[]>(`${API_BASE}/activity/${withQuery(params)}`);
+    }
+
+    const all: ActivityEvent[] = [];
+    const limit = 1000;
+    let offset = 0;
+
+    while (true) {
+      const { data, headers } = await fetchJsonWithHeaders<ActivityEvent[]>(
+        `${API_BASE}/activity/${withQuery({ since: params?.since, limit, offset })}`
+      );
+      all.push(...data);
+      const hasMore = headers.get('X-Has-More')?.toLowerCase() === 'true';
+      if (!hasMore || data.length === 0) break;
+      offset += data.length;
+    }
+
+    return all;
   },
 };
 

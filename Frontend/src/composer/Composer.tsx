@@ -9,11 +9,13 @@ import {
   seasonApi,
 } from '../api/client';
 import { useJournalActions, useJournalData, useJournalUI } from '../state/JournalContext';
+import { localToday } from '../lib/journal/progress';
 import { KfButton, NotePaper } from '../ui/keyframe';
 import { useDialog } from '../ui/Sheet/useDialog';
 import { clearDraft, loadDraft, saveDraft } from './drafts';
 import { composeFinalNote, normalizeKind, NoteKind, resolveExistingNote } from './noteTarget';
 import { ChosenTarget, TargetPicker } from './TargetPicker';
+import type { AnimeSeries, Book } from '../types';
 import './Composer.css';
 
 export interface ComposerProps {
@@ -24,6 +26,30 @@ export interface ComposerProps {
 export type ReflectionKind = NoteKind;
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
+
+function resolveExistingRating(
+  target: ChosenTarget,
+  kind: ReflectionKind,
+  episodeNumber: number,
+  lists: { seriesList: AnimeSeries[]; bookList: Book[] }
+): number | null {
+  if (target.targetKind === 'season') {
+    const season = lists.seriesList.flatMap((s) => s.seasons ?? []).find((s) => s.id === target.id);
+    if (kind === 'lesson') return season?.rating ?? null;
+    if (kind === 'episode') {
+      return season?.episode_notes?.find((n) => n.episode_number === episodeNumber)?.rating ?? null;
+    }
+    return null;
+  }
+  if (target.targetKind === 'movie' && kind === 'lesson') {
+    const movie = lists.seriesList.flatMap((s) => s.movies ?? []).find((m) => m.id === target.id);
+    return movie?.rating ?? null;
+  }
+  if (target.targetKind === 'book') {
+    return lists.bookList.find((b) => b.id === target.id)?.rating ?? null;
+  }
+  return null;
+}
 
 export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   const { seriesList, bookList, characterList } = useJournalData();
@@ -39,14 +65,21 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   const [episodeNumber, setEpisodeNumber] = useState<number>(1);
   const [note, setNote] = useState<string>('');
   const [rating, setRating] = useState<number | null>(null);
+  const [ratingEdited, setRatingEdited] = useState(false);
   const [editEntireNote, setEditEntireNote] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftSavedTime, setDraftSavedTime] = useState<string | null>(null);
+
+  const listsRef = useRef({ seriesList, bookList });
+  useEffect(() => {
+    listsRef.current = { seriesList, bookList };
+  }, [seriesList, bookList]);
 
   // Holds one-time initial text/rating passed from QuickLogBar so draft loading doesn't clear it
   const pendingSeedRef = useRef<{
     targetKey: string;
     kind: ReflectionKind;
+    episodeNumber?: number;
     note?: string;
     rating?: number | null;
   } | null>(null);
@@ -55,6 +88,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (!isOpen) return;
     setEditEntireNote(false);
+    setRatingEdited(false);
     setDraftSavedTime(null);
 
     if (composerInitialTarget) {
@@ -62,6 +96,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         composerInitialTarget.targetKind,
         composerInitialTarget.defaultKind
       );
+      const initialEp = composerInitialTarget.episodeNumber ?? 1;
       if (
         composerInitialTarget.initialNote !== undefined ||
         composerInitialTarget.initialRating !== undefined
@@ -69,6 +104,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         pendingSeedRef.current = {
           targetKey: `${composerInitialTarget.targetKind}-${composerInitialTarget.id}`,
           kind: normalized,
+          episodeNumber: normalized === 'episode' ? initialEp : undefined,
           note: composerInitialTarget.initialNote,
           rating: composerInitialTarget.initialRating,
         };
@@ -85,7 +121,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         episodeNumber: composerInitialTarget.episodeNumber,
       });
       setKind(normalized);
-      setEpisodeNumber(composerInitialTarget.episodeNumber ?? 1);
+      setEpisodeNumber(initialEp);
       setNote(composerInitialTarget.initialNote ?? '');
       setRating(composerInitialTarget.initialRating ?? null);
     } else {
@@ -108,39 +144,55 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
   );
   const existingText = existing.text?.trim() ? existing.text : null;
 
+  const activeEpisode = kind === 'episode' ? episodeNumber : undefined;
+
   // Load existing draft if available
   useEffect(() => {
-    if (!target) return;
+    if (!isOpen || !target) return;
     const targetKey = `${target.targetKind}-${target.id}`;
     const seed = pendingSeedRef.current;
+    const savedRating = resolveExistingRating(
+      target,
+      kind,
+      activeEpisode ?? 1,
+      listsRef.current
+    );
 
-    if (seed && seed.targetKey === targetKey && seed.kind === kind) {
+    if (
+      seed &&
+      seed.targetKey === targetKey &&
+      seed.kind === kind &&
+      (kind !== 'episode' || seed.episodeNumber === activeEpisode)
+    ) {
       pendingSeedRef.current = null;
       if (seed.note !== undefined) {
         setNote(seed.note);
-        setRating(seed.rating ?? null);
+        setRating(seed.rating !== undefined ? (seed.rating ?? null) : savedRating);
+        setRatingEdited(false);
         setEditEntireNote(false);
         return;
       }
     }
 
-    const draft = loadDraft(targetKey, kind);
-    // A draft for a different episode must not replace the episode that was asked for
-    const draftFitsEpisode =
-      !target.episodeNumber ||
-      !draft?.episodeNumber ||
-      draft.episodeNumber === target.episodeNumber;
-    if (draft && draftFitsEpisode) {
+    const draft = loadDraft(targetKey, kind, activeEpisode);
+    if (draft) {
       setNote(draft.note);
-      setRating(seed?.rating !== undefined ? seed.rating : (draft.rating ?? null));
+      const nextRating =
+        seed?.rating !== undefined
+          ? (seed.rating ?? null)
+          : draft.rating !== undefined
+            ? (draft.rating ?? null)
+            : savedRating;
+      setRating(nextRating);
+      setRatingEdited(draft.rating !== undefined && nextRating !== savedRating);
       setEditEntireNote(Boolean(draft.editEntireNote));
-      if (draft.episodeNumber) setEpisodeNumber(draft.episodeNumber);
     } else {
       setNote('');
-      setRating(seed?.rating !== undefined ? seed.rating : null);
+      setRating(seed?.rating !== undefined ? (seed.rating ?? null) : savedRating);
+      setRatingEdited(false);
       setEditEntireNote(false);
     }
-  }, [target, kind]);
+  }, [isOpen, target, kind, activeEpisode]);
 
   // Debounced draft autosave
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,25 +271,27 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         dateLabel: todayStr,
       });
 
+      const ratingPayload = ratingEdited || rating !== null ? { rating } : {};
+
       if (target.targetKind === 'season') {
         if (kind === 'lesson') {
           await seasonApi.update(target.id, {
             notes: finalNote,
-            ...(rating ? { rating } : {}),
+            ...ratingPayload,
           });
           addToast('Season note saved');
         } else if (kind === 'episode') {
           if (existing.episodeNoteId) {
             await episodeNoteApi.update(existing.episodeNoteId, {
               note: finalNote,
-              ...(rating ? { rating } : {}),
+              ...ratingPayload,
             });
           } else {
             await episodeNoteApi.create({
               season: target.id,
               episode_number: episodeNumber,
               note: finalNote,
-              ...(rating ? { rating } : {}),
+              ...ratingPayload,
             });
           }
           addToast(`Episode ${episodeNumber} note saved`);
@@ -246,8 +300,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             target_type: 'season',
             target_id: target.id,
             notes: finalNote,
-            ...(rating ? { rating } : {}),
-            start_date: new Date().toISOString().split('T')[0],
+            ...ratingPayload,
+            start_date: localToday(),
           });
           addToast('Rewatch note saved');
         } else {
@@ -257,7 +311,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         if (kind === 'lesson') {
           await movieApi.update(target.id, {
             notes: finalNote,
-            ...(rating ? { rating } : {}),
+            ...ratingPayload,
           });
           addToast('Movie note saved');
         } else if (kind === 'return') {
@@ -265,8 +319,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
             target_type: 'movie',
             target_id: target.id,
             notes: finalNote,
-            ...(rating ? { rating } : {}),
-            start_date: new Date().toISOString().split('T')[0],
+            ...ratingPayload,
+            start_date: localToday(),
           });
           addToast('Rewatch note saved');
         } else {
@@ -275,7 +329,7 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
       } else if (target.targetKind === 'book') {
         await bookApi.update(target.id, {
           notes: finalNote,
-          ...(rating ? { rating } : {}),
+          ...ratingPayload,
         });
         addToast('Book note saved');
       } else if (target.targetKind === 'character') {
@@ -287,8 +341,8 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
         throw new Error('This note type is not available for that title.');
       }
 
-      clearDraft(`${target.targetKind}-${target.id}`, kind);
-      refreshAll();
+      clearDraft(`${target.targetKind}-${target.id}`, kind, activeEpisode);
+      await refreshAll();
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -406,7 +460,20 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
                   max={existing.totalEpisodes || 9999}
                   value={episodeNumber}
                   onChange={(e) => {
-                    setEpisodeNumber(Math.max(1, parseInt(e.target.value, 10) || 1));
+                    const nextEpisode = Math.max(1, parseInt(e.target.value, 10) || 1);
+                    if (target && kind === 'episode' && nextEpisode !== episodeNumber && note.trim()) {
+                      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+                      saveDraft({
+                        targetKey: `${target.targetKind}-${target.id}`,
+                        kind,
+                        episodeNumber,
+                        note,
+                        rating,
+                        editEntireNote,
+                        updatedAt: Date.now(),
+                      });
+                    }
+                    setEpisodeNumber(nextEpisode);
                     if (editEntireNote) {
                       setEditEntireNote(false);
                       setNote('');
@@ -506,7 +573,10 @@ export const Composer: React.FC<ComposerProps> = ({ isOpen, onClose }) => {
                         className={`kf-composer-rate-pill ${isActive ? 'is-active' : ''} ${isGold ? 'is-gold' : ''}`}
                         aria-pressed={isActive}
                         aria-label={`Rate ${n} out of 10`}
-                        onClick={() => setRating(isActive ? null : n)}
+                        onClick={() => {
+                          setRating(isActive ? null : n);
+                          setRatingEdited(true);
+                        }}
                       >
                         {n}
                       </button>

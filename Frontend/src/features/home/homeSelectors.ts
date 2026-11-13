@@ -386,8 +386,8 @@ function reflectionToPastNote(
     rating: r.rating ?? null,
     dateStr: r.dateStr ?? null,
     href: reflectionHref(r),
-    targetKind: r.kind === 'rewatch' ? undefined : r.targetKind,
-    targetId: r.kind === 'rewatch' ? undefined : r.targetId,
+    targetKind: r.kind === 'rewatch' || r.targetKind === 'series' ? undefined : r.targetKind,
+    targetId: r.kind === 'rewatch' || r.targetKind === 'series' ? undefined : r.targetId,
     episodeNumber: r.episodeNumber,
     reflectionKind: r.kind,
   };

@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import { exportApi, importApi } from '../api/client';
+import { localToday } from '../lib/journal/progress';
 import { KfButton } from '../ui/keyframe';
 import { useDialog } from '../ui/Sheet/useDialog';
 import '../styles/keyframe.css';
@@ -19,9 +20,10 @@ interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   onToast?: (text: string, type?: 'success' | 'error') => void;
+  onImported?: () => Promise<void> | void;
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToast }) => {
+export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToast, onImported }) => {
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [downloadingMd, setDownloadingMd] = useState(false);
   const [downloadingJson, setDownloadingJson] = useState(false);
@@ -55,7 +57,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToa
       const res = await exportApi.exportMarkdown();
       triggerDownload(
         res.content,
-        `animelog-journal-${new Date().toISOString().split('T')[0]}.md`,
+        `animelog-journal-${localToday()}.md`,
         'text/markdown',
       );
       onToast?.('Exported journal to Markdown (Obsidian-ready)!');
@@ -73,7 +75,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToa
       const data = await exportApi.exportJson();
       triggerDownload(
         JSON.stringify(data, null, 2),
-        `animelog-backup-${new Date().toISOString().split('T')[0]}.json`,
+        `animelog-backup-${localToday()}.json`,
         'application/json',
       );
       onToast?.('Exported complete JSON backup!');
@@ -93,6 +95,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToa
       setImportingMal(true);
       setImportResult(null);
       const res = await importApi.importMal(user, 60);
+      await onImported?.();
       const msg = `Imported ${res.imported_count} new and updated ${res.updated_count} series from MyAnimeList (${res.total_processed} total).`;
       setImportResult(msg);
       onToast?.(msg);
@@ -117,6 +120,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onToa
       const text = await file.text();
       const parsed: unknown = JSON.parse(text);
       const res = await importApi.importJson(parsed);
+      await onImported?.();
       const msg = `Restored ${res.imported.series} series, ${res.imported.books} books, and ${res.imported.characters} characters!`;
       setImportResult(msg);
       onToast?.(msg);

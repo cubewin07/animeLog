@@ -913,12 +913,19 @@ export function computeYearRecap(year: number, input: YearRecapInput): YearRecap
   }
 
   const yearReflections = reflections.filter((r) => hasText(r.note) && getReflectionYear(r) === year);
-  const noteWrittenEvents = activityList.filter(
-    (e) =>
-      extractYear(e.created_at) === year &&
-      (e.kind === 'NOTE_WRITTEN' || e.kind === 'REWATCH_LOGGED') &&
-      e.delta > 0,
-  ).length;
+  const seenNoteTargets = new Set<string>();
+  let noteWrittenEvents = 0;
+  for (const e of activityList) {
+    if (extractYear(e.created_at) !== year || e.delta <= 0) continue;
+    if (e.kind === 'NOTE_WRITTEN') {
+      const key = `${e.target_type}:${e.target_id}`;
+      if (seenNoteTargets.has(key)) continue;
+      seenNoteTargets.add(key);
+      noteWrittenEvents += 1;
+    } else if (e.kind === 'REWATCH_LOGGED') {
+      noteWrittenEvents += 1;
+    }
+  }
   const notesCount = Math.max(yearReflections.length, noteWrittenEvents);
 
   const bestYearNote = pickBestNote(yearReflections);

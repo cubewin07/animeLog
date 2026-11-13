@@ -9,16 +9,13 @@ import {
   RewatchTargetType,
 } from '../types';
 import { useDialog } from '../ui/Sheet/useDialog';
+import { localToday } from '../lib/journal/progress';
 import { KfButton, NotePaper } from '../ui/keyframe';
 import { ImageUploadField } from './ImageUploadField';
 import { SmartMetadataSearch } from './SmartMetadataSearch';
 import '../features/add-title/AddTitle.css';
 
 const RATINGS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
-
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 interface RewatchModalProps {
   isOpen: boolean;
@@ -118,7 +115,7 @@ const RewatchModalInner: React.FC<
   const [rating, setRating] = useState<number | null>(
     editRewatch ? editRewatch.rating || null : 10
   );
-  const [startDate, setStartDate] = useState(editRewatch ? editRewatch.start_date || '' : todayIso());
+  const [startDate, setStartDate] = useState(editRewatch ? editRewatch.start_date || '' : localToday());
   const [finishDate, setFinishDate] = useState(editRewatch ? editRewatch.finish_date || '' : '');
   const [notes, setNotes] = useState(editRewatch?.notes || '');
   const [errorMsg, setErrorMsg] = useState('');
@@ -558,13 +555,11 @@ const CharacterModalInner: React.FC<
   );
   const [name, setName] = useState(editCharacter?.name ?? '');
   const [why, setWhy] = useState(editCharacter?.why ?? '');
-  const [imageId, setImageId] = useState<number | null>(() => {
-    if (!editCharacter) return null;
-    return (
-      editCharacter.cover_image ??
+  const initialImageId = editCharacter
+    ? editCharacter.cover_image ??
       (editCharacter.images && editCharacter.images.length > 0 ? editCharacter.images[0].id : null)
-    );
-  });
+    : null;
+  const [imageId, setImageId] = useState<number | null>(initialImageId);
   const [imageUrl, setImageUrl] = useState<string | null>(() => {
     if (!editCharacter) return null;
     return (
@@ -587,13 +582,20 @@ const CharacterModalInner: React.FC<
     }
     try {
       setSubmitting(true);
+      const existingImageIds = (editCharacter?.images ?? []).map((img) => img.id);
+      const nextImageIds =
+        imageId !== null
+          ? Array.from(new Set([...existingImageIds, imageId]))
+          : initialImageId !== null
+            ? existingImageIds.filter((id) => id !== initialImageId)
+            : existingImageIds;
       await onSave(
         {
           series: seriesId,
           name: name.trim(),
           why: why.trim() || null,
           cover_image: imageId,
-          images: imageId ? [imageId] : [],
+          images: nextImageIds,
         },
         editCharacter?.id
       );
