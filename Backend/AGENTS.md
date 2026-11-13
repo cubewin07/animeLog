@@ -20,11 +20,11 @@ Admin: http://127.0.0.1:8000/admin/
 ## Current state
 
 Shipped:
-- Domain models (`AnimeSeries`, `AnimeSeason`, `AnimeMovie`, `EpisodeNote`, `Book`, `Rewatch`, `FavoriteCharacter`, `Genre`, `Studio`, `Folder`, `Image`).
-- DRF ViewSets & REST API under `/api/` (series, seasons, movies, books, rewatches, characters, episode-notes, images, folders, lookup, export, import).
+- Domain models (`AnimeSeries`, `AnimeSeason`, `AnimeMovie`, `EpisodeNote`, `Book`, `Rewatch`, `FavoriteCharacter`, `Genre`, `Studio`, `Folder`, `Image`, `ActivityEvent`).
+- DRF ViewSets & REST API under `/api/` (series, seasons, movies, books — including atomic `/seasons/{id}/progress/`, `/movies/{id}/progress/`, and `/api/books/{id}/progress/` — rewatches, characters, episode-notes, images, folders, activity, stats, lookup, export, import).
 - Streamable HTTP MCP Server (`Backend/animeLog/mcp/`) with 24 tools, 5 resources, 5 prompts.
 - Cloudinary media integration & local image fallback.
-- Full automated test suite (58 passing tests under `python manage.py test animeLog`).
+- Full automated test suite (72 passing tests under `python manage.py test animeLog`).
 
 ## Domain rules
 
